@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35004.147
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OptiGraphExtensions", "OptiGraphExtensions\OptiGraphExtensions.csproj", "{DF3CC18B-321C-41EB-B2DC-56D61CF86344}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OptiGraphExtensions.Tests", "OptiGraphExtensions.Tests\OptiGraphExtensions.Tests.csproj", "{E4072272-4930-4C4C-8CF3-0BE5B240FE40}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DF3CC18B-321C-41EB-B2DC-56D61CF86344}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF3CC18B-321C-41EB-B2DC-56D61CF86344}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF3CC18B-321C-41EB-B2DC-56D61CF86344}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DF3CC18B-321C-41EB-B2DC-56D61CF86344}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E4072272-4930-4C4C-8CF3-0BE5B240FE40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4072272-4930-4C4C-8CF3-0BE5B240FE40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4072272-4930-4C4C-8CF3-0BE5B240FE40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4072272-4930-4C4C-8CF3-0BE5B240FE40}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9AF6A8BC-6A5D-4D17-AC5D-5A6057836A1C}
+	EndGlobalSection
+EndGlobal

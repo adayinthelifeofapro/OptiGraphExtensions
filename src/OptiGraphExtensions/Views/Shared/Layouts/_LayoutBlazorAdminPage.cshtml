@@ -1,0 +1,45 @@
+﻿@using EPiServer.Framework.Web.Resources
+@using EPiServer.Shell.Navigation
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Blazor admin</title>
+
+    <!-- Shell -->
+    @ClientResources.RenderResources("ShellCore")
+
+    <!-- LightTheme -->
+    @ClientResources.RenderResources("ShellCoreLightTheme")
+
+    <script src="/js/spinner.js"></script>
+    
+    <style>
+        main {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            max-width: 1000px;
+        }
+        div.criteriabox {
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+        }
+    </style>
+
+    <base href="~/" />
+</head>
+<body>
+    @Html.AntiForgeryToken() <!-- Thanks to: https://world.optimizely.com/blogs/matthew-slim/dates/2023/6/new-menu-system-released/ -->
+    @Html.CreatePlatformNavigationMenu()
+    <div @Html.ApplyPlatformNavigation() style="padding-left: 10px;background: white;padding: 1rem;">
+
+    @RenderBody()
+
+    </div>
+    <script src="_framework/blazor.server.js"></script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <Title>Opti Graph Extensions</Title>
+    <Version>1.0.0.0</Version>
+    <PackageReleaseNotes>An example AddOn for Optimizely CMS 12</PackageReleaseNotes>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>Optimizely</PackageTags>
+    <RepositoryUrl>https://github.com/GrahamCarr74/OptiGraphExtensions</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/GrahamCarr74/OptiGraphExtensions</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Graham Carr 2025</Copyright>
+    <Description>An Optimizely CMS package that allows the management of synonyms and pinned results within Graph</Description>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="module.config">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles\module.config</PackagePath>
+    </None>
+    <None Include="msbuild\copyfiles.targets">
+      <Pack>true</Pack>
+      <PackagePath>build\$(MSBuildProjectName).targets</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EPiServer.CMS.UI.Core" Version="12.23.0" />
+  </ItemGroup>
+
+</Project>
