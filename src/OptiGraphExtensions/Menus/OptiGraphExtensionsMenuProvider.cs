@@ -1,5 +1,7 @@
 ﻿using EPiServer.Shell.Navigation;
 
+using OptiGraphExtensions.Common;
+
 namespace OptiGraphExtensions.Menus;
 
 [MenuProvider]

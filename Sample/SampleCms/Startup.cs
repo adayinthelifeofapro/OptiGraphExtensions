@@ -5,7 +5,7 @@ using EPiServer.Scheduler;
 using EPiServer.ServiceLocation;
 using EPiServer.Web.Routing;
 
-using OptiGraphExtensions.ServiceExtensions;
+using OptiGraphExtensions.Features.Configuration;
 
 using Stott.Optimizely.RobotsHandler.Configuration;
 using Stott.Security.Optimizely.Features.Configuration;

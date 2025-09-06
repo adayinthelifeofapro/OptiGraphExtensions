@@ -1,0 +1,16 @@
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace OptiGraphExtensions.Entities
+{
+    [Table("tbl_OptiGraphExtensions_Synonyms")]
+    public class Synonyms
+    {
+        public Guid Id { get; set; }
+
+        public string? Synonym { get; set; }
+
+        public DateTime? CreatedAt { get; set; }
+
+        public string? CreatedBy { get; set; }  
+    }
+}

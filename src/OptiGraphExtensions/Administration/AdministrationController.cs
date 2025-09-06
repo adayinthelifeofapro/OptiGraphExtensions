@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using OptiGraphExtensions.Common;
+
 namespace OptiGraphExtensions.Administration;
 
 [Authorize(Policy = OptiGraphExtensionsConstants.AuthorizationPolicy)]
