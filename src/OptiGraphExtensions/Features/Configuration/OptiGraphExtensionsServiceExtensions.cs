@@ -48,6 +48,13 @@ public static class OptiGraphExtensionsServiceExtensions
             });
         }
 
+        // API Controllers
+        services.AddControllers();
+
+        // HttpClient for API calls
+        services.AddHttpClient();
+        services.AddHttpContextAccessor();
+
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
         var connectionString = configuration?.GetConnectionString(connectionStringName) ?? string.Empty;

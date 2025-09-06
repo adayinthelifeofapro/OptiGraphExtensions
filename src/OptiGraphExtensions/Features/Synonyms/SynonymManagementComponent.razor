@@ -1,0 +1,469 @@
+@using Microsoft.AspNetCore.Components
+@using OptiGraphExtensions.Features.Synonyms
+@using OptiGraphExtensions.Entities
+@inherits SynonymManagementComponentBase
+
+<div class="epi-contentArea">
+    <div class="epi-contentAreaHeader">
+        <h1 class="epi-h1">Synonym Management</h1>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--danger">
+            <div class="epi-notificationbar-text">@ErrorMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--success">
+            <div class="epi-notificationbar-text">@SuccessMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+        </div>
+    }
+
+    <div class="epi-contentGroup">
+        <div class="epi-groupHeader">
+            <h2 class="epi-h2">Add New Synonym</h2>
+        </div>
+        <div class="epi-form">
+            <div class="epi-form-field">
+                <label for="newSynonym" class="epi-label">Synonym Text</label>
+                <input id="newSynonym" @bind="NewSynonym.Synonym" @onkeypress="@(async (e) => { if (e.Key == "Enter") await CreateSynonym(); })" 
+                       class="epi-textbox" placeholder="Enter synonym..." maxlength="255" />
+            </div>
+            <div class="epi-form-actions">
+                <button @onclick="CreateSynonym" class="epi-button epi-button--primary" disabled="@IsLoading">
+                    @if (IsLoading)
+                    {
+                        <span class="epi-loader-small"></span>
+                    }
+                    Add Synonym
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="epi-contentGroup">
+        <div class="epi-groupHeader">
+            <h2 class="epi-h2">Existing Synonyms</h2>
+            <div class="epi-header-actions">
+                <span class="epi-badge">@TotalItems total synonyms</span>
+                <button @onclick="SyncSynonymsToOptimizelyGraph" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)">
+                    @if (IsSyncing)
+                    {
+                        <span class="epi-loader-small"></span>
+                    }
+                    Sync to Graph
+                </button>
+            </div>
+        </div>
+        <div class="epi-content">
+            @if (IsLoading)
+            {
+                <div class="epi-loading">
+                    <div class="epi-loader"></div>
+                    <p>Loading synonyms...</p>
+                </div>
+            }
+            else if (!AllSynonyms.Any())
+            {
+                <div class="epi-empty-state">
+                    <p>No synonyms found. Create your first synonym above.</p>
+                </div>
+            }
+            else
+            {
+                <div class="epi-table-container">
+                    <table class="epi-table">
+                        <thead>
+                            <tr>
+                                <th>Synonym</th>
+                                <th>Created By</th>
+                                <th>Created Date</th>
+                                <th class="epi-align-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var synonym in Synonyms)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (IsEditing && EditingSynonym.Id == synonym.Id)
+                                        {
+                                            <input @bind="EditingSynonym.Synonym" @onkeypress="@(async (e) => { if (e.Key == "Enter") await UpdateSynonym(); else if (e.Key == "Escape") CancelEdit(); })" 
+                                                   class="epi-textbox epi-textbox--small" maxlength="255" />
+                                        }
+                                        else
+                                        {
+                                            <span>@synonym.SynonymItem</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small>@(synonym.CreatedBy ?? "Unknown")</small>
+                                    </td>
+                                    <td>
+                                        <small>@(synonym.CreatedAt?.ToString("MMM dd, yyyy HH:mm") ?? "Unknown")</small>
+                                    </td>
+                                    <td class="epi-align-right">
+                                        @if (IsEditing && EditingSynonym.Id == synonym.Id)
+                                        {
+                                            <div class="epi-button-group">
+                                                <button @onclick="UpdateSynonym" class="epi-button epi-button--success epi-button--small" title="Save">
+                                                    Save
+                                                </button>
+                                                <button @onclick="CancelEdit" class="epi-button epi-button--secondary epi-button--small" title="Cancel">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="epi-button-group">
+                                                <button @onclick="() => StartEdit(synonym)" class="epi-button epi-button--secondary epi-button--small" title="Edit" disabled="@IsEditing">
+                                                    Edit
+                                                </button>
+                                                <button @onclick="@(async () => { if (await ConfirmDelete()) await DeleteSynonym(synonym.Id); })" 
+                                                        class="epi-button epi-button--danger epi-button--small" 
+                                                        title="Delete" 
+                                                        disabled="@IsEditing">
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                
+                @if (TotalPages > 1)
+                {
+                    <div class="epi-pagination">
+                        <div class="epi-pagination-info">
+                            Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, TotalItems) of @TotalItems synonyms
+                        </div>
+                        <div class="epi-pagination-controls">
+                            <button @onclick="GoToPreviousPage" 
+                                    class="epi-button epi-button--secondary epi-button--small" 
+                                    disabled="@(CurrentPage == 1)">
+                                Previous
+                            </button>
+                            
+                            @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
+                            {
+                                var pageNumber = i; // Capture for lambda
+                                <button @onclick="() => GoToPage(pageNumber)" 
+                                        class="epi-button epi-button--small @(CurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
+                                    @pageNumber
+                                </button>
+                            }
+                            
+                            <button @onclick="GoToNextPage" 
+                                    class="epi-button epi-button--secondary epi-button--small" 
+                                    disabled="@(CurrentPage == TotalPages)">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Basic Optimizely admin styles if not available */
+    .epi-contentArea {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .epi-contentAreaHeader {
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+    }
+
+    .epi-h1 {
+        font-size: 28px;
+        font-weight: 300;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-h2 {
+        font-size: 20px;
+        font-weight: 500;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-contentGroup {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .epi-groupHeader {
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .epi-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .epi-content, .epi-form {
+        padding: 20px;
+    }
+
+    .epi-form-field {
+        margin-bottom: 15px;
+    }
+
+    .epi-label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-textbox {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .epi-textbox--small {
+        padding: 4px 8px;
+        font-size: 13px;
+    }
+
+    .epi-button {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #0066cc;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .epi-button:hover:not(:disabled) {
+        background: #0052a3;
+    }
+
+    .epi-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .epi-button--primary {
+        background: #0066cc;
+    }
+
+    .epi-button--success {
+        background: #5cb85c;
+    }
+
+    .epi-button--success:hover:not(:disabled) {
+        background: #449d44;
+    }
+
+    .epi-button--danger {
+        background: #d9534f;
+    }
+
+    .epi-button--danger:hover:not(:disabled) {
+        background: #c9302c;
+    }
+
+    .epi-button--secondary {
+        background: #6c757d;
+    }
+
+    .epi-button--secondary:hover:not(:disabled) {
+        background: #5a6268;
+    }
+
+    .epi-button--small {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .epi-button-group {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .epi-form-actions {
+        margin-top: 20px;
+    }
+
+    .epi-table-container {
+        overflow-x: auto;
+    }
+
+    .epi-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0;
+    }
+
+    .epi-table th,
+    .epi-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .epi-table th {
+        background: #f5f5f5;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .epi-align-right {
+        text-align: right;
+    }
+
+    .epi-badge {
+        background: #6c757d;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .epi-notificationbar {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .epi-notificationbar--success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .epi-notificationbar--danger {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .epi-notificationbar-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 12px;
+        opacity: 0.7;
+    }
+
+    .epi-notificationbar-close:hover {
+        opacity: 1;
+    }
+
+    .epi-loading {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .epi-loader {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0066cc;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px;
+    }
+
+    .epi-loader-small {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 8px;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .epi-empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .epi-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        margin-top: 16px;
+        border-top: 1px solid #ddd;
+    }
+
+    .epi-pagination-info {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .epi-pagination-controls {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    @@media (max-width: 768px) {
+        .epi-pagination {
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .epi-pagination-info {
+            order: 2;
+        }
+        
+        .epi-pagination-controls {
+            order: 1;
+        }
+    }
+</style>
+
+@code {
+
+}

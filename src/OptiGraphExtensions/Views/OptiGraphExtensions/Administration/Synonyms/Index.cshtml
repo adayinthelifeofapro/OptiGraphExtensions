@@ -5,8 +5,4 @@
     Layout = "/Views/Shared/Layouts/_LayoutBlazorAdminPage.cshtml";
 }
 
-<p>
-    <strong>|---</strong>
-    @(await Html.RenderComponentAsync<OptiGraphExtensions.Features.Synonyms.MyBlazorCounterComponent>(Microsoft.AspNetCore.Mvc.Rendering.RenderMode.Server))
-    <strong>---|</strong>
-</p>
+@(await Html.RenderComponentAsync<OptiGraphExtensions.Features.Synonyms.SynonymManagementComponent>(Microsoft.AspNetCore.Mvc.Rendering.RenderMode.Server))

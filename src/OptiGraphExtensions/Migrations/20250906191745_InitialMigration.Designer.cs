@@ -12,8 +12,8 @@ using OptiGraphExtensions.Entities;
 namespace OptiGraphExtensions.Migrations
 {
     [DbContext(typeof(OptiGraphExtensionsDataContext))]
-    [Migration("20250906185922_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250906191745_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,7 +25,7 @@ namespace OptiGraphExtensions.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("OptiGraphExtensions.Entities.Synonyms", b =>
+            modelBuilder.Entity("OptiGraphExtensions.Entities.Synonym", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -37,7 +37,7 @@ namespace OptiGraphExtensions.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Synonym")
+                    b.Property<string>("SynonymItem")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");

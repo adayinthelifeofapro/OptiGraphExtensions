@@ -4,6 +4,8 @@ namespace OptiGraphExtensions.Entities
 {
     public interface IOptiGraphExtensionsDataContext
     {
-        DbSet<Synonyms> Synonyms { get; set; }
+        DbSet<Synonym> Synonyms { get; set; }
+
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

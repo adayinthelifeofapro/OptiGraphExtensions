@@ -18,6 +18,6 @@ namespace OptiGraphExtensions.Entities
             Debug.WriteLine($"OptiGraphExtensionsDataContext created: {DateTime.UtcNow}");
         }
 
-        public DbSet<Synonyms> Synonyms { get; set; }
+        public DbSet<Synonym> Synonyms { get; set; }
     }
 }

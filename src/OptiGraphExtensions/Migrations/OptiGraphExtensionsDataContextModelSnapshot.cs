@@ -22,7 +22,7 @@ namespace OptiGraphExtensions.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("OptiGraphExtensions.Entities.Synonyms", b =>
+            modelBuilder.Entity("OptiGraphExtensions.Entities.Synonym", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -34,7 +34,7 @@ namespace OptiGraphExtensions.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Synonym")
+                    b.Property<string>("SynonymItem")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
