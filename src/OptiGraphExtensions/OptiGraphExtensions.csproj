@@ -23,6 +23,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Api\**" />
+    <Content Remove="Api\**" />
+    <EmbeddedResource Remove="Api\**" />
+    <None Remove="Api\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\LICENSE">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
@@ -56,7 +63,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Api\" />
     <Folder Include="Features\PinnedResults\" />
     <Folder Include="Migrations\" />
   </ItemGroup>
