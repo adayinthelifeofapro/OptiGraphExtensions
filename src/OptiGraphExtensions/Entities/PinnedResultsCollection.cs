@@ -11,6 +11,8 @@ namespace OptiGraphExtensions.Entities
 
         public bool IsActive { get; set; }
 
+        public string? GraphCollectionId { get; set; } // Optimizely Graph collection ID
+
         public DateTime? CreatedAt { get; set; }
 
         public string? CreatedBy { get; set; }

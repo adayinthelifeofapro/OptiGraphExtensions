@@ -106,6 +106,34 @@ namespace OptiGraphExtensions.Features.PinnedResults
             return NoContent();
         }
 
+        [HttpPatch]
+        [Route("{id}/graph-id")]
+        public async Task<IActionResult> UpdateGraphCollectionId(Guid id, UpdateGraphCollectionIdRequest request)
+        {
+            var collection = await _dataContext.PinnedResultsCollections.FindAsync(id);
+            if (collection == null)
+            {
+                return NotFound();
+            }
+
+            collection.GraphCollectionId = request.GraphCollectionId;
+
+            try
+            {
+                await _dataContext.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!await CollectionExists(id))
+                {
+                    return NotFound();
+                }
+                throw;
+            }
+
+            return NoContent();
+        }
+
         private async Task<bool> CollectionExists(Guid id)
         {
             return await _dataContext.PinnedResultsCollections.AnyAsync(e => e.Id == id);
@@ -122,5 +150,10 @@ namespace OptiGraphExtensions.Features.PinnedResults
     {
         public string? Title { get; set; }
         public bool IsActive { get; set; }
+    }
+
+    public class UpdateGraphCollectionIdRequest
+    {
+        public string? GraphCollectionId { get; set; }
     }
 }

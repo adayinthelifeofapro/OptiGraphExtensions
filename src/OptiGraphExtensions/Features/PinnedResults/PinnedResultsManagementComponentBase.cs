@@ -126,8 +126,16 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 
                 if (response.IsSuccessStatusCode)
                 {
+                    var createdCollection = await response.Content.ReadFromJsonAsync<PinnedResultsCollection>();
+                    
+                    // Try to sync with Optimizely Graph
+                    if (createdCollection != null)
+                    {
+                        await SyncCollectionToOptimizelyGraph(createdCollection);
+                    }
+                    
                     NewCollection = new PinnedResultsCollectionModel();
-                    SuccessMessage = "Collection created successfully.";
+                    SuccessMessage = "Collection created successfully and synced to Optimizely Graph.";
                     ErrorMessage = null;
                     await LoadCollections();
                 }
@@ -534,6 +542,248 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
         #endregion
 
+        #region Optimizely Graph Synchronization
+
+        protected async Task SyncCollectionToOptimizelyGraph(PinnedResultsCollection collection)
+        {
+            try
+            {
+                var graphGatewayUrl = GetOptimizelyGraphGatewayUrl();
+                var hmacKey = GetOptimizelyGraphHmacKey();
+                var hmacSecret = GetOptimizelyGraphHmacSecret();
+
+                if (string.IsNullOrEmpty(graphGatewayUrl) || string.IsNullOrEmpty(hmacKey) || string.IsNullOrEmpty(hmacSecret))
+                {
+                    return; // Silent fail if Graph not configured
+                }
+
+                var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+                var graphApiUrl = $"{graphGatewayUrl}/api/pinned/collections";
+
+                var graphRequest = new
+                {
+                    title = collection.Title,
+                    isActive = collection.IsActive
+                };
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, graphApiUrl);
+                request.Content = JsonContent.Create(graphRequest);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authenticationHeader);
+
+                var graphResponse = await HttpClient.SendAsync(request);
+                
+                if (graphResponse.IsSuccessStatusCode)
+                {
+                    // Parse the response to get the Graph collection ID
+                    var responseContent = await graphResponse.Content.ReadAsStringAsync();
+                    try
+                    {
+                        var graphCollection = System.Text.Json.JsonSerializer.Deserialize<GraphCollectionResponse>(responseContent, new System.Text.Json.JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (!string.IsNullOrEmpty(graphCollection?.Id))
+                        {
+                            // Update the local collection with the Graph collection ID
+                            await UpdateCollectionGraphId(collection.Id, graphCollection.Id);
+                        }
+                    }
+                    catch (System.Text.Json.JsonException)
+                    {
+                        // Log parsing error but don't fail the operation
+                        System.Diagnostics.Debug.WriteLine($"Failed to parse Graph collection response: {responseContent}");
+                    }
+                }
+                else
+                {
+                    var errorContent = await graphResponse.Content.ReadAsStringAsync();
+                    // Log error but don't show to user - collection was created locally
+                    System.Diagnostics.Debug.WriteLine($"Graph sync failed: {graphResponse.StatusCode} - {errorContent}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't show to user - collection was created locally
+                System.Diagnostics.Debug.WriteLine($"Graph sync error: {ex.Message}");
+            }
+        }
+
+        private async Task UpdateCollectionGraphId(Guid collectionId, string graphCollectionId)
+        {
+            try
+            {
+                var baseUrl = GetBaseUrl();
+                var updateRequest = new { GraphCollectionId = graphCollectionId };
+                
+                await HttpClient.PatchAsync($"{baseUrl}/api/optimizely-graphextensions/pinned-results-collections/{collectionId}/graph-id", 
+                    JsonContent.Create(updateRequest));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to update Graph collection ID: {ex.Message}");
+            }
+        }
+
+        protected async Task SyncPinnedResultsToOptimizelyGraph()
+        {
+            try
+            {
+                if (!SelectedCollectionId.HasValue)
+                {
+                    ErrorMessage = "Please select a collection first.";
+                    return;
+                }
+
+                IsSyncing = true;
+                ErrorMessage = null;
+                SuccessMessage = null;
+
+                var httpContext = HttpContextAccessor.HttpContext;
+                if (httpContext?.User?.Identity?.IsAuthenticated != true)
+                {
+                    ErrorMessage = "Error: User is not authenticated. Please log in to sync pinned results.";
+                    return;
+                }
+
+                // Get the collection and its Graph ID
+                var baseUrl = GetBaseUrl();
+                var collectionResponse = await HttpClient.GetAsync($"{baseUrl}/api/optimizely-graphextensions/pinned-results-collections/{SelectedCollectionId}");
+                
+                if (!collectionResponse.IsSuccessStatusCode)
+                {
+                    ErrorMessage = $"Error retrieving collection for sync: {collectionResponse.StatusCode} - {collectionResponse.ReasonPhrase}";
+                    return;
+                }
+
+                var collectionContent = await collectionResponse.Content.ReadAsStringAsync();
+                PinnedResultsCollection? collection;
+
+                try
+                {
+                    collection = System.Text.Json.JsonSerializer.Deserialize<PinnedResultsCollection>(collectionContent, new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    ErrorMessage = "Error: Failed to parse collection data for sync.";
+                    return;
+                }
+
+                if (collection == null || string.IsNullOrEmpty(collection.GraphCollectionId))
+                {
+                    ErrorMessage = "Error: Collection has no Graph collection ID. Please ensure the collection was properly synced to Graph when created.";
+                    return;
+                }
+
+                // Get all pinned results for the selected collection from our local API
+                var response = await HttpClient.GetAsync($"{baseUrl}/api/optimizely-graphextensions/pinned-results?collectionId={SelectedCollectionId}");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    ErrorMessage = $"Error retrieving pinned results for sync: {response.StatusCode} - {response.ReasonPhrase}";
+                    return;
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                List<PinnedResult> pinnedResultsToSync;
+
+                try
+                {
+                    pinnedResultsToSync = System.Text.Json.JsonSerializer.Deserialize<List<PinnedResult>>(responseContent, new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    }) ?? new List<PinnedResult>();
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    ErrorMessage = "Error: Failed to parse pinned results data for sync.";
+                    return;
+                }
+
+                if (!pinnedResultsToSync.Any())
+                {
+                    ErrorMessage = "No pinned results found to sync to Optimizely Graph.";
+                    return;
+                }
+
+                var graphGatewayUrl = GetOptimizelyGraphGatewayUrl();
+                var hmacKey = GetOptimizelyGraphHmacKey();
+                var hmacSecret = GetOptimizelyGraphHmacSecret();
+
+                var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+
+                if (string.IsNullOrEmpty(graphGatewayUrl))
+                {
+                    ErrorMessage = "Error: Optimizely Graph Gateway URL not configured. Please configure your Graph settings.";
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(hmacKey) || string.IsNullOrEmpty(hmacSecret))
+                {
+                    ErrorMessage = "Error: Optimizely Graph HMAC credentials not configured. Please configure your authentication settings.";
+                    return;
+                }
+
+                // Create the request to Optimizely Graph using the Graph collection ID
+                var graphApiUrl = $"{graphGatewayUrl}/api/pinned/collections/{collection.GraphCollectionId}/items";
+                
+                // Convert pinned results to the format expected by Optimizely Graph
+                var graphItems = pinnedResultsToSync.Where(pr => pr.IsActive).Select(pr => new
+                {
+                    phrases = pr.Phrases?.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToArray() ?? Array.Empty<string>(),
+                    targetKey = pr.TargetKey,
+                    language = pr.Language,
+                    priority = pr.Priority,
+                    isActive = pr.IsActive
+                }).ToArray();
+
+                using var request = new HttpRequestMessage(HttpMethod.Put, graphApiUrl);
+                request.Content = JsonContent.Create(graphItems);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authenticationHeader);
+
+                // Send to Optimizely Graph
+                var graphResponse = await HttpClient.SendAsync(request);
+
+                if (graphResponse.IsSuccessStatusCode)
+                {
+                    SuccessMessage = $"Successfully synced {graphItems.Length} pinned results to Optimizely Graph.";
+                }
+                else
+                {
+                    var errorContent = await graphResponse.Content.ReadAsStringAsync();
+                    ErrorMessage = $"Error syncing to Optimizely Graph: {graphResponse.StatusCode} - {errorContent}";
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Error syncing pinned results: {ex.Message}";
+            }
+            finally
+            {
+                IsSyncing = false;
+            }
+        }
+
+        private string GetOptimizelyGraphGatewayUrl()
+        {
+            return Configuration?["Optimizely:ContentGraph:GatewayAddress"] ?? "";
+        }
+
+        private string GetOptimizelyGraphHmacKey()
+        {
+            return Configuration?["Optimizely:ContentGraph:AppKey"] ?? "";
+        }
+
+        private string GetOptimizelyGraphHmacSecret()
+        {
+            return Configuration?["Optimizely:ContentGraph:Secret"] ?? "";
+        }
+
+        #endregion
+
         #region Model Classes
 
         protected class PinnedResultsCollectionModel
@@ -568,6 +818,17 @@ namespace OptiGraphExtensions.Features.PinnedResults
             public int Priority { get; set; } = 1;
 
             public bool IsActive { get; set; } = true;
+        }
+
+        #endregion
+
+        #region Graph Response Models
+
+        protected class GraphCollectionResponse
+        {
+            public string? Id { get; set; }
+            public string? Title { get; set; }
+            public bool IsActive { get; set; }
         }
 
         #endregion
