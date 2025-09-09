@@ -131,9 +131,6 @@
                                         else
                                         {
                                             <div class="epi-button-group">
-                                                <button @onclick="() => StartEditCollection(collection)" class="epi-button epi-button--secondary epi-button--small" title="Edit" disabled="@IsEditingCollection">
-                                                    Edit
-                                                </button>
                                                 <button @onclick="@(async () => { if (await ConfirmDelete()) await DeleteCollection(collection.Id); })" 
                                                         class="epi-button epi-button--danger epi-button--small" 
                                                         title="Delete" 
