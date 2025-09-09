@@ -54,14 +54,14 @@
         </div>
         
         <div class="epi-content">
-            @if (IsLoading && !AllCollections.Any())
+            @if (IsLoading && !Collections.Any())
             {
                 <div class="epi-loading">
                     <div class="epi-loader"></div>
                     <p>Loading collections...</p>
                 </div>
             }
-            else if (!AllCollections.Any())
+            else if (!Collections.Any())
             {
                 <div class="epi-empty-state">
                     <p>No collections found. Create your first collection above.</p>
@@ -173,7 +173,7 @@
                 <label for="collectionSelector" class="epi-label">Select Collection</label>
                 <select id="collectionSelector" @onchange="OnCollectionChanged" class="epi-select">
                     <option value="">-- Select a collection --</option>
-                    @foreach (var collection in AllCollections.Where(c => c.IsActive))
+                    @foreach (var collection in Collections.Where(c => c.IsActive))
                     {
                         <option value="@collection.Id" selected="@(collection.Id == SelectedCollectionId)">@collection.Title</option>
                     }

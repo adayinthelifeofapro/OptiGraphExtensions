@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/GrahamCarr/.claude/**)",
+      "Bash(dir:*)",
+      "Bash(dotnet build:*)",
+      "WebFetch(domain:docs.developers.optimizely.com)",
+      "Bash(dotnet ef migrations:*)",
+      "Bash(dotnet test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

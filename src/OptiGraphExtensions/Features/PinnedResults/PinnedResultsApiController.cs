@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+
 using OptiGraphExtensions.Entities;
-using OptiGraphExtensions.Features.PinnedResults.Services;
+using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.PinnedResults
 {

@@ -1,6 +1,6 @@
 using OptiGraphExtensions.Entities;
 
-namespace OptiGraphExtensions.Features.PinnedResults.Services
+namespace OptiGraphExtensions.Features.PinnedResults.Services.Abstractions
 {
     public interface IPinnedResultService
     {

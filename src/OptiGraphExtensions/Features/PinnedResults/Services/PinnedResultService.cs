@@ -1,5 +1,6 @@
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.PinnedResults.Repositories;
+using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.PinnedResults.Services
 {
