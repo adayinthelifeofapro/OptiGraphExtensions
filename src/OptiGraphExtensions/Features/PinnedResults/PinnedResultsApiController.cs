@@ -1,9 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-
-using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.PinnedResults.Services;
 
 namespace OptiGraphExtensions.Features.PinnedResults
 {
@@ -11,30 +8,24 @@ namespace OptiGraphExtensions.Features.PinnedResults
     [Route("api/optimizely-graphextensions/pinned-results")]
     public class PinnedResultsApiController : ControllerBase
     {
-        private readonly IOptiGraphExtensionsDataContext _dataContext;
+        private readonly IPinnedResultService _pinnedResultService;
 
-        public PinnedResultsApiController(IOptiGraphExtensionsDataContext dataContext)
+        public PinnedResultsApiController(IPinnedResultService pinnedResultService)
         {
-            _dataContext = dataContext;
+            _pinnedResultService = pinnedResultService;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PinnedResult>>> GetPinnedResults([FromQuery] Guid? collectionId = null)
         {
-            var query = _dataContext.PinnedResults.AsQueryable();
-            
-            if (collectionId.HasValue)
-            {
-                query = query.Where(pr => pr.CollectionId == collectionId.Value);
-            }
-            
-            return await query.OrderBy(pr => pr.Priority).ToListAsync();
+            var pinnedResults = await _pinnedResultService.GetAllPinnedResultsAsync(collectionId);
+            return Ok(pinnedResults);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<PinnedResult>> GetPinnedResult(Guid id)
         {
-            var pinnedResult = await _dataContext.PinnedResults.FindAsync(id);
+            var pinnedResult = await _pinnedResultService.GetPinnedResultByIdAsync(id);
 
             if (pinnedResult == null)
             {
@@ -48,29 +39,21 @@ namespace OptiGraphExtensions.Features.PinnedResults
         public async Task<ActionResult<PinnedResult>> CreatePinnedResult(CreatePinnedResultRequest request)
         {
             // Validate that the collection exists
-            var collectionExists = await _dataContext.PinnedResultsCollections
-                .AnyAsync(c => c.Id == request.CollectionId);
+            var collectionExists = await _pinnedResultService.CollectionExistsAsync(request.CollectionId);
             
             if (!collectionExists)
             {
                 return BadRequest("The specified collection does not exist.");
             }
 
-            var pinnedResult = new PinnedResult
-            {
-                Id = Guid.NewGuid(),
-                CollectionId = request.CollectionId,
-                Phrases = request.Phrases,
-                TargetKey = request.TargetKey,
-                Language = request.Language,
-                Priority = request.Priority,
-                IsActive = request.IsActive,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = User.Identity?.Name
-            };
-
-            _dataContext.PinnedResults.Add(pinnedResult);
-            await _dataContext.SaveChangesAsync();
+            var pinnedResult = await _pinnedResultService.CreatePinnedResultAsync(
+                request.CollectionId,
+                request.Phrases,
+                request.TargetKey,
+                request.Language,
+                request.Priority,
+                request.IsActive,
+                User.Identity?.Name);
 
             return CreatedAtAction(nameof(GetPinnedResult), new { id = pinnedResult.Id }, pinnedResult);
         }
@@ -79,29 +62,17 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Route("{id}")]
         public async Task<IActionResult> UpdatePinnedResult(Guid id, UpdatePinnedResultRequest request)
         {
-            var pinnedResult = await _dataContext.PinnedResults.FindAsync(id);
-            if (pinnedResult == null)
+            var updatedPinnedResult = await _pinnedResultService.UpdatePinnedResultAsync(
+                id, 
+                request.Phrases, 
+                request.TargetKey, 
+                request.Language, 
+                request.Priority, 
+                request.IsActive);
+
+            if (updatedPinnedResult == null)
             {
                 return NotFound();
-            }
-
-            pinnedResult.Phrases = request.Phrases;
-            pinnedResult.TargetKey = request.TargetKey;
-            pinnedResult.Language = request.Language;
-            pinnedResult.Priority = request.Priority;
-            pinnedResult.IsActive = request.IsActive;
-
-            try
-            {
-                await _dataContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await PinnedResultExists(id))
-                {
-                    return NotFound();
-                }
-                throw;
             }
 
             return NoContent();
@@ -111,21 +82,13 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Route("{id}")]
         public async Task<IActionResult> DeletePinnedResult(Guid id)
         {
-            var pinnedResult = await _dataContext.PinnedResults.FindAsync(id);
-            if (pinnedResult == null)
+            var deleted = await _pinnedResultService.DeletePinnedResultAsync(id);
+            if (!deleted)
             {
                 return NotFound();
             }
 
-            _dataContext.PinnedResults.Remove(pinnedResult);
-            await _dataContext.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        private async Task<bool> PinnedResultExists(Guid id)
-        {
-            return await _dataContext.PinnedResults.AnyAsync(e => e.Id == id);
         }
     }
 

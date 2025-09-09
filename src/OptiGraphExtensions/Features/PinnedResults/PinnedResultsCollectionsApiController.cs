@@ -1,9 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-
-using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.PinnedResults.Services;
 
 namespace OptiGraphExtensions.Features.PinnedResults
 {
@@ -11,23 +8,24 @@ namespace OptiGraphExtensions.Features.PinnedResults
     [Route("api/optimizely-graphextensions/pinned-results-collections")]
     public class PinnedResultsCollectionsApiController : ControllerBase
     {
-        private readonly IOptiGraphExtensionsDataContext _dataContext;
+        private readonly IPinnedResultsCollectionService _collectionService;
 
-        public PinnedResultsCollectionsApiController(IOptiGraphExtensionsDataContext dataContext)
+        public PinnedResultsCollectionsApiController(IPinnedResultsCollectionService collectionService)
         {
-            _dataContext = dataContext;
+            _collectionService = collectionService;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PinnedResultsCollection>>> GetCollections()
         {
-            return await _dataContext.PinnedResultsCollections.ToListAsync();
+            var collections = await _collectionService.GetAllCollectionsAsync();
+            return Ok(collections);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<PinnedResultsCollection>> GetCollection(Guid id)
         {
-            var collection = await _dataContext.PinnedResultsCollections.FindAsync(id);
+            var collection = await _collectionService.GetCollectionByIdAsync(id);
 
             if (collection == null)
             {
@@ -40,17 +38,10 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [HttpPost]
         public async Task<ActionResult<PinnedResultsCollection>> CreateCollection(CreatePinnedResultsCollectionRequest request)
         {
-            var collection = new PinnedResultsCollection
-            {
-                Id = Guid.NewGuid(),
-                Title = request.Title,
-                IsActive = request.IsActive,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = User.Identity?.Name
-            };
-
-            _dataContext.PinnedResultsCollections.Add(collection);
-            await _dataContext.SaveChangesAsync();
+            var collection = await _collectionService.CreateCollectionAsync(
+                request.Title,
+                request.IsActive,
+                User.Identity?.Name);
 
             return CreatedAtAction(nameof(GetCollection), new { id = collection.Id }, collection);
         }
@@ -59,26 +50,14 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Route("{id}")]
         public async Task<IActionResult> UpdateCollection(Guid id, UpdatePinnedResultsCollectionRequest request)
         {
-            var collection = await _dataContext.PinnedResultsCollections.FindAsync(id);
-            if (collection == null)
+            var updatedCollection = await _collectionService.UpdateCollectionAsync(
+                id,
+                request.Title,
+                request.IsActive);
+
+            if (updatedCollection == null)
             {
                 return NotFound();
-            }
-
-            collection.Title = request.Title;
-            collection.IsActive = request.IsActive;
-
-            try
-            {
-                await _dataContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await CollectionExists(id))
-                {
-                    return NotFound();
-                }
-                throw;
             }
 
             return NoContent();
@@ -88,20 +67,11 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Route("{id}")]
         public async Task<IActionResult> DeleteCollection(Guid id)
         {
-            var collection = await _dataContext.PinnedResultsCollections.FindAsync(id);
-            if (collection == null)
+            var deleted = await _collectionService.DeleteCollectionAsync(id);
+            if (!deleted)
             {
                 return NotFound();
             }
-
-            // Also delete all related pinned results
-            var relatedPinnedResults = await _dataContext.PinnedResults
-                .Where(pr => pr.CollectionId == id)
-                .ToListAsync();
-            
-            _dataContext.PinnedResults.RemoveRange(relatedPinnedResults);
-            _dataContext.PinnedResultsCollections.Remove(collection);
-            await _dataContext.SaveChangesAsync();
 
             return NoContent();
         }
@@ -110,33 +80,13 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Route("{id}/graph-id")]
         public async Task<IActionResult> UpdateGraphCollectionId(Guid id, UpdateGraphCollectionIdRequest request)
         {
-            var collection = await _dataContext.PinnedResultsCollections.FindAsync(id);
-            if (collection == null)
+            var updatedCollection = await _collectionService.UpdateGraphCollectionIdAsync(id, request.GraphCollectionId);
+            if (updatedCollection == null)
             {
                 return NotFound();
             }
 
-            collection.GraphCollectionId = request.GraphCollectionId;
-
-            try
-            {
-                await _dataContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await CollectionExists(id))
-                {
-                    return NotFound();
-                }
-                throw;
-            }
-
             return NoContent();
-        }
-
-        private async Task<bool> CollectionExists(Guid id)
-        {
-            return await _dataContext.PinnedResultsCollections.AnyAsync(e => e.Id == id);
         }
     }
 

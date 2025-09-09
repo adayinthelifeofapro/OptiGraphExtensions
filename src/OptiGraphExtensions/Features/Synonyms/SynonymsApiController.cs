@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.Synonyms.Services;
 
 namespace OptiGraphExtensions.Features.Synonyms
 {
@@ -9,23 +8,24 @@ namespace OptiGraphExtensions.Features.Synonyms
     [Route("api/optimizely-graphextensions/synonyms")]
     public class SynonymsApiController : ControllerBase
     {
-        private readonly IOptiGraphExtensionsDataContext _dataContext;
+        private readonly ISynonymService _synonymService;
 
-        public SynonymsApiController(IOptiGraphExtensionsDataContext dataContext)
+        public SynonymsApiController(ISynonymService synonymService)
         {
-            _dataContext = dataContext;
+            _synonymService = synonymService;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Synonym>>> GetSynonyms()
         {
-            return await _dataContext.Synonyms.ToListAsync();
+            var synonyms = await _synonymService.GetAllSynonymsAsync();
+            return Ok(synonyms);
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Synonym>> GetSynonym(Guid id)
         {
-            var synonym = await _dataContext.Synonyms.FindAsync(id);
+            var synonym = await _synonymService.GetSynonymByIdAsync(id);
 
             if (synonym == null)
             {
@@ -38,42 +38,27 @@ namespace OptiGraphExtensions.Features.Synonyms
         [HttpPost]
         public async Task<ActionResult<Synonym>> CreateSynonym(CreateSynonymRequest request)
         {
-            var synonym = new Synonym
+            if (string.IsNullOrWhiteSpace(request.Synonym))
             {
-                Id = Guid.NewGuid(),
-                SynonymItem = request.Synonym,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = User.Identity?.Name
-            };
+                return BadRequest("Synonym text is required.");
+            }
 
-            _dataContext.Synonyms.Add(synonym);
-            await _dataContext.SaveChangesAsync();
-
+            var synonym = await _synonymService.CreateSynonymAsync(request.Synonym, User.Identity?.Name);
             return CreatedAtAction(nameof(GetSynonym), new { id = synonym.Id }, synonym);
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateSynonym(Guid id, UpdateSynonymRequest request)
         {
-            var synonym = await _dataContext.Synonyms.FindAsync(id);
-            if (synonym == null)
+            if (string.IsNullOrWhiteSpace(request.Synonym))
+            {
+                return BadRequest("Synonym text is required.");
+            }
+
+            var updatedSynonym = await _synonymService.UpdateSynonymAsync(id, request.Synonym);
+            if (updatedSynonym == null)
             {
                 return NotFound();
-            }
-
-            synonym.SynonymItem = request.Synonym;
-
-            try
-            {
-                await _dataContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await SynonymExists(id))
-                {
-                    return NotFound();
-                }
-                throw;
             }
 
             return NoContent();
@@ -82,21 +67,13 @@ namespace OptiGraphExtensions.Features.Synonyms
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteSynonym(Guid id)
         {
-            var synonym = await _dataContext.Synonyms.FindAsync(id);
-            if (synonym == null)
+            var deleted = await _synonymService.DeleteSynonymAsync(id);
+            if (!deleted)
             {
                 return NotFound();
             }
 
-            _dataContext.Synonyms.Remove(synonym);
-            await _dataContext.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        private async Task<bool> SynonymExists(Guid id)
-        {
-            return await _dataContext.Synonyms.AnyAsync(e => e.Id == id);
         }
     }
 

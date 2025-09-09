@@ -8,6 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.Synonyms.Repositories;
+using OptiGraphExtensions.Features.Synonyms.Services;
+using OptiGraphExtensions.Features.PinnedResults.Repositories;
+using OptiGraphExtensions.Features.PinnedResults.Services;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -93,5 +97,15 @@ public static class OptiGraphExtensionsServiceExtensions
 
         services.AddScoped<IOptiGraphExtensionsDataContext, OptiGraphExtensionsDataContext>();
         services.AddScoped(provider => new Lazy<IOptiGraphExtensionsDataContext>(() => provider.GetRequiredService<IOptiGraphExtensionsDataContext>()));
+        
+        // Register synonyms repository and service
+        services.AddScoped<ISynonymRepository, SynonymRepository>();
+        services.AddScoped<ISynonymService, SynonymService>();
+        
+        // Register pinned results repositories and services
+        services.AddScoped<IPinnedResultRepository, PinnedResultRepository>();
+        services.AddScoped<IPinnedResultsCollectionRepository, PinnedResultsCollectionRepository>();
+        services.AddScoped<IPinnedResultService, PinnedResultService>();
+        services.AddScoped<IPinnedResultsCollectionService, PinnedResultsCollectionService>();
     }
 }
