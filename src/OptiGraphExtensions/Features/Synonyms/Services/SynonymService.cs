@@ -1,5 +1,6 @@
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.Synonyms.Repositories;
+using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Synonyms.Services
 {

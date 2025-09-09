@@ -1,6 +1,6 @@
 using OptiGraphExtensions.Entities;
 
-namespace OptiGraphExtensions.Features.Synonyms.Services
+namespace OptiGraphExtensions.Features.Synonyms.Services.Abstractions
 {
     public interface ISynonymService
     {

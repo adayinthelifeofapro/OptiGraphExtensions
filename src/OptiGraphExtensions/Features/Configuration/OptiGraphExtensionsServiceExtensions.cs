@@ -12,6 +12,7 @@ using OptiGraphExtensions.Features.Synonyms.Repositories;
 using OptiGraphExtensions.Features.Synonyms.Services;
 using OptiGraphExtensions.Features.PinnedResults.Repositories;
 using OptiGraphExtensions.Features.PinnedResults.Services;
+using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -101,6 +102,12 @@ public static class OptiGraphExtensionsServiceExtensions
         // Register synonyms repository and service
         services.AddScoped<ISynonymRepository, SynonymRepository>();
         services.AddScoped<ISynonymService, SynonymService>();
+        
+        // Register new clean architecture services
+        services.AddScoped<ISynonymApiService, SynonymApiService>();
+        services.AddScoped<IOptiGraphConfigurationService, OptiGraphConfigurationService>();
+        services.AddScoped<ISynonymValidationService, SynonymValidationService>();
+        services.AddScoped(typeof(IPaginationService<>), typeof(PaginationService<>));
         
         // Register pinned results repositories and services
         services.AddScoped<IPinnedResultRepository, PinnedResultRepository>();

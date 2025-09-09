@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+
 using OptiGraphExtensions.Entities;
-using OptiGraphExtensions.Features.Synonyms.Services;
+using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Synonyms
 {
