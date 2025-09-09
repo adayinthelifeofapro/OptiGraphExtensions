@@ -1,0 +1,752 @@
+@using Microsoft.AspNetCore.Components
+@using OptiGraphExtensions.Features.PinnedResults
+@using OptiGraphExtensions.Entities
+@inherits PinnedResultsManagementComponentBase
+
+<div class="epi-contentArea">
+    <div class="epi-contentAreaHeader">
+        <h1 class="epi-h1">Pinned Results Management</h1>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--danger">
+            <div class="epi-notificationbar-text">@ErrorMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--success">
+            <div class="epi-notificationbar-text">@SuccessMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+        </div>
+    }
+
+    <!-- Collections Management Section -->
+    <div class="epi-contentGroup">
+        <div class="epi-groupHeader">
+            <h2 class="epi-h2">Collections Management</h2>
+        </div>
+        
+        <div class="epi-form">
+            <div class="epi-form-field">
+                <label for="newCollectionTitle" class="epi-label">Collection Title</label>
+                <input id="newCollectionTitle" @bind="NewCollection.Title" @onkeypress="@(async (e) => { if (e.Key == "Enter") await CreateCollection(); })" 
+                       class="epi-textbox" placeholder="Enter collection title..." maxlength="255" />
+            </div>
+            <div class="epi-form-field">
+                <label class="epi-checkbox-label">
+                    <input type="checkbox" @bind="NewCollection.IsActive" class="epi-checkbox" />
+                    Active Collection
+                </label>
+            </div>
+            <div class="epi-form-actions">
+                <button @onclick="CreateCollection" class="epi-button epi-button--primary" disabled="@IsLoading">
+                    @if (IsLoading)
+                    {
+                        <span class="epi-loader-small"></span>
+                    }
+                    Add Collection
+                </button>
+            </div>
+        </div>
+        
+        <div class="epi-content">
+            @if (IsLoading && !AllCollections.Any())
+            {
+                <div class="epi-loading">
+                    <div class="epi-loader"></div>
+                    <p>Loading collections...</p>
+                </div>
+            }
+            else if (!AllCollections.Any())
+            {
+                <div class="epi-empty-state">
+                    <p>No collections found. Create your first collection above.</p>
+                </div>
+            }
+            else
+            {
+                <div class="epi-table-container">
+                    <table class="epi-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Created By</th>
+                                <th>Created Date</th>
+                                <th class="epi-align-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var collection in Collections)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (IsEditingCollection && EditingCollection.Id == collection.Id)
+                                        {
+                                            <input @bind="EditingCollection.Title" @onkeypress="@(async (e) => { if (e.Key == "Enter") await UpdateCollection(); else if (e.Key == "Escape") CancelEditCollection(); })" 
+                                                   class="epi-textbox epi-textbox--small" maxlength="255" />
+                                        }
+                                        else
+                                        {
+                                            <span>@collection.Title</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (IsEditingCollection && EditingCollection.Id == collection.Id)
+                                        {
+                                            <label class="epi-checkbox-label epi-checkbox-label--small">
+                                                <input type="checkbox" @bind="EditingCollection.IsActive" class="epi-checkbox" />
+                                                Active
+                                            </label>
+                                        }
+                                        else
+                                        {
+                                            <span class="epi-badge @(collection.IsActive ? "epi-badge--success" : "epi-badge--secondary")">
+                                                @(collection.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small>@(collection.CreatedBy ?? "Unknown")</small>
+                                    </td>
+                                    <td>
+                                        <small>@(collection.CreatedAt?.ToString("MMM dd, yyyy HH:mm") ?? "Unknown")</small>
+                                    </td>
+                                    <td class="epi-align-right">
+                                        @if (IsEditingCollection && EditingCollection.Id == collection.Id)
+                                        {
+                                            <div class="epi-button-group">
+                                                <button @onclick="UpdateCollection" class="epi-button epi-button--success epi-button--small" title="Save">
+                                                    Save
+                                                </button>
+                                                <button @onclick="CancelEditCollection" class="epi-button epi-button--secondary epi-button--small" title="Cancel">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="epi-button-group">
+                                                <button @onclick="() => StartEditCollection(collection)" class="epi-button epi-button--secondary epi-button--small" title="Edit" disabled="@IsEditingCollection">
+                                                    Edit
+                                                </button>
+                                                <button @onclick="@(async () => { if (await ConfirmDelete()) await DeleteCollection(collection.Id); })" 
+                                                        class="epi-button epi-button--danger epi-button--small" 
+                                                        title="Delete" 
+                                                        disabled="@IsEditingCollection">
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Pinned Results Management Section -->
+    <div class="epi-contentGroup">
+        <div class="epi-groupHeader">
+            <h2 class="epi-h2">Pinned Results Management</h2>
+            <div class="epi-header-actions">
+                @if (SelectedCollectionId.HasValue)
+                {
+                    <span class="epi-badge">@TotalItems total pinned results</span>
+                }
+            </div>
+        </div>
+        
+        <div class="epi-form">
+            <div class="epi-form-field">
+                <label for="collectionSelector" class="epi-label">Select Collection</label>
+                <select id="collectionSelector" @onchange="OnCollectionChanged" class="epi-select">
+                    <option value="">-- Select a collection --</option>
+                    @foreach (var collection in AllCollections.Where(c => c.IsActive))
+                    {
+                        <option value="@collection.Id" selected="@(collection.Id == SelectedCollectionId)">@collection.Title</option>
+                    }
+                </select>
+            </div>
+            
+            @if (SelectedCollectionId.HasValue)
+            {
+                <div class="epi-form-row">
+                    <div class="epi-form-field epi-form-field--half">
+                        <label for="newPhrases" class="epi-label">Search Phrases (comma-separated)</label>
+                        <input id="newPhrases" @bind="NewPinnedResult.Phrases" 
+                               class="epi-textbox" placeholder="e.g., laptop, computer, notebook" maxlength="1000" />
+                    </div>
+                    <div class="epi-form-field epi-form-field--half">
+                        <label for="newTargetKey" class="epi-label">Target Key (Content GUID)</label>
+                        <input id="newTargetKey" @bind="NewPinnedResult.TargetKey" 
+                               class="epi-textbox" placeholder="e.g., 12345678-1234-1234-1234-123456789012" maxlength="100" />
+                    </div>
+                </div>
+                
+                <div class="epi-form-row">
+                    <div class="epi-form-field epi-form-field--third">
+                        <label for="newLanguage" class="epi-label">Language Code</label>
+                        <input id="newLanguage" @bind="NewPinnedResult.Language" 
+                               class="epi-textbox" placeholder="e.g., en, sv" maxlength="10" />
+                    </div>
+                    <div class="epi-form-field epi-form-field--third">
+                        <label for="newPriority" class="epi-label">Priority</label>
+                        <input id="newPriority" type="number" @bind="NewPinnedResult.Priority" 
+                               class="epi-textbox" min="1" max="999" />
+                    </div>
+                    <div class="epi-form-field epi-form-field--third">
+                        <label class="epi-checkbox-label">
+                            <input type="checkbox" @bind="NewPinnedResult.IsActive" class="epi-checkbox" />
+                            Active
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="epi-form-actions">
+                    <button @onclick="CreatePinnedResult" class="epi-button epi-button--primary" disabled="@IsLoading">
+                        @if (IsLoading)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        Add Pinned Result
+                    </button>
+                </div>
+            }
+        </div>
+        
+        <div class="epi-content">
+            @if (SelectedCollectionId.HasValue)
+            {
+                @if (IsLoading)
+                {
+                    <div class="epi-loading">
+                        <div class="epi-loader"></div>
+                        <p>Loading pinned results...</p>
+                    </div>
+                }
+                else if (!AllPinnedResults.Any())
+                {
+                    <div class="epi-empty-state">
+                        <p>No pinned results found for this collection. Create your first pinned result above.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="epi-table-container">
+                        <table class="epi-table">
+                            <thead>
+                                <tr>
+                                    <th>Phrases</th>
+                                    <th>Target Key</th>
+                                    <th>Language</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Created By</th>
+                                    <th>Created Date</th>
+                                    <th class="epi-align-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var pinnedResult in PinnedResults)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
+                                            {
+                                                <input @bind="EditingPinnedResult.Phrases" class="epi-textbox epi-textbox--small" maxlength="1000" />
+                                            }
+                                            else
+                                            {
+                                                <span title="@pinnedResult.Phrases">@(pinnedResult.Phrases?.Length > 50 ? pinnedResult.Phrases.Substring(0, 47) + "..." : pinnedResult.Phrases)</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
+                                            {
+                                                <input @bind="EditingPinnedResult.TargetKey" class="epi-textbox epi-textbox--small" maxlength="100" />
+                                            }
+                                            else
+                                            {
+                                                <small>@pinnedResult.TargetKey</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
+                                            {
+                                                <input @bind="EditingPinnedResult.Language" class="epi-textbox epi-textbox--small" maxlength="10" />
+                                            }
+                                            else
+                                            {
+                                                <span>@pinnedResult.Language</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
+                                            {
+                                                <input type="number" @bind="EditingPinnedResult.Priority" class="epi-textbox epi-textbox--small" min="1" max="999" />
+                                            }
+                                            else
+                                            {
+                                                <span>@pinnedResult.Priority</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
+                                            {
+                                                <label class="epi-checkbox-label epi-checkbox-label--small">
+                                                    <input type="checkbox" @bind="EditingPinnedResult.IsActive" class="epi-checkbox" />
+                                                    Active
+                                                </label>
+                                            }
+                                            else
+                                            {
+                                                <span class="epi-badge @(pinnedResult.IsActive ? "epi-badge--success" : "epi-badge--secondary")">
+                                                    @(pinnedResult.IsActive ? "Active" : "Inactive")
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@(pinnedResult.CreatedBy ?? "Unknown")</small>
+                                        </td>
+                                        <td>
+                                            <small>@(pinnedResult.CreatedAt?.ToString("MMM dd, yyyy HH:mm") ?? "Unknown")</small>
+                                        </td>
+                                        <td class="epi-align-right">
+                                            @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
+                                            {
+                                                <div class="epi-button-group">
+                                                    <button @onclick="UpdatePinnedResult" class="epi-button epi-button--success epi-button--small" title="Save">
+                                                        Save
+                                                    </button>
+                                                    <button @onclick="CancelEditPinnedResult" class="epi-button epi-button--secondary epi-button--small" title="Cancel">
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="epi-button-group">
+                                                    <button @onclick="() => StartEditPinnedResult(pinnedResult)" class="epi-button epi-button--secondary epi-button--small" title="Edit" disabled="@IsEditingPinnedResult">
+                                                        Edit
+                                                    </button>
+                                                    <button @onclick="@(async () => { if (await ConfirmDelete()) await DeletePinnedResult(pinnedResult.Id); })" 
+                                                            class="epi-button epi-button--danger epi-button--small" 
+                                                            title="Delete" 
+                                                            disabled="@IsEditingPinnedResult">
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    @if (TotalPages > 1)
+                    {
+                        <div class="epi-pagination">
+                            <div class="epi-pagination-info">
+                                Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, TotalItems) of @TotalItems pinned results
+                            </div>
+                            <div class="epi-pagination-controls">
+                                <button @onclick="GoToPreviousPage" 
+                                        class="epi-button epi-button--secondary epi-button--small" 
+                                        disabled="@(CurrentPage == 1)">
+                                    Previous
+                                </button>
+                                
+                                @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
+                                {
+                                    var pageNumber = i; // Capture for lambda
+                                    <button @onclick="() => GoToPage(pageNumber)" 
+                                            class="epi-button epi-button--small @(CurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
+                                        @pageNumber
+                                    </button>
+                                }
+                                
+                                <button @onclick="GoToNextPage" 
+                                        class="epi-button epi-button--secondary epi-button--small" 
+                                        disabled="@(CurrentPage == TotalPages)">
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+            else
+            {
+                <div class="epi-empty-state">
+                    <p>Please select a collection from the dropdown above to manage pinned results.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Basic Optimizely admin styles if not available */
+    .epi-contentArea {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .epi-contentAreaHeader {
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+    }
+
+    .epi-h1 {
+        font-size: 28px;
+        font-weight: 300;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-h2 {
+        font-size: 20px;
+        font-weight: 500;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-contentGroup {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .epi-groupHeader {
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .epi-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .epi-content, .epi-form {
+        padding: 20px;
+    }
+
+    .epi-form-field {
+        margin-bottom: 15px;
+    }
+
+    .epi-form-field--half {
+        width: calc(50% - 8px);
+        display: inline-block;
+        margin-right: 16px;
+    }
+
+    .epi-form-field--third {
+        width: calc(33.333% - 10px);
+        display: inline-block;
+        margin-right: 15px;
+    }
+
+    .epi-form-row {
+        display: flex;
+        gap: 16px;
+        align-items: flex-end;
+    }
+
+    .epi-form-row .epi-form-field {
+        flex: 1;
+        margin-bottom: 15px;
+    }
+
+    .epi-label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-textbox, .epi-select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .epi-textbox--small {
+        padding: 4px 8px;
+        font-size: 13px;
+    }
+
+    .epi-select {
+        background: white;
+        cursor: pointer;
+    }
+
+    .epi-checkbox-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-weight: normal;
+    }
+
+    .epi-checkbox-label--small {
+        font-size: 13px;
+    }
+
+    .epi-checkbox {
+        margin-right: 8px;
+        cursor: pointer;
+    }
+
+    .epi-button {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #0066cc;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .epi-button:hover:not(:disabled) {
+        background: #0052a3;
+    }
+
+    .epi-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .epi-button--primary {
+        background: #0066cc;
+    }
+
+    .epi-button--success {
+        background: #5cb85c;
+    }
+
+    .epi-button--success:hover:not(:disabled) {
+        background: #449d44;
+    }
+
+    .epi-button--danger {
+        background: #d9534f;
+    }
+
+    .epi-button--danger:hover:not(:disabled) {
+        background: #c9302c;
+    }
+
+    .epi-button--secondary {
+        background: #6c757d;
+    }
+
+    .epi-button--secondary:hover:not(:disabled) {
+        background: #5a6268;
+    }
+
+    .epi-button--small {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .epi-button-group {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .epi-form-actions {
+        margin-top: 20px;
+    }
+
+    .epi-table-container {
+        overflow-x: auto;
+    }
+
+    .epi-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0;
+    }
+
+    .epi-table th,
+    .epi-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .epi-table th {
+        background: #f5f5f5;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .epi-align-right {
+        text-align: right;
+    }
+
+    .epi-badge {
+        background: #6c757d;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .epi-badge--success {
+        background: #5cb85c;
+    }
+
+    .epi-badge--secondary {
+        background: #6c757d;
+    }
+
+    .epi-notificationbar {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .epi-notificationbar--success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .epi-notificationbar--danger {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .epi-notificationbar-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 12px;
+        opacity: 0.7;
+    }
+
+    .epi-notificationbar-close:hover {
+        opacity: 1;
+    }
+
+    .epi-loading {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .epi-loader {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0066cc;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px;
+    }
+
+    .epi-loader-small {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 8px;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .epi-empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .epi-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        margin-top: 16px;
+        border-top: 1px solid #ddd;
+    }
+
+    .epi-pagination-info {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .epi-pagination-controls {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    @@media (max-width: 768px) {
+        .epi-form-field--half,
+        .epi-form-field--third {
+            width: 100%;
+            display: block;
+            margin-right: 0;
+        }
+
+        .epi-form-row {
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .epi-pagination {
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .epi-pagination-info {
+            order: 2;
+        }
+        
+        .epi-pagination-controls {
+            order: 1;
+        }
+    }
+</style>
+
+@code {
+
+}
