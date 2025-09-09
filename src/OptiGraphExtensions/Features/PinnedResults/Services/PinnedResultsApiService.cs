@@ -302,6 +302,41 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             return true;
         }
 
+        public async Task<IList<GraphCollectionResponse>> SyncCollectionsFromOptimizelyGraphAsync()
+        {
+            var graphGatewayUrl = _configurationService.GetGatewayUrl();
+            var hmacKey = _configurationService.GetAppKey();
+            var hmacSecret = _configurationService.GetSecret();
+
+            ValidateGraphConfiguration(graphGatewayUrl, hmacKey, hmacSecret);
+
+            var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+            var graphApiUrl = $"{graphGatewayUrl}/api/pinned/collections";
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, graphApiUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authenticationHeader);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to fetch collections from Optimizely Graph: {response.StatusCode} - {errorContent}");
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            
+            try
+            {
+                var graphCollections = JsonSerializer.Deserialize<List<GraphCollectionResponse>>(responseContent, _jsonOptions);
+                return graphCollections?.OrderBy(c => c.Title).ToList() ?? new List<GraphCollectionResponse>();
+            }
+            catch (JsonException)
+            {
+                throw new InvalidOperationException($"Failed to parse Graph collections response: {responseContent[..Math.Min(500, responseContent.Length)]}");
+            }
+        }
+
         private bool IsUserAuthenticated()
         {
             return _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;

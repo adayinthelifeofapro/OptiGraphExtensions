@@ -12,6 +12,9 @@ namespace OptiGraphExtensions.Features.PinnedResults
         protected IPinnedResultsApiService ApiService { get; set; } = null!;
 
         [Inject]
+        protected IPinnedResultsCollectionService CollectionService { get; set; } = null!;
+
+        [Inject]
         protected IPaginationService<PinnedResult> PaginationService { get; set; } = null!;
 
         [Inject]
@@ -54,23 +57,37 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 IsLoading = true;
                 ClearMessages();
 
-                Collections = await ApiService.GetCollectionsAsync();
+                // Sync collections from Graph and get the updated local collections
+                var syncedCollections = await CollectionService.SyncCollectionsFromGraphAsync();
+                Collections = syncedCollections.OrderBy(c => c.Title).ToList();
             }
             catch (UnauthorizedAccessException)
             {
                 ErrorMessage = "You are not authenticated. Please log in to access collections.";
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
+                // Fallback to local collections if Graph sync fails due to auth
+                try
+                {
+                    var localCollections = await CollectionService.GetAllCollectionsAsync();
+                    Collections = localCollections.OrderBy(c => c.Title).ToList();
+                }
+                catch
+                {
+                    Collections = new List<PinnedResultsCollection>();
+                }
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Unexpected error loading collections: {ex.Message}";
+                ErrorMessage = $"Error syncing collections: {ex.Message}";
+                // Fallback to local collections if Graph sync fails
+                try
+                {
+                    var localCollections = await CollectionService.GetAllCollectionsAsync();
+                    Collections = localCollections.OrderBy(c => c.Title).ToList();
+                }
+                catch
+                {
+                    Collections = new List<PinnedResultsCollection>();
+                }
             }
             finally
             {
@@ -492,6 +509,51 @@ namespace OptiGraphExtensions.Features.PinnedResults
         #endregion
 
         #region Optimizely Graph Synchronization
+
+        protected async Task SyncCollectionsFromOptimizelyGraph()
+        {
+            try
+            {
+                IsSyncing = true;
+                ClearMessages();
+
+                // Sync collections from Graph and update the database
+                var syncedCollections = await CollectionService.SyncCollectionsFromGraphAsync();
+                Collections = syncedCollections.OrderBy(c => c.Title).ToList();
+                
+                SuccessMessage = $"Successfully synced {syncedCollections.Count()} collections from Optimizely Graph and updated local database.";
+            }
+            catch (UnauthorizedAccessException)
+            {
+                ErrorMessage = "You are not authenticated. Please log in to sync collections.";
+                // Try to load local collections as fallback
+                try
+                {
+                    var localCollections = await CollectionService.GetAllCollectionsAsync();
+                    Collections = localCollections.OrderBy(c => c.Title).ToList();
+                }
+                catch
+                {
+                    // Ignore fallback errors
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                ErrorMessage = ex.Message;
+            }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Unexpected error syncing collections: {ex.Message}";
+            }
+            finally
+            {
+                IsSyncing = false;
+            }
+        }
 
         protected async Task SyncPinnedResultsToOptimizelyGraph()
         {

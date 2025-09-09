@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.PinnedResults.Models;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.PinnedResults
@@ -10,10 +11,14 @@ namespace OptiGraphExtensions.Features.PinnedResults
     public class PinnedResultsCollectionsApiController : ControllerBase
     {
         private readonly IPinnedResultsCollectionService _collectionService;
+        private readonly IPinnedResultsApiService _apiService;
 
-        public PinnedResultsCollectionsApiController(IPinnedResultsCollectionService collectionService)
+        public PinnedResultsCollectionsApiController(
+            IPinnedResultsCollectionService collectionService,
+            IPinnedResultsApiService apiService)
         {
             _collectionService = collectionService;
+            _apiService = apiService;
         }
 
         [HttpGet]
@@ -88,6 +93,21 @@ namespace OptiGraphExtensions.Features.PinnedResults
             }
 
             return NoContent();
+        }
+
+        [HttpPost]
+        [Route("sync")]
+        public async Task<ActionResult<IEnumerable<PinnedResultsCollection>>> SyncCollectionsFromGraph()
+        {
+            try
+            {
+                var syncedCollections = await _collectionService.SyncCollectionsFromGraphAsync();
+                return Ok(syncedCollections);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 

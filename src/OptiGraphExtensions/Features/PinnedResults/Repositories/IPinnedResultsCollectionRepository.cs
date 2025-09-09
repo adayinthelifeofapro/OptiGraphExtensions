@@ -11,5 +11,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
         Task<bool> DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);
         Task<PinnedResultsCollection?> UpdateGraphCollectionIdAsync(Guid id, string? graphCollectionId);
+        Task<PinnedResultsCollection?> GetByGraphCollectionIdAsync(string graphCollectionId);
+        Task<PinnedResultsCollection> UpsertAsync(PinnedResultsCollection collection);
     }
 }

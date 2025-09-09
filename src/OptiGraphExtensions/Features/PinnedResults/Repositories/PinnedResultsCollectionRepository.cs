@@ -66,5 +66,35 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
             await _dataContext.SaveChangesAsync();
             return collection;
         }
+
+        public async Task<PinnedResultsCollection?> GetByGraphCollectionIdAsync(string graphCollectionId)
+        {
+            return await _dataContext.PinnedResultsCollections
+                .FirstOrDefaultAsync(c => c.GraphCollectionId == graphCollectionId);
+        }
+
+        public async Task<PinnedResultsCollection> UpsertAsync(PinnedResultsCollection collection)
+        {
+            var existingCollection = await _dataContext.PinnedResultsCollections
+                .FirstOrDefaultAsync(c => c.GraphCollectionId == collection.GraphCollectionId);
+
+            if (existingCollection != null)
+            {
+                // Update existing collection
+                existingCollection.Title = collection.Title;
+                existingCollection.IsActive = collection.IsActive;
+                // Don't update CreatedAt/CreatedBy for existing records
+                _dataContext.PinnedResultsCollections.Update(existingCollection);
+                await _dataContext.SaveChangesAsync();
+                return existingCollection;
+            }
+            else
+            {
+                // Create new collection
+                _dataContext.PinnedResultsCollections.Add(collection);
+                await _dataContext.SaveChangesAsync();
+                return collection;
+            }
+        }
     }
 }

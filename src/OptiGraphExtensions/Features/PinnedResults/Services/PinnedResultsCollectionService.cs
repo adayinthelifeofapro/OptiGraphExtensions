@@ -8,13 +8,16 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
     {
         private readonly IPinnedResultsCollectionRepository _collectionRepository;
         private readonly IPinnedResultRepository _pinnedResultRepository;
+        private readonly IPinnedResultsApiService _apiService;
 
         public PinnedResultsCollectionService(
             IPinnedResultsCollectionRepository collectionRepository, 
-            IPinnedResultRepository pinnedResultRepository)
+            IPinnedResultRepository pinnedResultRepository,
+            IPinnedResultsApiService apiService)
         {
             _collectionRepository = collectionRepository;
             _pinnedResultRepository = pinnedResultRepository;
+            _apiService = apiService;
         }
 
         public async Task<IEnumerable<PinnedResultsCollection>> GetAllCollectionsAsync()
@@ -72,6 +75,46 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
         public async Task<PinnedResultsCollection?> UpdateGraphCollectionIdAsync(Guid id, string? graphCollectionId)
         {
             return await _collectionRepository.UpdateGraphCollectionIdAsync(id, graphCollectionId);
+        }
+
+        public async Task<IEnumerable<PinnedResultsCollection>> SyncCollectionsFromGraphAsync()
+        {
+            try
+            {
+                // Fetch collections from Optimizely Graph
+                var graphCollections = await _apiService.SyncCollectionsFromOptimizelyGraphAsync();
+                var syncedCollections = new List<PinnedResultsCollection>();
+
+                foreach (var graphCollection in graphCollections)
+                {
+                    if (string.IsNullOrEmpty(graphCollection.Id) || string.IsNullOrEmpty(graphCollection.Title))
+                        continue;
+
+                    // Convert timestamps from Unix milliseconds to DateTime
+                    var createdAt = DateTimeOffset.FromUnixTimeMilliseconds(graphCollection.CreatedAt).UtcDateTime;
+                    
+                    // Create or update local collection
+                    var localCollection = new PinnedResultsCollection
+                    {
+                        Id = Guid.NewGuid(), // Will be ignored if existing collection is found
+                        GraphCollectionId = graphCollection.Id,
+                        Title = graphCollection.Title,
+                        IsActive = graphCollection.IsActive,
+                        CreatedAt = createdAt,
+                        CreatedBy = "Optimizely Graph Sync"
+                    };
+
+                    var syncedCollection = await _collectionRepository.UpsertAsync(localCollection);
+                    syncedCollections.Add(syncedCollection);
+                }
+
+                return syncedCollections;
+            }
+            catch (Exception)
+            {
+                // If Graph sync fails, return current local collections
+                return await _collectionRepository.GetAllAsync();
+            }
         }
     }
 }

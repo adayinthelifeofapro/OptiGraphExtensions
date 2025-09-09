@@ -11,5 +11,6 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services.Abstractions
         Task<bool> DeleteCollectionAsync(Guid id);
         Task<bool> CollectionExistsAsync(Guid id);
         Task<PinnedResultsCollection?> UpdateGraphCollectionIdAsync(Guid id, string? graphCollectionId);
+        Task<IEnumerable<PinnedResultsCollection>> SyncCollectionsFromGraphAsync();
     }
 }
