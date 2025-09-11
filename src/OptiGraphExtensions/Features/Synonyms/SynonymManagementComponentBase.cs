@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Components;
 
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.Common.Components;
+using OptiGraphExtensions.Features.Common.Services;
+using OptiGraphExtensions.Features.Common.Exceptions;
 using OptiGraphExtensions.Features.Synonyms.Models;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Synonyms
 {
-    public class SynonymManagementComponentBase : ComponentBase
+    public class SynonymManagementComponentBase : ManagementComponentBase<Synonym, SynonymModel>
     {
         [Inject]
         protected ISynonymApiService SynonymApiService { get; set; } = null!;
@@ -17,15 +20,15 @@ namespace OptiGraphExtensions.Features.Synonyms
         [Inject]
         protected ISynonymValidationService ValidationService { get; set; } = null!;
 
+        [Inject]
+        protected IRequestMapper<SynonymModel, CreateSynonymRequest, UpdateSynonymRequest> RequestMapper { get; set; } = null!;
+
         protected PaginationResult<Synonym>? PaginationResult { get; set; }
         protected IList<Synonym> AllSynonyms { get; set; } = new List<Synonym>();
         protected SynonymModel NewSynonym { get; set; } = new();
         protected SynonymModel EditingSynonym { get; set; } = new();
         protected bool IsEditing { get; set; }
-        protected bool IsLoading { get; set; }
         protected bool IsSyncing { get; set; }
-        protected string? ErrorMessage { get; set; }
-        protected string? SuccessMessage { get; set; }
 
         protected int CurrentPage { get; set; } = 1;
         protected int PageSize { get; set; } = 10;
@@ -33,86 +36,31 @@ namespace OptiGraphExtensions.Features.Synonyms
         protected int TotalItems => PaginationResult?.TotalItems ?? 0;
         protected List<Synonym> Synonyms => PaginationResult?.Items?.ToList() ?? new List<Synonym>();
 
-        protected override async Task OnInitializedAsync()
+        protected override async Task LoadDataAsync()
         {
             await LoadSynonyms();
         }
 
         protected async Task LoadSynonyms()
         {
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                IsLoading = true;
-                ClearMessages();
-
                 AllSynonyms = await SynonymApiService.GetSynonymsAsync();
                 UpdatePaginatedSynonyms();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                ErrorMessage = "You are not authenticated. Please log in to access synonyms.";
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error loading synonyms: {ex.Message}";
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+            }, "loading synonyms");
         }
 
         protected async Task CreateSynonym()
         {
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                var validationResult = ValidationService.ValidateSynonym(NewSynonym);
-                if (!validationResult.IsValid)
-                {
-                    ErrorMessage = validationResult.ErrorMessage;
-                    return;
-                }
-
-                var request = new CreateSynonymRequest
-                {
-                    Synonym = NewSynonym.Synonym?.Trim()
-                };
-
+                await ValidateModel(NewSynonym);
+                var request = RequestMapper.MapToCreateRequest(NewSynonym);
                 await SynonymApiService.CreateSynonymAsync(request);
-                
-                NewSynonym = new SynonymModel();
-                SuccessMessage = "Synonym created successfully.";
-                ErrorMessage = null;
+                NewSynonym = new();
+                SetSuccessMessage("Synonym created successfully.");
                 await LoadSynonyms();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                ErrorMessage = "You are not authorized to create synonyms. Please ensure you are logged in and have the required permissions.";
-                SuccessMessage = null;
-            }
-            catch (ArgumentException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error creating synonym: {ex.Message}";
-                SuccessMessage = null;
-            }
+            }, "creating synonym", showLoading: false);
         }
 
         protected void StartEdit(Synonym synonym)
@@ -127,47 +75,15 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected async Task UpdateSynonym()
         {
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                var validationResult = ValidationService.ValidateSynonym(EditingSynonym);
-                if (!validationResult.IsValid)
-                {
-                    ErrorMessage = validationResult.ErrorMessage;
-                    return;
-                }
-
-                var request = new UpdateSynonymRequest
-                {
-                    Synonym = EditingSynonym.Synonym?.Trim()
-                };
-
+                await ValidateModel(EditingSynonym);
+                var request = RequestMapper.MapToUpdateRequest(EditingSynonym);
                 await SynonymApiService.UpdateSynonymAsync(EditingSynonym.Id, request);
-
-                SuccessMessage = "Synonym updated successfully.";
-                ErrorMessage = null;
+                SetSuccessMessage("Synonym updated successfully.");
                 CancelEdit();
                 await LoadSynonyms();
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (ArgumentException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error updating synonym: {ex.Message}";
-                SuccessMessage = null;
-            }
+            }, "updating synonym", showLoading: false);
         }
 
         protected void CancelEdit()
@@ -178,36 +94,14 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected async Task DeleteSynonym(Guid id)
         {
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 await SynonymApiService.DeleteSynonymAsync(id);
-                
-                SuccessMessage = "Synonym deleted successfully.";
-                ErrorMessage = null;
+                SetSuccessMessage("Synonym deleted successfully.");
                 await LoadSynonyms();
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error deleting synonym: {ex.Message}";
-                SuccessMessage = null;
-            }
+            }, "deleting synonym", showLoading: false);
         }
 
-        protected void ClearMessages()
-        {
-            ErrorMessage = null;
-            SuccessMessage = null;
-        }
 
         protected async Task<bool> ConfirmDelete()
         {
@@ -218,35 +112,11 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected async Task SyncSynonymsToOptimizelyGraph()
         {
-            try
+            await ExecuteWithSyncHandlingAsync(async () =>
             {
-                IsSyncing = true;
-                ClearMessages();
-
                 await SynonymApiService.SyncSynonymsToOptimizelyGraphAsync();
-                
-                SuccessMessage = "Successfully synced synonyms to Optimizely Graph.";
-            }
-            catch (UnauthorizedAccessException)
-            {
-                ErrorMessage = "You are not authenticated. Please log in to sync synonyms.";
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error syncing synonyms: {ex.Message}";
-            }
-            finally
-            {
-                IsSyncing = false;
-            }
+                SetSuccessMessage("Successfully synced synonyms to Optimizely Graph.");
+            }, "syncing synonyms to Optimizely Graph");
         }
 
 
@@ -258,28 +128,53 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected void GoToPage(int page)
         {
-            if (PaginationResult != null && page >= 1 && page <= PaginationResult.TotalPages)
-            {
-                CurrentPage = page;
-                UpdatePaginatedSynonyms();
-            }
+            NavigateToPage(page, CurrentPage, TotalPages, (p) => CurrentPage = p, UpdatePaginatedSynonymsAsync);
         }
 
         protected void GoToPreviousPage()
         {
-            if (PaginationResult?.HasPreviousPage == true)
-            {
-                CurrentPage--;
-                UpdatePaginatedSynonyms();
-            }
+            NavigateToPreviousPage(CurrentPage, (p) => CurrentPage = p, UpdatePaginatedSynonymsAsync);
         }
 
         protected void GoToNextPage()
         {
-            if (PaginationResult?.HasNextPage == true)
+            NavigateToNextPage(CurrentPage, TotalPages, (p) => CurrentPage = p, UpdatePaginatedSynonymsAsync);
+        }
+
+        private Task UpdatePaginatedSynonymsAsync()
+        {
+            UpdatePaginatedSynonyms();
+            return Task.CompletedTask;
+        }
+
+        private Task ValidateModel(SynonymModel model)
+        {
+            var validationResult = ValidationService.ValidateSynonym(model);
+            if (!validationResult.IsValid)
             {
-                CurrentPage++;
-                UpdatePaginatedSynonyms();
+                throw new ArgumentException(validationResult.ErrorMessage);
+            }
+            return Task.CompletedTask;
+        }
+
+        private async Task ExecuteWithSyncHandlingAsync(Func<Task> operation, string operationName)
+        {
+            try
+            {
+                IsSyncing = true;
+                ClearMessages();
+                StateHasChanged();
+
+                await ErrorHandler.ExecuteWithErrorHandlingAsync(operation, operationName);
+            }
+            catch (ComponentException ex)
+            {
+                SetErrorMessage(ex.Message);
+            }
+            finally
+            {
+                IsSyncing = false;
+                StateHasChanged();
             }
         }
 

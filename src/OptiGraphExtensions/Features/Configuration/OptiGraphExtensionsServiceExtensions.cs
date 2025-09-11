@@ -14,6 +14,10 @@ using OptiGraphExtensions.Features.PinnedResults.Repositories;
 using OptiGraphExtensions.Features.PinnedResults.Services;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
+using OptiGraphExtensions.Features.Common.Services;
+using OptiGraphExtensions.Features.Common.Validation;
+using OptiGraphExtensions.Features.Synonyms.Models;
+using OptiGraphExtensions.Features.PinnedResults.Models;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -100,24 +104,43 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IOptiGraphExtensionsDataContext, OptiGraphExtensionsDataContext>();
         services.AddScoped(provider => new Lazy<IOptiGraphExtensionsDataContext>(() => provider.GetRequiredService<IOptiGraphExtensionsDataContext>()));
         
-        // Register synonyms repository and service
-        services.AddScoped<ISynonymRepository, SynonymRepository>();
-        services.AddScoped<ISynonymService, SynonymService>();
-        
-        // Register new clean architecture services
-        services.AddScoped<ISynonymApiService, SynonymApiService>();
+        // Register common services
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IGraphConfigurationValidator, GraphConfigurationValidator>();
         services.AddScoped<IOptiGraphConfigurationService, OptiGraphConfigurationService>();
-        services.AddScoped<ISynonymValidationService, SynonymValidationService>();
+        services.AddScoped<IComponentErrorHandler, ComponentErrorHandler>();
         services.AddScoped(typeof(IPaginationService<>), typeof(PaginationService<>));
         
-        // Register PinnedResults clean architecture services
-        services.AddScoped<IPinnedResultsApiService, PinnedResultsApiService>();
-        services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
+        // Register validation services
+        services.AddScoped<IValidationService<CreateSynonymRequest>, AttributeValidationService<CreateSynonymRequest>>();
+        services.AddScoped<IValidationService<UpdateSynonymRequest>, AttributeValidationService<UpdateSynonymRequest>>();
+        services.AddScoped<IValidationService<CreatePinnedResultRequest>, AttributeValidationService<CreatePinnedResultRequest>>();
+        services.AddScoped<IValidationService<UpdatePinnedResultRequest>, AttributeValidationService<UpdatePinnedResultRequest>>();
+        services.AddScoped<IValidationService<CreatePinnedResultsCollectionRequest>, AttributeValidationService<CreatePinnedResultsCollectionRequest>>();
+        services.AddScoped<IValidationService<UpdatePinnedResultsCollectionRequest>, AttributeValidationService<UpdatePinnedResultsCollectionRequest>>();
+        
+        // Register request mappers
+        services.AddScoped<IRequestMapper<SynonymModel, CreateSynonymRequest, UpdateSynonymRequest>, SynonymRequestMapper>();
+        services.AddScoped<IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest>, PinnedResultRequestMapper>();
+        services.AddScoped<IRequestMapper<PinnedResultsCollectionModel, CreatePinnedResultsCollectionRequest, UpdatePinnedResultsCollectionRequest>, PinnedResultsCollectionRequestMapper>();
+        
+        // Register synonym services
+        services.AddScoped<ISynonymRepository, SynonymRepository>();
+        services.AddScoped<ISynonymService, SynonymService>();
+        services.AddScoped<ISynonymCrudService, SynonymCrudService>();
+        services.AddScoped<ISynonymGraphSyncService, SynonymGraphSyncService>();
+        services.AddScoped<ISynonymApiService, SynonymApiService>();
+        services.AddScoped<ISynonymValidationService, SynonymValidationService>();
         
         // Register pinned results repositories and services
         services.AddScoped<IPinnedResultRepository, PinnedResultRepository>();
         services.AddScoped<IPinnedResultsCollectionRepository, PinnedResultsCollectionRepository>();
         services.AddScoped<IPinnedResultService, PinnedResultService>();
         services.AddScoped<IPinnedResultsCollectionService, PinnedResultsCollectionService>();
+        services.AddScoped<IPinnedResultsCrudService, PinnedResultsCrudService>();
+        services.AddScoped<IPinnedResultsCollectionCrudService, PinnedResultsCollectionCrudService>();
+        services.AddScoped<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
+        services.AddScoped<IPinnedResultsApiService, PinnedResultsApiService>();
+        services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
     }
 }

@@ -111,20 +111,4 @@ namespace OptiGraphExtensions.Features.PinnedResults
         }
     }
 
-    public class CreatePinnedResultsCollectionRequest
-    {
-        public string? Title { get; set; }
-        public bool IsActive { get; set; } = true;
-    }
-
-    public class UpdatePinnedResultsCollectionRequest
-    {
-        public string? Title { get; set; }
-        public bool IsActive { get; set; }
-    }
-
-    public class UpdateGraphCollectionIdRequest
-    {
-        public string? GraphCollectionId { get; set; }
-    }
 }

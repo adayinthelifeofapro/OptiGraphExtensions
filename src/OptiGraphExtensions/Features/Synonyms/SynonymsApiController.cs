@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.Synonyms.Models;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Synonyms
@@ -78,13 +79,4 @@ namespace OptiGraphExtensions.Features.Synonyms
         }
     }
 
-    public class CreateSynonymRequest
-    {
-        public string? Synonym { get; set; }
-    }
-
-    public class UpdateSynonymRequest
-    {
-        public string? Synonym { get; set; }
-    }
 }

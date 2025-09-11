@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.PinnedResults.Models;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.PinnedResults
@@ -93,22 +94,4 @@ namespace OptiGraphExtensions.Features.PinnedResults
         }
     }
 
-    public class CreatePinnedResultRequest
-    {
-        public Guid CollectionId { get; set; }
-        public string? Phrases { get; set; }
-        public string? TargetKey { get; set; }
-        public string? Language { get; set; }
-        public int Priority { get; set; }
-        public bool IsActive { get; set; } = true;
-    }
-
-    public class UpdatePinnedResultRequest
-    {
-        public string? Phrases { get; set; }
-        public string? TargetKey { get; set; }
-        public string? Language { get; set; }
-        public int Priority { get; set; }
-        public bool IsActive { get; set; }
-    }
 }

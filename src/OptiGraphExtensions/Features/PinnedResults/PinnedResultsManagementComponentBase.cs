@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Components;
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.Common.Components;
+using OptiGraphExtensions.Features.Common.Services;
+using OptiGraphExtensions.Features.Common.Exceptions;
 using OptiGraphExtensions.Features.PinnedResults.Models;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.PinnedResults
 {
-    public class PinnedResultsManagementComponentBase : ComponentBase
+    public class PinnedResultsManagementComponentBase : ManagementComponentBase<PinnedResult, PinnedResultModel>
     {
         [Inject]
         protected IPinnedResultsApiService ApiService { get; set; } = null!;
@@ -20,11 +23,19 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Inject]
         protected IPinnedResultsValidationService ValidationService { get; set; } = null!;
 
+        [Inject]
+        protected IRequestMapper<PinnedResultsCollectionModel, CreatePinnedResultsCollectionRequest, UpdatePinnedResultsCollectionRequest> CollectionRequestMapper { get; set; } = null!;
+
+        [Inject]
+        protected IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest> PinnedResultRequestMapper { get; set; } = null!;
+
+        // Collections Management
         protected IList<PinnedResultsCollection> Collections { get; set; } = new List<PinnedResultsCollection>();
         protected PinnedResultsCollectionModel NewCollection { get; set; } = new();
         protected PinnedResultsCollectionModel EditingCollection { get; set; } = new();
         protected bool IsEditingCollection { get; set; }
 
+        // Pinned Results Management
         protected PaginationResult<PinnedResult>? PaginationResult { get; set; }
         protected IList<PinnedResult> AllPinnedResults { get; set; } = new List<PinnedResult>();
         protected PinnedResultModel NewPinnedResult { get; set; } = new();
@@ -32,18 +43,17 @@ namespace OptiGraphExtensions.Features.PinnedResults
         protected bool IsEditingPinnedResult { get; set; }
         protected Guid? SelectedCollectionId { get; set; }
 
-        protected bool IsLoading { get; set; }
+        // State Management
         protected bool IsSyncing { get; set; }
-        protected string? ErrorMessage { get; set; }
-        protected string? SuccessMessage { get; set; }
 
+        // Pagination
         protected int CurrentPage { get; set; } = 1;
         protected int PageSize { get; set; } = 10;
         protected int TotalPages => PaginationResult?.TotalPages ?? 0;
         protected int TotalItems => PaginationResult?.TotalItems ?? 0;
         protected List<PinnedResult> PinnedResults => PaginationResult?.Items?.ToList() ?? new List<PinnedResult>();
 
-        protected override async Task OnInitializedAsync()
+        protected override async Task LoadDataAsync()
         {
             await LoadCollections();
         }
@@ -52,159 +62,53 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
         protected async Task LoadCollections()
         {
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                IsLoading = true;
-                ClearMessages();
-
-                // Sync collections from Graph and get the updated local collections
-                var syncedCollections = await CollectionService.SyncCollectionsFromGraphAsync();
-                Collections = syncedCollections.OrderBy(c => c.Title).ToList();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                ErrorMessage = "You are not authenticated. Please log in to access collections.";
-                // Fallback to local collections if Graph sync fails due to auth
-                try
-                {
-                    var localCollections = await CollectionService.GetAllCollectionsAsync();
-                    Collections = localCollections.OrderBy(c => c.Title).ToList();
-                }
-                catch
-                {
-                    Collections = new List<PinnedResultsCollection>();
-                }
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Error syncing collections: {ex.Message}";
-                // Fallback to local collections if Graph sync fails
-                try
-                {
-                    var localCollections = await CollectionService.GetAllCollectionsAsync();
-                    Collections = localCollections.OrderBy(c => c.Title).ToList();
-                }
-                catch
-                {
-                    Collections = new List<PinnedResultsCollection>();
-                }
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+                Collections = await LoadCollectionsWithFallback();
+            }, "loading collections");
         }
 
         protected async Task CreateCollection()
         {
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                var validationResult = ValidationService.ValidateCollection(NewCollection);
-                if (!validationResult.IsValid)
-                {
-                    ErrorMessage = validationResult.ErrorMessage;
-                    return;
-                }
-
-                var request = new CreatePinnedResultsCollectionRequest
-                {
-                    Title = NewCollection.Title?.Trim(),
-                    IsActive = NewCollection.IsActive
-                };
-
+                await ValidateCollectionModel(NewCollection);
+                var request = CollectionRequestMapper.MapToCreateRequest(NewCollection);
                 var createdCollection = await ApiService.CreateCollectionAsync(request);
-                
-                try
-                {
-                    await ApiService.SyncCollectionToOptimizelyGraphAsync(createdCollection);
-                    SuccessMessage = "Collection created successfully and synced to Optimizely Graph.";
-                }
-                catch
-                {
-                    SuccessMessage = "Collection created successfully, but sync to Optimizely Graph failed.";
-                }
-                
-                NewCollection = new PinnedResultsCollectionModel();
-                ErrorMessage = null;
+                await HandleCollectionSync(createdCollection);
+                NewCollection = new();
+                SetSuccessMessage("Collection created successfully.");
                 await LoadCollections();
-            }
-            catch (UnauthorizedAccessException)
+            }, "creating collection", showLoading: false);
+        }
+
+        protected async Task UpdateCollection()
+        {
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                ErrorMessage = "You are not authorized to create collections. Please ensure you are logged in and have the required permissions.";
-                SuccessMessage = null;
-            }
-            catch (ArgumentException ex)
+                await ValidateCollectionModel(EditingCollection);
+                var request = CollectionRequestMapper.MapToUpdateRequest(EditingCollection);
+                await ApiService.UpdateCollectionAsync(EditingCollection.Id, request);
+                SetSuccessMessage("Collection updated successfully.");
+                CancelEditCollection();
+                await LoadCollections();
+            }, "updating collection", showLoading: false);
+        }
+
+        protected async Task DeleteCollection(Guid id)
+        {
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error creating collection: {ex.Message}";
-                SuccessMessage = null;
-            }
+                await ApiService.DeleteCollectionAsync(id);
+                SetSuccessMessage("Collection deleted successfully.");
+                await LoadCollections();
+            }, "deleting collection", showLoading: false);
         }
 
         protected void StartEditCollection(PinnedResultsCollection collection)
         {
             IsEditingCollection = true;
-            EditingCollection = new PinnedResultsCollectionModel
-            {
-                Id = collection.Id,
-                Title = collection.Title,
-                IsActive = collection.IsActive
-            };
-        }
-
-        protected async Task UpdateCollection()
-        {
-            try
-            {
-                var validationResult = ValidationService.ValidateCollection(EditingCollection);
-                if (!validationResult.IsValid)
-                {
-                    ErrorMessage = validationResult.ErrorMessage;
-                    return;
-                }
-
-                var request = new UpdatePinnedResultsCollectionRequest
-                {
-                    Title = EditingCollection.Title?.Trim(),
-                    IsActive = EditingCollection.IsActive
-                };
-
-                await ApiService.UpdateCollectionAsync(EditingCollection.Id, request);
-
-                SuccessMessage = "Collection updated successfully.";
-                ErrorMessage = null;
-                CancelEditCollection();
-                await LoadCollections();
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (ArgumentException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error updating collection: {ex.Message}";
-                SuccessMessage = null;
-            }
+            EditingCollection = MapToCollectionModel(collection);
         }
 
         protected void CancelEditCollection()
@@ -213,156 +117,228 @@ namespace OptiGraphExtensions.Features.PinnedResults
             EditingCollection = new PinnedResultsCollectionModel();
         }
 
-        protected async Task DeleteCollection(Guid id)
+        protected async Task SyncCollectionsFromOptimizelyGraph()
         {
-            try
+            await ExecuteWithSyncHandlingAsync(async () =>
             {
-                await ApiService.DeleteCollectionAsync(id);
-
-                SuccessMessage = "Collection deleted successfully.";
-                ErrorMessage = null;
-                
-                if (SelectedCollectionId == id)
-                {
-                    SelectedCollectionId = null;
-                    AllPinnedResults.Clear();
-                    PaginationResult = null;
-                }
-                
+                var graphCollections = await ApiService.SyncCollectionsFromOptimizelyGraphAsync();
+                SetSuccessMessage($"Successfully synced {graphCollections.Count} collections from Optimizely Graph.");
                 await LoadCollections();
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error deleting collection: {ex.Message}";
-                SuccessMessage = null;
-            }
+            }, "syncing collections from Optimizely Graph");
         }
 
         #endregion
 
         #region Pinned Results Management
 
-        protected async Task OnCollectionChanged(ChangeEventArgs args)
-        {
-            if (Guid.TryParse(args.Value?.ToString(), out var collectionId))
-            {
-                SelectedCollectionId = collectionId;
-                NewPinnedResult.CollectionId = collectionId;
-                await LoadPinnedResults();
-            }
-            else
-            {
-                SelectedCollectionId = null;
-                AllPinnedResults.Clear();
-                PaginationResult = null;
-            }
-        }
-
         protected async Task LoadPinnedResults()
         {
             if (!SelectedCollectionId.HasValue) return;
 
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                IsLoading = true;
-                ClearMessages();
-
                 AllPinnedResults = await ApiService.GetPinnedResultsAsync(SelectedCollectionId.Value);
                 UpdatePaginatedPinnedResults();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                ErrorMessage = "You are not authenticated. Please log in to access pinned results.";
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error loading pinned results: {ex.Message}";
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+            }, "loading pinned results");
         }
 
         protected async Task CreatePinnedResult()
         {
-            try
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                if (!SelectedCollectionId.HasValue)
-                {
-                    ErrorMessage = "Please select a collection first.";
-                    return;
-                }
-
-                NewPinnedResult.CollectionId = SelectedCollectionId.Value;
-                var validationResult = ValidationService.ValidatePinnedResult(NewPinnedResult);
-                if (!validationResult.IsValid)
-                {
-                    ErrorMessage = validationResult.ErrorMessage;
-                    return;
-                }
-
-                var request = new CreatePinnedResultRequest
-                {
-                    CollectionId = SelectedCollectionId.Value,
-                    Phrases = NewPinnedResult.Phrases?.Trim(),
-                    TargetKey = NewPinnedResult.TargetKey?.Trim(),
-                    Language = NewPinnedResult.Language?.Trim(),
-                    Priority = NewPinnedResult.Priority,
-                    IsActive = NewPinnedResult.IsActive
-                };
-
+                await ValidatePinnedResultModel(NewPinnedResult);
+                NewPinnedResult.CollectionId = SelectedCollectionId ?? Guid.Empty;
+                var request = PinnedResultRequestMapper.MapToCreateRequest(NewPinnedResult);
                 await ApiService.CreatePinnedResultAsync(request);
-                
-                NewPinnedResult = new PinnedResultModel { CollectionId = SelectedCollectionId.Value };
-                SuccessMessage = "Pinned result created successfully.";
-                ErrorMessage = null;
+                NewPinnedResult = new();
+                SetSuccessMessage("Pinned result created successfully.");
                 await LoadPinnedResults();
-            }
-            catch (UnauthorizedAccessException)
+            }, "creating pinned result", showLoading: false);
+        }
+
+        protected async Task UpdatePinnedResult()
+        {
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                ErrorMessage = "You are not authorized to create pinned results. Please ensure you are logged in and have the required permissions.";
-                SuccessMessage = null;
-            }
-            catch (ArgumentException ex)
+                await ValidatePinnedResultModel(EditingPinnedResult);
+                var request = PinnedResultRequestMapper.MapToUpdateRequest(EditingPinnedResult);
+                await ApiService.UpdatePinnedResultAsync(EditingPinnedResult.Id, request);
+                SetSuccessMessage("Pinned result updated successfully.");
+                CancelEditPinnedResult();
+                await LoadPinnedResults();
+            }, "updating pinned result", showLoading: false);
+        }
+
+        protected async Task DeletePinnedResult(Guid id)
+        {
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error creating pinned result: {ex.Message}";
-                SuccessMessage = null;
-            }
+                await ApiService.DeletePinnedResultAsync(id);
+                SetSuccessMessage("Pinned result deleted successfully.");
+                await LoadPinnedResults();
+            }, "deleting pinned result", showLoading: false);
         }
 
         protected void StartEditPinnedResult(PinnedResult pinnedResult)
         {
             IsEditingPinnedResult = true;
-            EditingPinnedResult = new PinnedResultModel
+            EditingPinnedResult = MapToPinnedResultModel(pinnedResult);
+        }
+
+        protected void CancelEditPinnedResult()
+        {
+            IsEditingPinnedResult = false;
+            EditingPinnedResult = new PinnedResultModel();
+        }
+
+        protected async Task OnCollectionChanged(ChangeEventArgs args)
+        {
+            if (Guid.TryParse(args.Value?.ToString(), out var collectionId))
+            {
+                SelectedCollectionId = collectionId;
+                await LoadPinnedResults();
+            }
+            else
+            {
+                SelectedCollectionId = null;
+                AllPinnedResults = new List<PinnedResult>();
+                PaginationResult = null;
+            }
+        }
+
+        protected async Task SyncPinnedResultsToOptimizelyGraph()
+        {
+            if (!SelectedCollectionId.HasValue) return;
+
+            await ExecuteWithSyncHandlingAsync(async () =>
+            {
+                await ApiService.SyncPinnedResultsToOptimizelyGraphAsync(SelectedCollectionId.Value);
+                SetSuccessMessage("Successfully synced pinned results to Optimizely Graph.");
+            }, "syncing pinned results to Optimizely Graph");
+        }
+
+        #endregion
+
+        #region Pagination
+
+        protected void UpdatePaginatedPinnedResults()
+        {
+            PaginationResult = PaginationService.GetPage(AllPinnedResults, CurrentPage, PageSize);
+            StateHasChanged();
+        }
+
+        protected void GoToPage(int page)
+        {
+            NavigateToPage(page, CurrentPage, TotalPages, (p) => CurrentPage = p, UpdatePaginatedPinnedResultsAsync);
+        }
+
+        protected void GoToPreviousPage()
+        {
+            NavigateToPreviousPage(CurrentPage, (p) => CurrentPage = p, UpdatePaginatedPinnedResultsAsync);
+        }
+
+        protected void GoToNextPage()
+        {
+            NavigateToNextPage(CurrentPage, TotalPages, (p) => CurrentPage = p, UpdatePaginatedPinnedResultsAsync);
+        }
+
+        protected void GoToFirstPage()
+        {
+            NavigateToFirstPage(CurrentPage, (p) => CurrentPage = p, UpdatePaginatedPinnedResultsAsync);
+        }
+
+        protected void GoToLastPage()
+        {
+            NavigateToLastPage(CurrentPage, TotalPages, (p) => CurrentPage = p, UpdatePaginatedPinnedResultsAsync);
+        }
+
+        private Task UpdatePaginatedPinnedResultsAsync()
+        {
+            UpdatePaginatedPinnedResults();
+            return Task.CompletedTask;
+        }
+
+        #endregion
+
+        #region Utility Methods
+
+        protected Task<bool> ConfirmDelete()
+        {
+            // For now, we'll return true. In a production app, you'd want to implement
+            // a proper confirmation dialog using JavaScript interop or a modal component
+            return Task.FromResult(true);
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        private async Task<IList<PinnedResultsCollection>> LoadCollectionsWithFallback()
+        {
+            try
+            {
+                return await ApiService.GetCollectionsAsync();
+            }
+            catch
+            {
+                // Fallback to collection service if API service fails
+                try
+                {
+                    return (await CollectionService.GetAllCollectionsAsync()).ToList();
+                }
+                catch
+                {
+                    return new List<PinnedResultsCollection>();
+                }
+            }
+        }
+
+        private async Task HandleCollectionSync(PinnedResultsCollection collection)
+        {
+            try
+            {
+                await ApiService.SyncCollectionToOptimizelyGraphAsync(collection);
+            }
+            catch
+            {
+                // Sync failure shouldn't prevent collection creation success
+                SetSuccessMessage("Collection created successfully. Note: Sync to Optimizely Graph failed.");
+            }
+        }
+
+        private Task ValidateCollectionModel(PinnedResultsCollectionModel model)
+        {
+            var validationResult = ValidationService.ValidateCollection(model);
+            if (!validationResult.IsValid)
+            {
+                throw new ArgumentException(validationResult.ErrorMessage);
+            }
+            return Task.CompletedTask;
+        }
+
+        private Task ValidatePinnedResultModel(PinnedResultModel model)
+        {
+            var validationResult = ValidationService.ValidatePinnedResult(model);
+            if (!validationResult.IsValid)
+            {
+                throw new ArgumentException(validationResult.ErrorMessage);
+            }
+            return Task.CompletedTask;
+        }
+
+        private static PinnedResultsCollectionModel MapToCollectionModel(PinnedResultsCollection collection)
+        {
+            return new PinnedResultsCollectionModel
+            {
+                Id = collection.Id,
+                Title = collection.Title,
+                IsActive = collection.IsActive
+            };
+        }
+
+        private static PinnedResultModel MapToPinnedResultModel(PinnedResult pinnedResult)
+        {
+            return new PinnedResultModel
             {
                 Id = pinnedResult.Id,
                 CollectionId = pinnedResult.CollectionId,
@@ -374,223 +350,24 @@ namespace OptiGraphExtensions.Features.PinnedResults
             };
         }
 
-        protected async Task UpdatePinnedResult()
-        {
-            try
-            {
-                var validationResult = ValidationService.ValidatePinnedResult(EditingPinnedResult);
-                if (!validationResult.IsValid)
-                {
-                    ErrorMessage = validationResult.ErrorMessage;
-                    return;
-                }
-
-                var request = new UpdatePinnedResultRequest
-                {
-                    Phrases = EditingPinnedResult.Phrases?.Trim(),
-                    TargetKey = EditingPinnedResult.TargetKey?.Trim(),
-                    Language = EditingPinnedResult.Language?.Trim(),
-                    Priority = EditingPinnedResult.Priority,
-                    IsActive = EditingPinnedResult.IsActive
-                };
-
-                await ApiService.UpdatePinnedResultAsync(EditingPinnedResult.Id, request);
-
-                SuccessMessage = "Pinned result updated successfully.";
-                ErrorMessage = null;
-                CancelEditPinnedResult();
-                await LoadPinnedResults();
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (ArgumentException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error updating pinned result: {ex.Message}";
-                SuccessMessage = null;
-            }
-        }
-
-        protected void CancelEditPinnedResult()
-        {
-            IsEditingPinnedResult = false;
-            EditingPinnedResult = new PinnedResultModel();
-        }
-
-        protected async Task DeletePinnedResult(Guid id)
-        {
-            try
-            {
-                await ApiService.DeletePinnedResultAsync(id);
-                
-                SuccessMessage = "Pinned result deleted successfully.";
-                ErrorMessage = null;
-                await LoadPinnedResults();
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-                SuccessMessage = null;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error deleting pinned result: {ex.Message}";
-                SuccessMessage = null;
-            }
-        }
-
-        #endregion
-
-        #region Utility Methods
-
-        protected void ClearMessages()
-        {
-            ErrorMessage = null;
-            SuccessMessage = null;
-        }
-
-        protected async Task<bool> ConfirmDelete()
-        {
-            // For now, we'll return true. In a production app, you'd want to implement
-            // a proper confirmation dialog using JavaScript interop or a modal component
-            return await Task.FromResult(true);
-        }
-
-        protected void UpdatePaginatedPinnedResults()
-        {
-            PaginationResult = PaginationService.GetPage(AllPinnedResults, CurrentPage, PageSize);
-            StateHasChanged();
-        }
-
-        protected void GoToPage(int page)
-        {
-            if (PaginationResult != null && page >= 1 && page <= PaginationResult.TotalPages)
-            {
-                CurrentPage = page;
-                UpdatePaginatedPinnedResults();
-            }
-        }
-
-        protected void GoToPreviousPage()
-        {
-            if (PaginationResult?.HasPreviousPage == true)
-            {
-                CurrentPage--;
-                UpdatePaginatedPinnedResults();
-            }
-        }
-
-        protected void GoToNextPage()
-        {
-            if (PaginationResult?.HasNextPage == true)
-            {
-                CurrentPage++;
-                UpdatePaginatedPinnedResults();
-            }
-        }
-
-        #endregion
-
-        #region Optimizely Graph Synchronization
-
-        protected async Task SyncCollectionsFromOptimizelyGraph()
+        private async Task ExecuteWithSyncHandlingAsync(Func<Task> operation, string operationName)
         {
             try
             {
                 IsSyncing = true;
                 ClearMessages();
+                StateHasChanged();
 
-                // Sync collections from Graph and update the database
-                var syncedCollections = await CollectionService.SyncCollectionsFromGraphAsync();
-                Collections = syncedCollections.OrderBy(c => c.Title).ToList();
-                
-                SuccessMessage = $"Successfully synced {syncedCollections.Count()} collections from Optimizely Graph and updated local database.";
+                await ErrorHandler.ExecuteWithErrorHandlingAsync(operation, operationName);
             }
-            catch (UnauthorizedAccessException)
+            catch (ComponentException ex)
             {
-                ErrorMessage = "You are not authenticated. Please log in to sync collections.";
-                // Try to load local collections as fallback
-                try
-                {
-                    var localCollections = await CollectionService.GetAllCollectionsAsync();
-                    Collections = localCollections.OrderBy(c => c.Title).ToList();
-                }
-                catch
-                {
-                    // Ignore fallback errors
-                }
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error syncing collections: {ex.Message}";
+                SetErrorMessage(ex.Message);
             }
             finally
             {
                 IsSyncing = false;
-            }
-        }
-
-        protected async Task SyncPinnedResultsToOptimizelyGraph()
-        {
-            try
-            {
-                if (!SelectedCollectionId.HasValue)
-                {
-                    ErrorMessage = "Please select a collection first.";
-                    return;
-                }
-
-                IsSyncing = true;
-                ClearMessages();
-
-                await ApiService.SyncPinnedResultsToOptimizelyGraphAsync(SelectedCollectionId.Value);
-                
-                SuccessMessage = "Successfully synced pinned results to Optimizely Graph.";
-            }
-            catch (UnauthorizedAccessException)
-            {
-                ErrorMessage = "You are not authenticated. Please log in to sync pinned results.";
-            }
-            catch (InvalidOperationException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (HttpRequestException ex)
-            {
-                ErrorMessage = ex.Message;
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Unexpected error syncing pinned results: {ex.Message}";
-            }
-            finally
-            {
-                IsSyncing = false;
+                StateHasChanged();
             }
         }
 
