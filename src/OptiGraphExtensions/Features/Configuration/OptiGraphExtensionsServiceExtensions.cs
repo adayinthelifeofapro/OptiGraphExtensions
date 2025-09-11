@@ -8,6 +8,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
+using OptiGraphExtensions.Features.Synonyms.Repositories;
+using OptiGraphExtensions.Features.Synonyms.Services;
+using OptiGraphExtensions.Features.PinnedResults.Repositories;
+using OptiGraphExtensions.Features.PinnedResults.Services;
+using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
+using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -93,5 +99,25 @@ public static class OptiGraphExtensionsServiceExtensions
 
         services.AddScoped<IOptiGraphExtensionsDataContext, OptiGraphExtensionsDataContext>();
         services.AddScoped(provider => new Lazy<IOptiGraphExtensionsDataContext>(() => provider.GetRequiredService<IOptiGraphExtensionsDataContext>()));
+        
+        // Register synonyms repository and service
+        services.AddScoped<ISynonymRepository, SynonymRepository>();
+        services.AddScoped<ISynonymService, SynonymService>();
+        
+        // Register new clean architecture services
+        services.AddScoped<ISynonymApiService, SynonymApiService>();
+        services.AddScoped<IOptiGraphConfigurationService, OptiGraphConfigurationService>();
+        services.AddScoped<ISynonymValidationService, SynonymValidationService>();
+        services.AddScoped(typeof(IPaginationService<>), typeof(PaginationService<>));
+        
+        // Register PinnedResults clean architecture services
+        services.AddScoped<IPinnedResultsApiService, PinnedResultsApiService>();
+        services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
+        
+        // Register pinned results repositories and services
+        services.AddScoped<IPinnedResultRepository, PinnedResultRepository>();
+        services.AddScoped<IPinnedResultsCollectionRepository, PinnedResultsCollectionRepository>();
+        services.AddScoped<IPinnedResultService, PinnedResultService>();
+        services.AddScoped<IPinnedResultsCollectionService, PinnedResultsCollectionService>();
     }
 }

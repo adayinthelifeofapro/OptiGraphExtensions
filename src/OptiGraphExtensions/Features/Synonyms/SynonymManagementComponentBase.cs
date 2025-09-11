@@ -1,42 +1,37 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using System.Net.Http.Headers;
 
-using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
-using System.ComponentModel.DataAnnotations;
-using System.Net.Http.Json;
-using System.Text;
+using OptiGraphExtensions.Features.Synonyms.Models;
+using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Synonyms
 {
     public class SynonymManagementComponentBase : ComponentBase
     {
         [Inject]
-        protected HttpClient HttpClient { get; set; } = null!;
+        protected ISynonymApiService SynonymApiService { get; set; } = null!;
 
         [Inject]
-        protected IHttpContextAccessor? HttpContextAccessor { get; set; }
+        protected IPaginationService<Synonym> PaginationService { get; set; } = null!;
 
         [Inject]
-        protected IConfiguration? Configuration { get; set; }
+        protected ISynonymValidationService ValidationService { get; set; } = null!;
 
-        protected List<Synonym> Synonyms { get; set; } = new();
-        protected List<Synonym> AllSynonyms { get; set; } = new();
+        protected PaginationResult<Synonym>? PaginationResult { get; set; }
+        protected IList<Synonym> AllSynonyms { get; set; } = new List<Synonym>();
         protected SynonymModel NewSynonym { get; set; } = new();
         protected SynonymModel EditingSynonym { get; set; } = new();
-        protected bool IsEditing { get; set; } = false;
-        protected bool IsLoading { get; set; } = false;
-        protected bool IsSyncing { get; set; } = false;
+        protected bool IsEditing { get; set; }
+        protected bool IsLoading { get; set; }
+        protected bool IsSyncing { get; set; }
         protected string? ErrorMessage { get; set; }
         protected string? SuccessMessage { get; set; }
 
-        // Pagination properties
         protected int CurrentPage { get; set; } = 1;
         protected int PageSize { get; set; } = 10;
-        protected int TotalPages => (int)Math.Ceiling((double)AllSynonyms.Count / PageSize);
-        protected int TotalItems => AllSynonyms.Count;
+        protected int TotalPages => PaginationResult?.TotalPages ?? 0;
+        protected int TotalItems => PaginationResult?.TotalItems ?? 0;
+        protected List<Synonym> Synonyms => PaginationResult?.Items?.ToList() ?? new List<Synonym>();
 
         protected override async Task OnInitializedAsync()
         {
@@ -48,46 +43,26 @@ namespace OptiGraphExtensions.Features.Synonyms
             try
             {
                 IsLoading = true;
-                var baseUrl = GetBaseUrl();
-                
-                // Add authentication headers if available
-                var httpContext = HttpContextAccessor.HttpContext;
-                if (httpContext?.User?.Identity?.IsAuthenticated == true)
-                {
-                    // For debugging - let's see what we get back
-                    var response = await HttpClient.GetAsync($"{baseUrl}/api/optimizely-graphextensions/synonyms");
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    
-                    if (response.IsSuccessStatusCode)
-                    {
-                        try
-                        {
-                            // Try to parse as JSON
-                            var synonyms = System.Text.Json.JsonSerializer.Deserialize<List<Synonym>>(responseContent, new System.Text.Json.JsonSerializerOptions
-                            {
-                                PropertyNameCaseInsensitive = true
-                            });
-                            AllSynonyms = synonyms?.OrderBy(s => s.SynonymItem).ToList() ?? new();
-                            UpdatePaginatedSynonyms();
-                        }
-                        catch (System.Text.Json.JsonException)
-                        {
-                            ErrorMessage = $"Error: API returned invalid JSON. Response: {responseContent.Substring(0, Math.Min(500, responseContent.Length))}";
-                        }
-                    }
-                    else
-                    {
-                        ErrorMessage = $"Error loading synonyms: {response.StatusCode} - Content: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}";
-                    }
-                }
-                else
-                {
-                    ErrorMessage = "Error: User is not authenticated. Please log in to access synonyms.";
-                }
+                ClearMessages();
+
+                AllSynonyms = await SynonymApiService.GetSynonymsAsync();
+                UpdatePaginatedSynonyms();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                ErrorMessage = "You are not authenticated. Please log in to access synonyms.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                ErrorMessage = ex.Message;
+            }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = ex.Message;
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error loading synonyms: {ex.Message}";
+                ErrorMessage = $"Unexpected error loading synonyms: {ex.Message}";
             }
             finally
             {
@@ -99,42 +74,43 @@ namespace OptiGraphExtensions.Features.Synonyms
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(NewSynonym.Synonym))
+                var validationResult = ValidationService.ValidateSynonym(NewSynonym);
+                if (!validationResult.IsValid)
                 {
-                    ErrorMessage = "Synonym text is required.";
+                    ErrorMessage = validationResult.ErrorMessage;
                     return;
                 }
 
                 var request = new CreateSynonymRequest
                 {
-                    Synonym = NewSynonym.Synonym.Trim()
+                    Synonym = NewSynonym.Synonym?.Trim()
                 };
 
-                var baseUrl = GetBaseUrl();
-                var response = await HttpClient.PostAsJsonAsync($"{baseUrl}/api/optimizely-graphextensions/synonyms", request);
+                await SynonymApiService.CreateSynonymAsync(request);
                 
-                if (response.IsSuccessStatusCode)
-                {
-                    NewSynonym = new SynonymModel();
-                    SuccessMessage = "Synonym created successfully.";
-                    ErrorMessage = null;
-                    await LoadSynonyms();
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    ErrorMessage = "Error: You are not authorized to create synonyms. Please ensure you are logged in and have the required permissions.";
-                    SuccessMessage = null;
-                }
-                else
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    ErrorMessage = $"Error creating synonym: {response.StatusCode} - {response.ReasonPhrase}";
-                    SuccessMessage = null;
-                }
+                NewSynonym = new SynonymModel();
+                SuccessMessage = "Synonym created successfully.";
+                ErrorMessage = null;
+                await LoadSynonyms();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                ErrorMessage = "You are not authorized to create synonyms. Please ensure you are logged in and have the required permissions.";
+                SuccessMessage = null;
+            }
+            catch (ArgumentException ex)
+            {
+                ErrorMessage = ex.Message;
+                SuccessMessage = null;
+            }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = ex.Message;
+                SuccessMessage = null;
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error creating synonym: {ex.Message}";
+                ErrorMessage = $"Unexpected error creating synonym: {ex.Message}";
                 SuccessMessage = null;
             }
         }
@@ -153,39 +129,43 @@ namespace OptiGraphExtensions.Features.Synonyms
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(EditingSynonym.Synonym))
+                var validationResult = ValidationService.ValidateSynonym(EditingSynonym);
+                if (!validationResult.IsValid)
                 {
-                    ErrorMessage = "Synonym text is required.";
+                    ErrorMessage = validationResult.ErrorMessage;
                     return;
                 }
 
                 var request = new UpdateSynonymRequest
                 {
-                    Synonym = EditingSynonym.Synonym.Trim()
+                    Synonym = EditingSynonym.Synonym?.Trim()
                 };
 
-                var baseUrl = GetBaseUrl();
-                var response = await HttpClient.PutAsJsonAsync($"{baseUrl}/api/optimizely-graphextensions/synonyms/{EditingSynonym.Id}", request);
+                await SynonymApiService.UpdateSynonymAsync(EditingSynonym.Id, request);
 
-                if (response.IsSuccessStatusCode)
-                {
-                    SuccessMessage = "Synonym updated successfully.";
-                    ErrorMessage = null;
-                    CancelEdit();
-                    await LoadSynonyms();
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    ErrorMessage = "Synonym not found.";
-                }
-                else
-                {
-                    ErrorMessage = $"Error updating synonym: {response.ReasonPhrase}";
-                }
+                SuccessMessage = "Synonym updated successfully.";
+                ErrorMessage = null;
+                CancelEdit();
+                await LoadSynonyms();
+            }
+            catch (InvalidOperationException ex)
+            {
+                ErrorMessage = ex.Message;
+                SuccessMessage = null;
+            }
+            catch (ArgumentException ex)
+            {
+                ErrorMessage = ex.Message;
+                SuccessMessage = null;
+            }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = ex.Message;
+                SuccessMessage = null;
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error updating synonym: {ex.Message}";
+                ErrorMessage = $"Unexpected error updating synonym: {ex.Message}";
                 SuccessMessage = null;
             }
         }
@@ -200,27 +180,25 @@ namespace OptiGraphExtensions.Features.Synonyms
         {
             try
             {
-                var baseUrl = GetBaseUrl();
-                var response = await HttpClient.DeleteAsync($"{baseUrl}/api/optimizely-graphextensions/synonyms/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    SuccessMessage = "Synonym deleted successfully.";
-                    ErrorMessage = null;
-                    await LoadSynonyms();
-                }
-                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    ErrorMessage = "Synonym not found.";
-                }
-                else
-                {
-                    ErrorMessage = $"Error deleting synonym: {response.ReasonPhrase}";
-                }
+                await SynonymApiService.DeleteSynonymAsync(id);
+                
+                SuccessMessage = "Synonym deleted successfully.";
+                ErrorMessage = null;
+                await LoadSynonyms();
+            }
+            catch (InvalidOperationException ex)
+            {
+                ErrorMessage = ex.Message;
+                SuccessMessage = null;
+            }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = ex.Message;
+                SuccessMessage = null;
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error deleting synonym: {ex.Message}";
+                ErrorMessage = $"Unexpected error deleting synonym: {ex.Message}";
                 SuccessMessage = null;
             }
         }
@@ -243,91 +221,27 @@ namespace OptiGraphExtensions.Features.Synonyms
             try
             {
                 IsSyncing = true;
-                ErrorMessage = null;
-                SuccessMessage = null;
+                ClearMessages();
 
-                var httpContext = HttpContextAccessor.HttpContext;
-                if (httpContext?.User?.Identity?.IsAuthenticated != true)
-                {
-                    ErrorMessage = "Error: User is not authenticated. Please log in to sync synonyms.";
-                    return;
-                }
-
-                // First, get all synonyms from our local API
-                var baseUrl = GetBaseUrl();
-                var response = await HttpClient.GetAsync($"{baseUrl}/api/optimizely-graphextensions/synonyms");
+                await SynonymApiService.SyncSynonymsToOptimizelyGraphAsync();
                 
-                if (!response.IsSuccessStatusCode)
-                {
-                    ErrorMessage = $"Error retrieving synonyms for sync: {response.StatusCode} - {response.ReasonPhrase}";
-                    return;
-                }
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                List<Synonym> synonymsToSync;
-
-                try
-                {
-                    synonymsToSync = System.Text.Json.JsonSerializer.Deserialize<List<Synonym>>(responseContent, new System.Text.Json.JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    }) ?? new List<Synonym>();
-                }
-                catch (System.Text.Json.JsonException)
-                {
-                    ErrorMessage = "Error: Failed to parse synonyms data for sync.";
-                    return;
-                }
-
-                if (!synonymsToSync.Any())
-                {
-                    ErrorMessage = "No synonyms found to sync to Optimizely Graph.";
-                    return;
-                }
-
-                // TODO: You'll need to configure these values based on your Optimizely Graph setup
-                var graphGatewayUrl = GetOptimizelyGraphGatewayUrl();
-                var hmacKey = GetOptimizelyGraphHmacKey();
-                var hmacSecret = GetOptimizelyGraphHmacSecret();
-
-                var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
-
-                if (string.IsNullOrEmpty(graphGatewayUrl))
-                {
-                    ErrorMessage = "Error: Optimizely Graph Gateway URL not configured. Please configure your Graph settings.";
-                    return;
-                }
-
-                if (string.IsNullOrEmpty(hmacKey) || string.IsNullOrEmpty(hmacSecret))
-                {
-                    ErrorMessage = "Error: Optimizely Graph HMAC credentials not configured. Please configure your authentication settings.";
-                    return;
-                }
-
-                // Create the request to Optimizely Graph
-                var graphApiUrl = $"{graphGatewayUrl}/resources/synonyms";
-                
-                // Create HTTP request message to add custom headers
-                using var request = new HttpRequestMessage(HttpMethod.Put, graphApiUrl);
-                request.Content = new StringContent(GetSynonyms(synonymsToSync), Encoding.UTF8, "text/plain");
-                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authenticationHeader);
-
-                // Send to Optimizely Graph
-                var graphResponse = await HttpClient.SendAsync(request);
-
-                if (graphResponse.IsSuccessStatusCode)
-                {
-                    SuccessMessage = $"Successfully synced {synonymsToSync.Count} synonyms to Optimizely Graph.";
-                }
-                else
-                {
-                    var errorContent = await graphResponse.Content.ReadAsStringAsync();
-                    ErrorMessage = $"Error syncing to Optimizely Graph: {graphResponse.StatusCode} - {errorContent}";
-                }
+                SuccessMessage = "Successfully synced synonyms to Optimizely Graph.";
+            }
+            catch (UnauthorizedAccessException)
+            {
+                ErrorMessage = "You are not authenticated. Please log in to sync synonyms.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                ErrorMessage = ex.Message;
+            }
+            catch (HttpRequestException ex)
+            {
+                ErrorMessage = ex.Message;
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error syncing synonyms: {ex.Message}";
+                ErrorMessage = $"Unexpected error syncing synonyms: {ex.Message}";
             }
             finally
             {
@@ -335,53 +249,16 @@ namespace OptiGraphExtensions.Features.Synonyms
             }
         }
 
-        private static string GetSynonyms(List<Synonym> synonymsToSync)
-        {
-            var synonymList = new StringBuilder();
-
-            foreach (var synonym in synonymsToSync)
-            {
-                synonymList.AppendLine(synonym.SynonymItem);
-            }
-
-            return synonymList.ToString();
-        }
-
-        private string GetOptimizelyGraphGatewayUrl()
-        {
-            return Configuration["Optimizely:ContentGraph:GatewayAddress"] ?? "";
-        }
-
-        private string GetOptimizelyGraphHmacKey()
-        {
-            return Configuration["Optimizely:ContentGraph:AppKey"] ?? "";
-        }
-
-        private string GetOptimizelyGraphHmacSecret()
-        {
-            return Configuration["Optimizely:ContentGraph:Secret"] ?? "";
-        }
-
-
-        private string GetBaseUrl()
-        {
-            var request = HttpContextAccessor.HttpContext?.Request;
-            if (request == null)
-                return string.Empty;
-
-            return $"{request.Scheme}://{request.Host}";
-        }
 
         protected void UpdatePaginatedSynonyms()
         {
-            var startIndex = (CurrentPage - 1) * PageSize;
-            Synonyms = AllSynonyms.Skip(startIndex).Take(PageSize).ToList();
+            PaginationResult = PaginationService.GetPage(AllSynonyms, CurrentPage, PageSize);
             StateHasChanged();
         }
 
         protected void GoToPage(int page)
         {
-            if (page >= 1 && page <= TotalPages)
+            if (PaginationResult != null && page >= 1 && page <= PaginationResult.TotalPages)
             {
                 CurrentPage = page;
                 UpdatePaginatedSynonyms();
@@ -390,7 +267,7 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected void GoToPreviousPage()
         {
-            if (CurrentPage > 1)
+            if (PaginationResult?.HasPreviousPage == true)
             {
                 CurrentPage--;
                 UpdatePaginatedSynonyms();
@@ -399,30 +276,12 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected void GoToNextPage()
         {
-            if (CurrentPage < TotalPages)
+            if (PaginationResult?.HasNextPage == true)
             {
                 CurrentPage++;
                 UpdatePaginatedSynonyms();
             }
         }
 
-        protected class SynonymModel
-        {
-            public Guid Id { get; set; }
-
-            [Required(ErrorMessage = "Synonym is required")]
-            [StringLength(255, ErrorMessage = "Synonym must be less than 255 characters")]
-            public string? Synonym { get; set; }
-        }
-
-        protected class CreateSynonymRequest
-        {
-            public string? Synonym { get; set; }
-        }
-
-        protected class UpdateSynonymRequest
-        {
-            public string? Synonym { get; set; }
-        }
     }
 }
