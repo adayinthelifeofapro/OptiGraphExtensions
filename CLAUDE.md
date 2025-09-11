@@ -56,6 +56,8 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - `Entities/OptiGraphExtensionsDataContext.cs`: Entity Framework DbContext
 - `Entities/IOptiGraphExtensionsDataContext.cs`: Data context interface
 - `Entities/Synonyms.cs`: Synonym entity model
+- `Entities/PinnedResult.cs`: Pinned result entity model with collection relationships
+- `Entities/PinnedResultsCollection.cs`: Pinned results collection entity with Graph integration
 - Uses Entity Framework migrations for database management
 - SQL Server as the database provider
 
@@ -69,13 +71,34 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 
 #### UI Components
 - Uses Razor views located in `Views/OptiGraphExtensions/Administration/`
-- Blazor components for interactive UI (see `Features/Synonyms/MyBlazorCounterComponentBase.cs`)
+- Blazor components for interactive UI:
+  - `Features/Synonyms/SynonymManagementComponentBase.cs`: Synonym management component
+  - `Features/PinnedResults/PinnedResultsManagementComponentBase.cs`: Pinned results management component
 - Layout: `Views/Shared/Layouts/_LayoutBlazorAdminPage.cshtml`
 
 #### Module Integration
 - `module.config`: Optimizely module configuration
 - `Menus/OptiGraphExtensionsMenuProvider.cs`: CMS menu integration
 - Configured as a protected module that loads from bin
+
+#### Services & Repositories
+- **Synonyms Feature**:
+  - `Features/Synonyms/Services/`: Business logic services (SynonymService, SynonymApiService, ValidationService, etc.)
+  - `Features/Synonyms/Repositories/`: Data access layer (SynonymRepository)
+- **Pinned Results Feature**:
+  - `Features/PinnedResults/Services/`: Business logic services (PinnedResultService, PinnedResultsApiService, etc.)
+  - `Features/PinnedResults/Repositories/`: Data access repositories (PinnedResultRepository, PinnedResultsCollectionRepository)
+- Clean architecture with separation of concerns using service and repository patterns
+
+#### API Controllers
+- `Features/Synonyms/SynonymsApiController.cs`: RESTful API for synonym management
+- `Features/PinnedResults/PinnedResultsApiController.cs`: RESTful API for pinned results management
+- `Features/PinnedResults/PinnedResultsCollectionsApiController.cs`: RESTful API for collections management
+
+#### Optimizely Graph Integration
+- Synchronization functionality to keep local data in sync with Optimizely Graph
+- Graph collection management with automatic sync capabilities
+- API services for bi-directional data synchronization
 
 ### Dependencies
 - .NET 8.0 target framework
