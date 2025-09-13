@@ -146,8 +146,8 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                await ValidatePinnedResultModel(NewPinnedResult);
                 NewPinnedResult.CollectionId = SelectedCollectionId ?? Guid.Empty;
+                await ValidatePinnedResultModel(NewPinnedResult);
                 var request = PinnedResultRequestMapper.MapToCreateRequest(NewPinnedResult);
                 await ApiService.CreatePinnedResultAsync(request);
                 NewPinnedResult = new();
@@ -215,6 +215,18 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 await ApiService.SyncPinnedResultsToOptimizelyGraphAsync(SelectedCollectionId.Value);
                 SetSuccessMessage("Successfully synced pinned results to Optimizely Graph.");
             }, "syncing pinned results to Optimizely Graph");
+        }
+
+        protected async Task SyncPinnedResultsFromOptimizelyGraph()
+        {
+            if (!SelectedCollectionId.HasValue) return;
+
+            await ExecuteWithSyncHandlingAsync(async () =>
+            {
+                await ApiService.SyncPinnedResultsFromOptimizelyGraphAsync(SelectedCollectionId.Value);
+                SetSuccessMessage("Successfully synced pinned results from Optimizely Graph.");
+                await LoadPinnedResults();
+            }, "syncing pinned results from Optimizely Graph");
         }
 
         #endregion

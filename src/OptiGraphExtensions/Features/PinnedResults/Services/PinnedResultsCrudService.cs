@@ -98,6 +98,17 @@ public class PinnedResultsCrudService : IPinnedResultsCrudService
         return true;
     }
 
+    public async Task<bool> DeletePinnedResultsByCollectionIdAsync(Guid collectionId)
+    {
+        var baseUrl = _configurationService.GetBaseUrl();
+        var response = await _httpClient.DeleteAsync($"{baseUrl}/api/optimizely-graphextensions/pinned-results/collection/{collectionId}");
+
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"Error deleting pinned results for collection: {response.ReasonPhrase}");
+
+        return true;
+    }
+
     private void EnsureUserAuthenticated()
     {
         if (!_authenticationService.IsUserAuthenticated())

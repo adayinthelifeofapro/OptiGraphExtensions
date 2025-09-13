@@ -23,5 +23,8 @@ namespace OptiGraphExtensions.Features.PinnedResults.Models
         public int Priority { get; set; } = 1;
         
         public bool IsActive { get; set; } = true;
+        
+        [StringLength(255, ErrorMessage = "Graph ID must be less than 255 characters")]
+        public string? GraphId { get; set; }
     }
 }

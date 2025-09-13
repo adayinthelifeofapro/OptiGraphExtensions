@@ -75,6 +75,11 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             return await _graphSyncService.SyncPinnedResultsToOptimizelyGraphAsync(collectionId);
         }
 
+        public async Task<bool> SyncPinnedResultsFromOptimizelyGraphAsync(Guid collectionId)
+        {
+            return await _graphSyncService.SyncPinnedResultsFromOptimizelyGraphAsync(collectionId);
+        }
+
         public async Task<bool> UpdateCollectionGraphIdAsync(Guid collectionId, string graphCollectionId)
         {
             return await _collectionCrudService.UpdateCollectionGraphIdAsync(collectionId, graphCollectionId);

@@ -9,4 +9,5 @@ public interface IPinnedResultsCrudService
     Task<bool> CreatePinnedResultAsync(CreatePinnedResultRequest request);
     Task<bool> UpdatePinnedResultAsync(Guid id, UpdatePinnedResultRequest request);
     Task<bool> DeletePinnedResultAsync(Guid id);
+    Task<bool> DeletePinnedResultsByCollectionIdAsync(Guid collectionId);
 }

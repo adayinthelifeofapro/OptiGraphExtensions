@@ -55,7 +55,8 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 request.Language,
                 request.Priority,
                 request.IsActive,
-                User.Identity?.Name);
+                User.Identity?.Name,
+                request.GraphId);
 
             return CreatedAtAction(nameof(GetPinnedResult), new { id = pinnedResult.Id }, pinnedResult);
         }
@@ -85,6 +86,19 @@ namespace OptiGraphExtensions.Features.PinnedResults
         public async Task<IActionResult> DeletePinnedResult(Guid id)
         {
             var deleted = await _pinnedResultService.DeletePinnedResultAsync(id);
+            if (!deleted)
+            {
+                return NotFound();
+            }
+
+            return NoContent();
+        }
+
+        [HttpDelete]
+        [Route("collection/{collectionId}")]
+        public async Task<IActionResult> DeletePinnedResultsByCollectionId(Guid collectionId)
+        {
+            var deleted = await _pinnedResultService.DeletePinnedResultsByCollectionIdAsync(collectionId);
             if (!deleted)
             {
                 return NotFound();

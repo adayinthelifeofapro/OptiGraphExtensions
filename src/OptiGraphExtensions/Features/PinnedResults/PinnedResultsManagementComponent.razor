@@ -141,6 +141,13 @@
                 @if (SelectedCollectionId.HasValue)
                 {
                     <span class="epi-badge">@TotalItems total pinned results</span>
+                    <button @onclick="SyncPinnedResultsFromOptimizelyGraph" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)">
+                        @if (IsSyncing)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        Sync from Graph
+                    </button>
                     <button @onclick="SyncPinnedResultsToOptimizelyGraph" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)">
                         @if (IsSyncing)
                         {
@@ -308,31 +315,14 @@
                                             <small>@(pinnedResult.CreatedAt?.ToString("MMM dd, yyyy HH:mm") ?? "Unknown")</small>
                                         </td>
                                         <td class="epi-align-right">
-                                            @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
-                                            {
-                                                <div class="epi-button-group">
-                                                    <button @onclick="UpdatePinnedResult" class="epi-button epi-button--success epi-button--small" title="Save">
-                                                        Save
-                                                    </button>
-                                                    <button @onclick="CancelEditPinnedResult" class="epi-button epi-button--secondary epi-button--small" title="Cancel">
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <div class="epi-button-group">
-                                                    <button @onclick="() => StartEditPinnedResult(pinnedResult)" class="epi-button epi-button--secondary epi-button--small" title="Edit" disabled="@IsEditingPinnedResult">
-                                                        Edit
-                                                    </button>
-                                                    <button @onclick="@(async () => { if (await ConfirmDelete()) await DeletePinnedResult(pinnedResult.Id); })" 
-                                                            class="epi-button epi-button--danger epi-button--small" 
-                                                            title="Delete" 
-                                                            disabled="@IsEditingPinnedResult">
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            }
+                                            <div class="epi-button-group">
+                                                <button @onclick="@(async () => { if (await ConfirmDelete()) await DeletePinnedResult(pinnedResult.Id); })" 
+                                                        class="epi-button epi-button--danger epi-button--small" 
+                                                        title="Delete" 
+                                                        disabled="@IsEditingPinnedResult">
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 }

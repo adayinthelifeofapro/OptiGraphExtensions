@@ -87,7 +87,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
                 return true;
             }
 
-            return false;
+            return true;
         }
     }
 }

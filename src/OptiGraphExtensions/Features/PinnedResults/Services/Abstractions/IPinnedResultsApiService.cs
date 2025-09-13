@@ -18,6 +18,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services.Abstractions
         
         Task<bool> SyncCollectionToOptimizelyGraphAsync(PinnedResultsCollection collection);
         Task<bool> SyncPinnedResultsToOptimizelyGraphAsync(Guid collectionId);
+        Task<bool> SyncPinnedResultsFromOptimizelyGraphAsync(Guid collectionId);
         Task<bool> UpdateCollectionGraphIdAsync(Guid collectionId, string graphCollectionId);
         Task<IList<GraphCollectionResponse>> SyncCollectionsFromOptimizelyGraphAsync();
     }

@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
@@ -64,9 +65,20 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
     public async Task<bool> SyncPinnedResultsToOptimizelyGraphAsync(Guid collectionId)
     {
-        EnsureUserAuthenticated();
+        var collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
+        if (collection == null)
+            throw new InvalidOperationException("Collection not found.");
 
-        var collection = await GetCollectionForSync(collectionId);
+        // If collection doesn't have a GraphCollectionId, sync it first
+        if (string.IsNullOrEmpty(collection.GraphCollectionId))
+        {
+            await SyncCollectionToOptimizelyGraphAsync(collection);
+            // Refresh collection to get the updated GraphCollectionId
+            collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
+            if (collection == null || string.IsNullOrEmpty(collection.GraphCollectionId))
+                throw new InvalidOperationException("Failed to sync collection to Optimizely Graph.");
+        }
+
         var pinnedResults = await GetPinnedResultsForSync(collectionId);
 
         var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
@@ -74,17 +86,42 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
         var graphApiUrl = $"{gatewayUrl}/api/pinned/collections/{collection.GraphCollectionId}/items";
 
-        var graphItems = CreateGraphPinnedResultItems(pinnedResults);
+        // Send each pinned result item individually
+        foreach (var pinnedResult in pinnedResults.Where(pr => pr.IsActive))
+        {
+            var graphItem = CreateGraphPinnedResultItem(pinnedResult);
+            var jsonString = JsonSerializer.Serialize(graphItem, _jsonOptions);
 
-        using var request = CreateAuthenticatedRequest(HttpMethod.Put, graphApiUrl, authenticationHeader);
-        request.Content = JsonContent.Create(graphItems);
+            using var request = CreateAuthenticatedRequest(HttpMethod.Post, graphApiUrl, authenticationHeader);
+            request.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new GraphSyncException($"Error syncing pinned result to Optimizely Graph: {response.StatusCode} - {errorContent}");
+            }
+        }
+
+        return true;
+    }
+
+    public async Task<bool> DeletePinnedResultFromOptimizelyGraphAsync(string graphCollectionId, string graphId)
+    {
+        var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
+
+        var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+        var graphApiUrl = $"{gatewayUrl}/api/pinned/collections/{graphCollectionId}/items/{graphId}";
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Delete, graphApiUrl, authenticationHeader);
 
         var response = await _httpClient.SendAsync(request);
 
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync();
-            throw new GraphSyncException($"Error syncing to Optimizely Graph: {response.StatusCode} - {errorContent}");
+            throw new GraphSyncException($"Error deleting pinned result from Optimizely Graph: {response.StatusCode} - {errorContent}");
         }
 
         return true;
@@ -111,6 +148,85 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         return await DeserializeGraphCollectionsResponse(responseContent);
     }
 
+    public async Task<string> SyncSinglePinnedResultToOptimizelyGraphAsync(PinnedResult pinnedResult, string graphCollectionId)
+    {
+        EnsureUserAuthenticated();
+
+        var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
+
+        var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+        var graphApiUrl = $"{gatewayUrl}/api/pinned/collections/{graphCollectionId}/items";
+
+        var graphItem = CreateGraphPinnedResultItem(pinnedResult);
+        var jsonString = JsonSerializer.Serialize(graphItem, _jsonOptions);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Post, graphApiUrl, authenticationHeader);
+        request.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new GraphSyncException($"Error syncing pinned result to Optimizely Graph: {response.StatusCode} - {errorContent}");
+        }
+
+        // Parse the response to get the Graph ID
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var graphResponse = JsonSerializer.Deserialize<GraphPinnedResultResponse>(responseContent, _jsonOptions);
+        
+        return graphResponse?.Id ?? string.Empty;
+    }
+
+    public async Task<bool> SyncPinnedResultsFromOptimizelyGraphAsync(Guid collectionId)
+    {
+        EnsureUserAuthenticated();
+
+        var collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
+        if (collection == null || string.IsNullOrEmpty(collection.GraphCollectionId))
+            throw new InvalidOperationException("Collection has no Graph collection ID. Please sync the collection to Graph first.");
+
+        var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
+
+        var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+        var graphApiUrl = $"{gatewayUrl}/api/pinned/collections/{collection.GraphCollectionId}/items";
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, graphApiUrl, authenticationHeader);
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new GraphSyncException($"Failed to fetch pinned results from Optimizely Graph: {response.StatusCode} - {errorContent}");
+        }
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var graphPinnedResults = await DeserializeGraphPinnedResultsResponse(responseContent);
+
+        // Clear existing pinned results for this collection
+        await _pinnedResultsCrudService.DeletePinnedResultsByCollectionIdAsync(collectionId);
+
+        // Create new pinned results from Graph data
+        foreach (var graphItem in graphPinnedResults)
+        {
+            var createRequest = new CreatePinnedResultRequest
+            {
+                CollectionId = collectionId,
+                Phrases = graphItem.Phrases ?? string.Empty,
+                TargetKey = graphItem.TargetKey ?? string.Empty,
+                Language = graphItem.Language ?? "en",
+                Priority = graphItem.Priority,
+                IsActive = graphItem.IsActive,
+                GraphId = graphItem.Id
+            };
+
+            await _pinnedResultsCrudService.CreatePinnedResultAsync(createRequest);
+        }
+
+        return true;
+    }
+
     private void EnsureUserAuthenticated()
     {
         if (!_authenticationService.IsUserAuthenticated())
@@ -128,14 +244,6 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         return (gatewayUrl, hmacKey, hmacSecret);
     }
 
-    private async Task<PinnedResultsCollection> GetCollectionForSync(Guid collectionId)
-    {
-        var collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
-        if (collection == null || string.IsNullOrEmpty(collection.GraphCollectionId))
-            throw new InvalidOperationException("Collection has no Graph collection ID. Please ensure the collection was properly synced to Graph when created.");
-        
-        return collection;
-    }
 
     private async Task<IList<PinnedResult>> GetPinnedResultsForSync(Guid collectionId)
     {
@@ -155,16 +263,16 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         };
     }
 
-    private static object[] CreateGraphPinnedResultItems(IList<PinnedResult> pinnedResults)
+    private static object CreateGraphPinnedResultItem(PinnedResult pinnedResult)
     {
-        return pinnedResults.Where(pr => pr.IsActive).Select(pr => new
+        return new
         {
-            phrases = pr.Phrases?.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToArray() ?? Array.Empty<string>(),
-            targetKey = pr.TargetKey,
-            language = pr.Language,
-            priority = pr.Priority,
-            isActive = pr.IsActive
-        }).ToArray();
+            phrases = pinnedResult.Phrases?.Trim() ?? string.Empty,
+            targetKey = pinnedResult.TargetKey,
+            language = pinnedResult.Language,
+            priority = pinnedResult.Priority,
+            isActive = pinnedResult.IsActive
+        };
     }
 
     private static HttpRequestMessage CreateAuthenticatedRequest(HttpMethod method, string url, string authenticationHeader)
@@ -201,6 +309,19 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         catch (JsonException)
         {
             throw new GraphSyncException($"Failed to parse Graph collections response: {responseContent[..Math.Min(500, responseContent.Length)]}");
+        }
+    }
+
+    private Task<IList<GraphPinnedResultResponse>> DeserializeGraphPinnedResultsResponse(string responseContent)
+    {
+        try
+        {
+            var graphPinnedResults = JsonSerializer.Deserialize<List<GraphPinnedResultResponse>>(responseContent, _jsonOptions);
+            return Task.FromResult<IList<GraphPinnedResultResponse>>(graphPinnedResults ?? new List<GraphPinnedResultResponse>());
+        }
+        catch (JsonException)
+        {
+            throw new GraphSyncException($"Failed to parse Graph pinned results response: {responseContent[..Math.Min(500, responseContent.Length)]}");
         }
     }
 }
