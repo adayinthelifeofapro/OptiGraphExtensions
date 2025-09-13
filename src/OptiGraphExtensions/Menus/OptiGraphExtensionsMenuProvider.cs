@@ -10,7 +10,8 @@ public sealed class OptiGraphExtensionsMenuProvider : IMenuProvider
     public IEnumerable<MenuItem> GetMenuItems()
     {
         // Nested Menu Example
-        yield return CreateMenuItem("Graph Extensions", "/global/cms/optigraphextensions", "/optimizely-graphextensions/administration/about/", SortIndex.Last + 30);
+        yield return CreateMenuItem("Opti Graph Extensions", "/global/cms/optigraphextensions", "/optimizely-graphextensions/administration/about/", SortIndex.Last + 30);
+        yield return CreateMenuItem("About", "/global/cms/optigraphextensions/about", "/optimizely-graphextensions/administration/about/", SortIndex.Last + 31);
         yield return CreateMenuItem("Synonyms", "/global/cms/optigraphextensions/synonyms", "/optimizely-graphextensions/administration/synonyms", SortIndex.Last + 32);
         yield return CreateMenuItem("Pinned Results", "/global/cms/optigraphextensions/pinned.results", "/optimizely-graphextensions/administration/pinned-results", SortIndex.Last + 33);
     }

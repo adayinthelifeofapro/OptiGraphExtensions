@@ -14,8 +14,8 @@ public sealed class AdministrationController : Controller
     {
         var model = new AdministrationViewModel
         {
-            Title = "Optimizely Graph - About",
-            Subtitle = "This is a nested menu example."
+            Title = "Opti Graph Extensions - About",
+            Subtitle = "OptiGraphExtensions is a comprehensive add-on for Optimizely CMS 12 that provides seamless management of both synonyms and pinned results within Optimizely Graph. This add-on enables content editors and administrators to enhance search experiences through intelligent synonym mapping and strategic result pinning capabilities, all integrated directly into your Optimizely CMS administration interface."
         };
 
         return View("~/Views/OptiGraphExtensions/Administration/About/Index.cshtml", model);
@@ -27,8 +27,7 @@ public sealed class AdministrationController : Controller
     {
         var model = new AdministrationViewModel
         {
-            Title = "Optimizely Graph - Synonyms",
-            Subtitle = "This is a nested menu example."
+            Title = "Opti Graph Extensions - Synonyms",
         };
 
         return View("~/Views/OptiGraphExtensions/Administration/Synonyms/Index.cshtml", model);
@@ -40,8 +39,7 @@ public sealed class AdministrationController : Controller
     {
         var model = new AdministrationViewModel
         {
-            Title = "Optimizely Graph - Pinned Results",
-            Subtitle = "This is a nested menu example."
+            Title = "Opti Graph Extensions - Pinned Results",
         };
 
         return View("~/Views/OptiGraphExtensions/Administration/Pinned-Results/Index.cshtml", model);
