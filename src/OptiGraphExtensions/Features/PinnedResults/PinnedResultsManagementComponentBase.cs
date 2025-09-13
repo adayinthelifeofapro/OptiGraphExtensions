@@ -206,17 +206,6 @@ namespace OptiGraphExtensions.Features.PinnedResults
             }
         }
 
-        protected async Task SyncPinnedResultsToOptimizelyGraph()
-        {
-            if (!SelectedCollectionId.HasValue) return;
-
-            await ExecuteWithSyncHandlingAsync(async () =>
-            {
-                await ApiService.SyncPinnedResultsToOptimizelyGraphAsync(SelectedCollectionId.Value);
-                SetSuccessMessage("Successfully synced pinned results to Optimizely Graph.");
-            }, "syncing pinned results to Optimizely Graph");
-        }
-
         protected async Task SyncPinnedResultsFromOptimizelyGraph()
         {
             if (!SelectedCollectionId.HasValue) return;

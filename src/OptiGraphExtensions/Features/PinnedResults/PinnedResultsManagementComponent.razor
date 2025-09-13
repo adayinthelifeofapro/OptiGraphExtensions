@@ -148,13 +148,6 @@
                         }
                         Sync from Graph
                     </button>
-                    <button @onclick="SyncPinnedResultsToOptimizelyGraph" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)">
-                        @if (IsSyncing)
-                        {
-                            <span class="epi-loader-small"></span>
-                        }
-                        Sync to Graph
-                    </button>
                 }
             </div>
         </div>
