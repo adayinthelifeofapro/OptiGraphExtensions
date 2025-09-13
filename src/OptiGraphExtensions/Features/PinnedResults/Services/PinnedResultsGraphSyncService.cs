@@ -150,8 +150,6 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
     public async Task<string> SyncSinglePinnedResultToOptimizelyGraphAsync(PinnedResult pinnedResult, string graphCollectionId)
     {
-        EnsureUserAuthenticated();
-
         var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
 
         var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
@@ -180,8 +178,6 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
     public async Task<bool> SyncPinnedResultsFromOptimizelyGraphAsync(Guid collectionId)
     {
-        EnsureUserAuthenticated();
-
         var collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
         if (collection == null || string.IsNullOrEmpty(collection.GraphCollectionId))
             throw new InvalidOperationException("Collection has no Graph collection ID. Please sync the collection to Graph first.");

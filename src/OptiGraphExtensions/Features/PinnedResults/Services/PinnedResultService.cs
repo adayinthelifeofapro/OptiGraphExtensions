@@ -148,25 +148,6 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             // Get all pinned results for this collection
             var pinnedResults = await _pinnedResultRepository.GetByCollectionIdAsync(collectionId);
             
-            // Get the collection to get the Graph Collection ID
-            var collection = await _collectionRepository.GetByIdAsync(collectionId);
-            
-            // Delete each item from Graph if it has a Graph ID
-            if (collection != null && !string.IsNullOrEmpty(collection.GraphCollectionId))
-            {
-                foreach (var pinnedResult in pinnedResults.Where(pr => !string.IsNullOrEmpty(pr.GraphId)))
-                {
-                    try
-                    {
-                        await _graphSyncService.DeletePinnedResultFromOptimizelyGraphAsync(collection.GraphCollectionId, pinnedResult.GraphId!);
-                    }
-                    catch
-                    {
-                        // Continue with other deletions even if one fails
-                    }
-                }
-            }
-
             // Delete locally
             return await _pinnedResultRepository.DeleteByCollectionIdAsync(collectionId);
         }
