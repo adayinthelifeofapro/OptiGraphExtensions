@@ -16,7 +16,7 @@
     <Copyright>Graham Carr 2025</Copyright>
     <Description>An Optimizely CMS package that allows the management of synonyms and pinned results within Graph</Description>
     <AssemblyVersion>0.1.1.1</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <FileVersion>0.1.1.1</FileVersion>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
