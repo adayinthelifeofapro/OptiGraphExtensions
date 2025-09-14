@@ -49,6 +49,21 @@ services.AddOptiGraphExtensions(options =>
 app.UseOptiGraphExtensions();
 ```
 
+As this is a Blazor-based admin interface, ensure that Blazor server-side is set up in your Optimizely CMS project.
+
+```csharp
+// Add Blazor services
+services.AddServerSideBlazor();
+
+// Map Blazor hub
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapContent();
+    endpoints.MapBlazorHub();
+    endpoints.MapControllers();
+});
+```
+
 ### Database Setup
 
 Run Entity Framework migrations to set up the required database tables:
