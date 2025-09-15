@@ -16,6 +16,7 @@ using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 using OptiGraphExtensions.Features.Common.Services;
 using OptiGraphExtensions.Features.Common.Validation;
+using OptiGraphExtensions.Features.Common.Caching;
 using OptiGraphExtensions.Features.Synonyms.Models;
 using OptiGraphExtensions.Features.PinnedResults.Models;
 
@@ -99,11 +100,21 @@ public static class OptiGraphExtensionsServiceExtensions
             {
                 sqlOptions.MigrationsAssembly("OptiGraphExtensions");
             });
-        });
+
+            // Enable connection pooling and optimize for performance
+            options.EnableSensitiveDataLogging(false);
+            options.EnableServiceProviderCaching(true);
+            options.EnableDetailedErrors(false);
+        }, ServiceLifetime.Scoped);
 
         services.AddScoped<IOptiGraphExtensionsDataContext, OptiGraphExtensionsDataContext>();
         services.AddScoped(provider => new Lazy<IOptiGraphExtensionsDataContext>(() => provider.GetRequiredService<IOptiGraphExtensionsDataContext>()));
-        
+
+        // Register caching services
+        services.AddMemoryCache();
+        services.AddSingleton<ICacheService, MemoryCacheService>();
+        services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
+
         // Register common services
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IGraphConfigurationValidator, GraphConfigurationValidator>();
@@ -124,17 +135,37 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest>, PinnedResultRequestMapper>();
         services.AddScoped<IRequestMapper<PinnedResultsCollectionModel, CreatePinnedResultsCollectionRequest, UpdatePinnedResultsCollectionRequest>, PinnedResultsCollectionRequestMapper>();
         
-        // Register synonym services
-        services.AddScoped<ISynonymRepository, SynonymRepository>();
+        // Register synonym services with caching decorators
+        services.AddScoped<SynonymRepository>();
+        services.AddScoped<ISynonymRepository>(provider =>
+        {
+            var baseRepository = provider.GetRequiredService<SynonymRepository>();
+            var cacheService = provider.GetRequiredService<ICacheService>();
+            return new CachedSynonymRepository(baseRepository, cacheService);
+        });
         services.AddScoped<ISynonymService, SynonymService>();
         services.AddScoped<ISynonymCrudService, SynonymCrudService>();
         services.AddScoped<ISynonymGraphSyncService, SynonymGraphSyncService>();
         services.AddScoped<ISynonymApiService, SynonymApiService>();
         services.AddScoped<ISynonymValidationService, SynonymValidationService>();
         
-        // Register pinned results repositories and services
-        services.AddScoped<IPinnedResultRepository, PinnedResultRepository>();
-        services.AddScoped<IPinnedResultsCollectionRepository, PinnedResultsCollectionRepository>();
+        // Register pinned results repositories and services with caching decorators
+        services.AddScoped<PinnedResultRepository>();
+        services.AddScoped<IPinnedResultRepository>(provider =>
+        {
+            var baseRepository = provider.GetRequiredService<PinnedResultRepository>();
+            var cacheService = provider.GetRequiredService<ICacheService>();
+            return new CachedPinnedResultRepository(baseRepository, cacheService);
+        });
+
+        services.AddScoped<PinnedResultsCollectionRepository>();
+        services.AddScoped<IPinnedResultsCollectionRepository>(provider =>
+        {
+            var baseRepository = provider.GetRequiredService<PinnedResultsCollectionRepository>();
+            var cacheService = provider.GetRequiredService<ICacheService>();
+            return new CachedPinnedResultsCollectionRepository(baseRepository, cacheService);
+        });
+
         services.AddScoped<IPinnedResultService, PinnedResultService>();
         services.AddScoped<IPinnedResultsCollectionService, PinnedResultsCollectionService>();
         services.AddScoped<IPinnedResultsCrudService, PinnedResultsCrudService>();
