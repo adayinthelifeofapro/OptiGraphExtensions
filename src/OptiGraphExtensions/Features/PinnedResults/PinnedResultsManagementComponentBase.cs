@@ -121,8 +121,10 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             await ExecuteWithSyncHandlingAsync(async () =>
             {
-                var graphCollections = await ApiService.SyncCollectionsFromOptimizelyGraphAsync();
-                SetSuccessMessage($"Successfully synced {graphCollections.Count} collections from Optimizely Graph.");
+                // Use the CollectionService which properly updates the database
+                var syncedCollections = await CollectionService.SyncCollectionsFromGraphAsync();
+                var collectionCount = syncedCollections?.Count() ?? 0;
+                SetSuccessMessage($"Successfully synced {collectionCount} collections from Optimizely Graph.");
                 await LoadCollections();
             }, "syncing collections from Optimizely Graph");
         }

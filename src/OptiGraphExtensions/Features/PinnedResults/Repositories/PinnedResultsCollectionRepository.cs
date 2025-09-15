@@ -84,7 +84,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
                 existingCollection.Title = collection.Title;
                 existingCollection.IsActive = collection.IsActive;
                 // Don't update CreatedAt/CreatedBy for existing records
-                _dataContext.PinnedResultsCollections.Update(existingCollection);
+                // No need to call Update() as the entity is already tracked
                 await _dataContext.SaveChangesAsync();
                 return existingCollection;
             }
