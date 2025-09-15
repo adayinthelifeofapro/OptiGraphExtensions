@@ -10,7 +10,7 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
 
         public SynonymRepository(IOptiGraphExtensionsDataContext dataContext)
         {
-            _dataContext = dataContext;
+            _dataContext = dataContext ?? throw new ArgumentNullException(nameof(dataContext));
         }
 
         public async Task<IEnumerable<Synonym>> GetAllAsync()
@@ -25,6 +25,7 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
 
         public async Task<Synonym> CreateAsync(Synonym synonym)
         {
+            ArgumentNullException.ThrowIfNull(synonym);
             _dataContext.Synonyms.Add(synonym);
             await _dataContext.SaveChangesAsync();
             return synonym;
@@ -32,6 +33,7 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
 
         public async Task<Synonym> UpdateAsync(Synonym synonym)
         {
+            ArgumentNullException.ThrowIfNull(synonym);
             _dataContext.Synonyms.Update(synonym);
             await _dataContext.SaveChangesAsync();
             return synonym;
