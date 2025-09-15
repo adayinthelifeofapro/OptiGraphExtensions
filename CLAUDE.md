@@ -91,31 +91,38 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - `Features/Common/Components/ManagementComponentBase<TEntity, TModel>`: Base class for management components
 - `Features/Common/Validation/`: Centralized validation framework with data annotations support
 - `Features/Common/Exceptions/ComponentException`: Custom exception type for component operations
+- `Features/Common/Caching/`: Intelligent caching infrastructure
+  - `ICacheService` / `MemoryCacheService`: In-memory caching with configurable expiration
+  - `ICacheInvalidationService` / `CacheInvalidationService`: Cache invalidation management
+  - `CacheKeyBuilder`: Consistent cache key generation
 
 ##### Synonyms Feature (SOLID Principles Applied)
 - **Services** (decomposed from large monolithic services):
-  - `ISynonymCrudService` / `SynonymCrudService`: Focused CRUD operations
-  - `ISynonymGraphSyncService` / `SynonymGraphSyncService`: Dedicated Graph synchronization
+  - `ISynonymCrudService` / `SynonymCrudService`: Focused CRUD operations with HttpClient connection pooling
+  - `ISynonymGraphSyncService` / `SynonymGraphSyncService`: Dedicated Graph synchronization with IHttpClientFactory
   - `ISynonymApiService` / `SynonymApiService`: Facade pattern coordinating CRUD and sync services
   - `ISynonymValidationService` / `SynonymValidationService`: Business validation logic
   - `SynonymRequestMapper`: Maps between SynonymModel and API request DTOs
-- **Repositories**: 
+- **Repositories**:
   - `ISynonymRepository` / `SynonymRepository`: Data access layer
-- **Components**: 
+  - `CachedSynonymRepository`: Decorator pattern adding caching layer with automatic invalidation
+- **Components**:
   - `SynonymManagementComponentBase`: Refactored from 287 to 178 lines (38% reduction)
 
 ##### Pinned Results Feature (Clean Architecture)
 - **Services** (decomposed following Single Responsibility Principle):
-  - `IPinnedResultsCrudService` / `PinnedResultsCrudService`: Focused CRUD operations for pinned results
-  - `IPinnedResultsCollectionCrudService` / `PinnedResultsCollectionCrudService`: Collection CRUD operations
-  - `IPinnedResultsGraphSyncService` / `PinnedResultsGraphSyncService`: Dedicated Graph synchronization
+  - `IPinnedResultsCrudService` / `PinnedResultsCrudService`: Focused CRUD operations with HttpClient pooling
+  - `IPinnedResultsCollectionCrudService` / `PinnedResultsCollectionCrudService`: Collection CRUD with delete support
+  - `IPinnedResultsGraphSyncService` / `PinnedResultsGraphSyncService`: Graph sync with IHttpClientFactory
   - `IPinnedResultsApiService` / `PinnedResultsApiService`: Facade coordinating specialized services
   - `IPinnedResultsValidationService` / `PinnedResultsValidationService`: Business validation
   - `PinnedResultRequestMapper` / `PinnedResultsCollectionRequestMapper`: Request mapping services
-- **Repositories**: 
+- **Repositories**:
   - `IPinnedResultRepository` / `PinnedResultRepository`: Pinned results data access
+  - `CachedPinnedResultRepository`: Caching decorator with automatic cache invalidation
   - `IPinnedResultsCollectionRepository` / `PinnedResultsCollectionRepository`: Collections data access
-- **Components**: 
+  - `CachedPinnedResultsCollectionRepository`: Collection caching with invalidation support
+- **Components**:
   - `PinnedResultsManagementComponentBase`: Completely refactored from 604 to 359 lines (41% reduction)
 
 ##### Architecture Improvements Applied
@@ -134,6 +141,8 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - Synchronization functionality to keep local data in sync with Optimizely Graph
 - Graph collection management with automatic sync capabilities
 - API services for bi-directional data synchronization
+- Connection pooling via IHttpClientFactory for efficient HTTP connections
+- Support for collection deletion from both local database and Graph
 
 ### Dependencies
 - .NET 8.0 target framework
@@ -156,17 +165,19 @@ Default authorization policy requires membership in:
 ### Database Connection
 Default connection string name: "EPiServerDB" (configurable via setup options)
 
-## Recent Clean Code Improvements (2025)
+## Recent Improvements (2025)
 
 ### Service Architecture Refactoring
 The project has undergone comprehensive clean code refactoring following SOLID principles:
 
 #### Before Refactoring Issues
 - Large monolithic service classes (PinnedResultsApiService: 392 lines, SynonymApiService: 166 lines)
-- Duplicate validation logic across multiple services 
+- Duplicate validation logic across multiple services
 - Long component methods (604 lines in PinnedResultsManagementComponentBase)
 - Violations of Single Responsibility Principle
 - Repeated error handling patterns
+- No caching strategy
+- Individual HTTP client instances per request
 
 #### After Refactoring Improvements
 - **Service Decomposition**: Large services split into focused services following Single Responsibility Principle
@@ -174,6 +185,9 @@ The project has undergone comprehensive clean code refactoring following SOLID p
 - **Error Handling**: Centralized ComponentErrorHandler eliminates duplicate try-catch blocks
 - **Request Mapping**: Generic request mapper pattern reduces repetitive DTO creation code
 - **Component Refactoring**: Base class inheritance and method extraction significantly reduces component complexity
+- **Intelligent Caching**: Repository decorator pattern with automatic cache invalidation
+- **Connection Pooling**: IHttpClientFactory for efficient HTTP connection management
+- **Collection Management**: Full CRUD operations including Graph collection deletion
 
 #### Key Metrics
 - `SynonymManagementComponentBase`: Reduced from 287 to 178 lines (38% reduction)
@@ -181,12 +195,15 @@ The project has undergone comprehensive clean code refactoring following SOLID p
 - Created 15+ new focused service classes following SOLID principles
 - 29+ comprehensive unit tests with 100% pass rate
 - Eliminated 8+ instances of duplicate error handling code
+- Added caching layer with automatic invalidation
+- Implemented connection pooling for all HTTP operations
 
 #### Service Registration
 All new services are automatically registered via `OptiGraphExtensionsServiceExtensions.cs`:
-- Common services (error handling, validation, request mapping)
-- Decomposed CRUD services
-- Graph synchronization services
+- Common services (error handling, validation, request mapping, caching)
+- Decomposed CRUD services with connection pooling
+- Graph synchronization services with IHttpClientFactory
 - Component base classes
+- Cached repository decorators
 
-This refactoring maintains all existing functionality while significantly improving maintainability, testability, and adherence to clean code principles.
+This refactoring maintains all existing functionality while significantly improving maintainability, testability, performance, and adherence to clean code principles.
