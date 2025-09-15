@@ -127,6 +127,26 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         return true;
     }
 
+    public async Task<bool> DeleteCollectionFromOptimizelyGraphAsync(string graphCollectionId)
+    {
+        var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
+
+        var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+        var graphApiUrl = $"{gatewayUrl}/api/pinned/collections/{graphCollectionId}";
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Delete, graphApiUrl, authenticationHeader);
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new GraphSyncException($"Error deleting collection from Optimizely Graph: {response.StatusCode} - {errorContent}");
+        }
+
+        return true;
+    }
+
     public async Task<IList<GraphCollectionResponse>> SyncCollectionsFromOptimizelyGraphAsync()
     {
         var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();

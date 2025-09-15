@@ -86,6 +86,7 @@
                                 <th>Status</th>
                                 <th>Created By</th>
                                 <th>Created Date</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -93,36 +94,24 @@
                             {
                                 <tr>
                                     <td>
-                                        @if (IsEditingCollection && EditingCollection.Id == collection.Id)
-                                        {
-                                            <input @bind="EditingCollection.Title" @onkeypress="@(async (e) => { if (e.Key == "Enter") await UpdateCollection(); else if (e.Key == "Escape") CancelEditCollection(); })" 
-                                                   class="epi-textbox epi-textbox--small" maxlength="255" />
-                                        }
-                                        else
-                                        {
-                                            <span>@collection.Title</span>
-                                        }
+                                        <span>@collection.Title</span>
                                     </td>
                                     <td>
-                                        @if (IsEditingCollection && EditingCollection.Id == collection.Id)
-                                        {
-                                            <label class="epi-checkbox-label epi-checkbox-label--small">
-                                                <input type="checkbox" @bind="EditingCollection.IsActive" class="epi-checkbox" />
-                                                Active
-                                            </label>
-                                        }
-                                        else
-                                        {
-                                            <span class="epi-badge @(collection.IsActive ? "epi-badge--success" : "epi-badge--secondary")">
-                                                @(collection.IsActive ? "Active" : "Inactive")
-                                            </span>
-                                        }
+                                        <span class="epi-badge @(collection.IsActive ? "epi-badge--success" : "epi-badge--secondary")">
+                                            @(collection.IsActive ? "Active" : "Inactive")
+                                        </span>
                                     </td>
                                     <td>
                                         <small>@(collection.CreatedBy ?? "Unknown")</small>
                                     </td>
                                     <td>
                                         <small>@(collection.CreatedAt?.ToString("MMM dd, yyyy HH:mm") ?? "Unknown")</small>
+                                    </td>
+                                    <td>
+                                        <button @onclick="async () => await ConfirmAndDeleteCollection(collection.Id)" class="epi-button epi-button--danger epi-button--small"
+                                                disabled="@IsLoading">
+                                            Delete
+                                        </button>
                                     </td>
                                 </tr>
                             }

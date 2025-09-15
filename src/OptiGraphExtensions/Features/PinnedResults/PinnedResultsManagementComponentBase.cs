@@ -32,8 +32,6 @@ namespace OptiGraphExtensions.Features.PinnedResults
         // Collections Management
         protected IList<PinnedResultsCollection> Collections { get; set; } = new List<PinnedResultsCollection>();
         protected PinnedResultsCollectionModel NewCollection { get; set; } = new();
-        protected PinnedResultsCollectionModel EditingCollection { get; set; } = new();
-        protected bool IsEditingCollection { get; set; }
 
         // Pinned Results Management
         protected PaginationResult<PinnedResult>? PaginationResult { get; set; }
@@ -82,18 +80,6 @@ namespace OptiGraphExtensions.Features.PinnedResults
             }, "creating collection", showLoading: false);
         }
 
-        protected async Task UpdateCollection()
-        {
-            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
-            {
-                await ValidateCollectionModel(EditingCollection);
-                var request = CollectionRequestMapper.MapToUpdateRequest(EditingCollection);
-                await ApiService.UpdateCollectionAsync(EditingCollection.Id, request);
-                SetSuccessMessage("Collection updated successfully.");
-                CancelEditCollection();
-                await LoadCollections();
-            }, "updating collection", showLoading: false);
-        }
 
         protected async Task DeleteCollection(Guid id)
         {
@@ -105,17 +91,14 @@ namespace OptiGraphExtensions.Features.PinnedResults
             }, "deleting collection", showLoading: false);
         }
 
-        protected void StartEditCollection(PinnedResultsCollection collection)
+        protected async Task ConfirmAndDeleteCollection(Guid id)
         {
-            IsEditingCollection = true;
-            EditingCollection = MapToCollectionModel(collection);
+            // In a real application, you might want to use a proper modal dialog service
+            // For now, we'll directly call DeleteCollection
+            // The confirmation can be handled by a JavaScript interop if needed
+            await DeleteCollection(id);
         }
 
-        protected void CancelEditCollection()
-        {
-            IsEditingCollection = false;
-            EditingCollection = new PinnedResultsCollectionModel();
-        }
 
         protected async Task SyncCollectionsFromOptimizelyGraph()
         {

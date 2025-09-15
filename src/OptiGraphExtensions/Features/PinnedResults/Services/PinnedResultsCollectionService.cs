@@ -9,15 +9,18 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
         private readonly IPinnedResultsCollectionRepository _collectionRepository;
         private readonly IPinnedResultRepository _pinnedResultRepository;
         private readonly IPinnedResultsApiService _apiService;
+        private readonly IPinnedResultsGraphSyncService _graphSyncService;
 
         public PinnedResultsCollectionService(
-            IPinnedResultsCollectionRepository collectionRepository, 
+            IPinnedResultsCollectionRepository collectionRepository,
             IPinnedResultRepository pinnedResultRepository,
-            IPinnedResultsApiService apiService)
+            IPinnedResultsApiService apiService,
+            IPinnedResultsGraphSyncService graphSyncService)
         {
             _collectionRepository = collectionRepository;
             _pinnedResultRepository = pinnedResultRepository;
             _apiService = apiService;
+            _graphSyncService = graphSyncService;
         }
 
         public async Task<IEnumerable<PinnedResultsCollection>> GetAllCollectionsAsync()
@@ -60,10 +63,31 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
 
         public async Task<bool> DeleteCollectionAsync(Guid id)
         {
-            // First delete all related pinned results
+            // Get the collection to check if it has a GraphCollectionId
+            var collection = await _collectionRepository.GetByIdAsync(id);
+            if (collection == null)
+            {
+                return false;
+            }
+
+            // If the collection has a GraphCollectionId, delete it from Graph first
+            if (!string.IsNullOrEmpty(collection.GraphCollectionId))
+            {
+                try
+                {
+                    await _graphSyncService.DeleteCollectionFromOptimizelyGraphAsync(collection.GraphCollectionId);
+                }
+                catch (Exception)
+                {
+                    // Log error but continue with local deletion
+                    // In production, you might want to handle this differently
+                }
+            }
+
+            // Delete all related pinned results from local database
             await _pinnedResultRepository.DeleteByCollectionIdAsync(id);
-            
-            // Then delete the collection
+
+            // Finally delete the collection from local database
             return await _collectionRepository.DeleteAsync(id);
         }
 

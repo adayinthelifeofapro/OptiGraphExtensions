@@ -10,5 +10,6 @@ public interface IPinnedResultsGraphSyncService
     Task<string> SyncSinglePinnedResultToOptimizelyGraphAsync(PinnedResult pinnedResult, string graphCollectionId);
     Task<bool> SyncPinnedResultsFromOptimizelyGraphAsync(Guid collectionId);
     Task<bool> DeletePinnedResultFromOptimizelyGraphAsync(string graphCollectionId, string graphId);
+    Task<bool> DeleteCollectionFromOptimizelyGraphAsync(string graphCollectionId);
     Task<IList<GraphCollectionResponse>> SyncCollectionsFromOptimizelyGraphAsync();
 }
