@@ -77,12 +77,16 @@ app.UseEndpoints(endpoints =>
 });
 ```
 
-### Database Setup
+Add your Graph instance configuration to appsettings.json, this information can be found within PaaSPortal for a PaaS instance of Optimizely CMS12 and within the dashboard of a SaaS instance of Optimizely CMS 12
 
-Run Entity Framework migrations to set up the required database tables:
-
-```bash
-dotnet ef database update --project src/OptiGraphExtensions
+```csharp
+  "Optimizely": {
+    "ContentGraph": {
+      "GatewayAddress": "<your graph instance gateway address>",
+      "AppKey": "<your graph instance key>",
+      "Secret": "<your graph instance secret>"
+    }
+  }
 ```
 
 ## Project Structure
@@ -209,24 +213,6 @@ The AddOn creates the following database tables:
 - `tbl_OptiGraphExtensions_Synonyms`: Stores synonym definitions
 - `tbl_OptiGraphExtensions_PinnedResultsCollections`: Stores pinned results collections
 - `tbl_OptiGraphExtensions_PinnedResults`: Stores individual pinned results
-
-## API Endpoints
-
-### Synonyms API
-- `GET /api/synonyms` - Get all synonyms with pagination
-- `POST /api/synonyms` - Create a new synonym
-- `PUT /api/synonyms/{id}` - Update an existing synonym
-- `DELETE /api/synonyms/{id}` - Delete a synonym
-
-### Pinned Results API
-- `GET /api/pinned-results-collections` - Get all collections
-- `POST /api/pinned-results-collections` - Create a new collection
-- `PUT /api/pinned-results-collections/{id}` - Update a collection
-- `DELETE /api/pinned-results-collections/{id}` - Delete a collection
-- `GET /api/pinned-results/{collectionId}` - Get pinned results for a collection
-- `POST /api/pinned-results` - Create a new pinned result
-- `PUT /api/pinned-results/{id}` - Update a pinned result
-- `DELETE /api/pinned-results/{id}` - Delete a pinned result
 
 ## Optimizely Graph Integration
 
