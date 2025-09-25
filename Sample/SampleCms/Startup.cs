@@ -5,6 +5,7 @@ using EPiServer.Scheduler;
 using EPiServer.ServiceLocation;
 using EPiServer.Web.Routing;
 
+using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Features.Configuration;
 
 using Stott.Optimizely.RobotsHandler.Configuration;
@@ -39,7 +40,17 @@ public class Startup
 
         services.AddStottSecurity();
         services.AddRobotsHandler();
-        services.AddOptiGraphExtensions();
+        services.AddOptiGraphExtensions(optiGraphExtensionsSetupOptions =>
+        {
+            optiGraphExtensionsSetupOptions.ConnectionStringName = "EPiServerDB";
+        },
+        authorizationOptions =>
+        {
+            authorizationOptions.AddPolicy(OptiGraphExtensionsConstants.AuthorizationPolicy, policy =>
+            {
+                policy.RequireRole("WebAdmins", "Everyone");
+            });
+        });
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.PinnedResults.Models;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
@@ -8,6 +10,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
 {
     [ApiController]
     [Route("api/optimizely-graphextensions/pinned-results")]
+    [Authorize(Policy = OptiGraphExtensionsConstants.AuthorizationPolicy)]
     public class PinnedResultsApiController : ControllerBase
     {
         private readonly IPinnedResultService _pinnedResultService;

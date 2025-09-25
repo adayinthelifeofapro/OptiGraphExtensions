@@ -26,6 +26,9 @@ dotnet test src/OptiGraphExtensions.Tests/OptiGraphExtensions.Tests.csproj
 
 # Run tests with coverage
 dotnet test src/OptiGraphExtensions.Tests/OptiGraphExtensions.Tests.csproj --collect:"XPlat Code Coverage"
+
+# Run tests in watch mode for development
+dotnet watch test --project src/OptiGraphExtensions.Tests/OptiGraphExtensions.Tests.csproj
 ```
 
 ### Running the Sample CMS
@@ -134,8 +137,14 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 
 #### API Controllers
 - `Features/Synonyms/SynonymsApiController.cs`: RESTful API for synonym management
+  - Endpoints: GET, POST, PUT, DELETE operations for synonyms
+  - Integrated with caching and validation services
 - `Features/PinnedResults/PinnedResultsApiController.cs`: RESTful API for pinned results management
+  - Full CRUD operations for individual pinned results
+  - Collection association management
 - `Features/PinnedResults/PinnedResultsCollectionsApiController.cs`: RESTful API for collections management
+  - Collection CRUD operations with Graph synchronization
+  - Cascade delete support for collection and associated results
 
 #### Optimizely Graph Integration
 - Synchronization functionality to keep local data in sync with Optimizely Graph
@@ -193,10 +202,14 @@ The project has undergone comprehensive clean code refactoring following SOLID p
 - `SynonymManagementComponentBase`: Reduced from 287 to 178 lines (38% reduction)
 - `PinnedResultsManagementComponentBase`: Reduced from 604 to 359 lines (41% reduction)
 - Created 15+ new focused service classes following SOLID principles
-- 29+ comprehensive unit tests with 100% pass rate
+- 35+ comprehensive unit tests with 100% pass rate covering:
+  - Repository operations (CRUD, caching, invalidation)
+  - Service layer (validation, mapping, error handling)
+  - API controllers (HTTP operations, status codes)
+  - Graph synchronization (connection pooling, retry logic)
 - Eliminated 8+ instances of duplicate error handling code
-- Added caching layer with automatic invalidation
-- Implemented connection pooling for all HTTP operations
+- Added intelligent caching layer with automatic invalidation
+- Implemented connection pooling for all HTTP operations via IHttpClientFactory
 
 #### Service Registration
 All new services are automatically registered via `OptiGraphExtensionsServiceExtensions.cs`:
@@ -207,3 +220,44 @@ All new services are automatically registered via `OptiGraphExtensionsServiceExt
 - Cached repository decorators
 
 This refactoring maintains all existing functionality while significantly improving maintainability, testability, performance, and adherence to clean code principles.
+
+## Testing Strategy
+
+### Unit Test Coverage
+The project includes comprehensive unit tests using NUnit and Moq:
+
+- **Repository Tests**: Mock DbContext operations, verify CRUD operations, test caching behavior
+- **Service Tests**: Validate business logic, error handling, request mapping
+- **API Controller Tests**: HTTP response codes, parameter validation, service integration
+- **Caching Tests**: Cache hit/miss scenarios, invalidation triggers, expiration policies
+- **Validation Tests**: Data annotation validation, business rule enforcement
+
+### Running Specific Test Categories
+```bash
+# Run only repository tests
+dotnet test --filter "FullyQualifiedName~Repository"
+
+# Run only service tests
+dotnet test --filter "FullyQualifiedName~Service"
+
+# Run only API controller tests
+dotnet test --filter "FullyQualifiedName~Controller"
+```
+
+## Performance Optimizations
+
+### Connection Pooling
+- All HTTP operations use IHttpClientFactory for efficient connection reuse
+- Reduces socket exhaustion and improves response times
+- Configured per-service with appropriate timeouts and retry policies
+
+### Caching Strategy
+- In-memory caching with configurable expiration (default: 5 minutes)
+- Automatic cache invalidation on data mutations
+- Cache key generation using consistent naming patterns
+- Repository decorator pattern for transparent caching
+
+### Database Optimization
+- Efficient queries using Entity Framework Core
+- Proper indexing on frequently queried columns
+- Async/await patterns throughout for non-blocking I/O

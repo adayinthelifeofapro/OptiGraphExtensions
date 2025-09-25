@@ -89,6 +89,44 @@ Add your Graph instance configuration to appsettings.json, this information can 
   }
 ```
 
+## Additional Configuration Customisation
+
+The configuration of the module has some scope for modification by providing configuration in the service extension methods.  Both the provision of ```optiGraphExtensionsSetupOptions``` and ```authorizationOptions``` are optional in the following example.
+
+Example:
+```C#
+services.AddOptiGraphExtensions(optiGraphExtensionsSetupOptions =>
+{
+    optiGraphExtensionsSetupOptions.ConnectionStringName = "EPiServerDB";
+},
+authorizationOptions => 
+{
+    authorizationOptions.AddPolicy(OptiGraphExtensionsConstants.AuthorizationPolicy, policy =>
+    {
+        policy.RequireRole("WebAdmins");
+    });
+});
+```
+
+### Authentication With Optimizely Opti ID
+
+If you are using the new Optimizely Opti ID package for authentication into Optimizely CMS and the rest of the Optimizely One suite, then you will need to define the `authorizationOptions` for this module as part of your application start up.  This should be a simple case of adding `policy.AddAuthenticationSchemes(OptimizelyIdentityDefaults.SchemeName);` to the `authorizationOptions` as per the example below.
+
+```C#
+serviceCollection.AddOptiGraphExtensions(optiGraphExtensionsSetupOptions =>
+{
+    optiGraphExtensionsSetupOptions.ConnectionStringName = "EPiServerDB";
+},
+authorizationOptions =>
+{
+    authorizationOptions.AddPolicy(OptiGraphExtensionsConstants.AuthorizationPolicy, policy =>
+    {
+        policy.AddAuthenticationSchemes(OptimizelyIdentityDefaults.SchemeName);
+        policy.RequireRole("WebAdmins");
+    });
+});
+```
+
 ## Project Structure
 
 ```

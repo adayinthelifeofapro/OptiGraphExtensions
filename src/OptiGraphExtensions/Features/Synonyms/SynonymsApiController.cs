@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.Synonyms.Models;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
@@ -8,6 +10,7 @@ namespace OptiGraphExtensions.Features.Synonyms
 {
     [ApiController]
     [Route("api/optimizely-graphextensions/synonyms")]
+    [Authorize(Policy = OptiGraphExtensionsConstants.AuthorizationPolicy)]
     public class SynonymsApiController : ControllerBase
     {
         private readonly ISynonymService _synonymService;
