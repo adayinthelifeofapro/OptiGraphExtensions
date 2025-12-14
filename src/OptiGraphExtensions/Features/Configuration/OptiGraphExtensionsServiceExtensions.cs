@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Entities;
@@ -62,9 +63,18 @@ public static class OptiGraphExtensionsServiceExtensions
         // API Controllers
         services.AddControllers();
 
-        // HttpClient for API calls
-        services.AddHttpClient();
+        // HttpClient for API calls with cookie forwarding for local API requests
         services.AddHttpContextAccessor();
+        services.TryAddTransient<CookieForwardingHandler>();
+        services.AddHttpClient<ISynonymCrudService, SynonymCrudService>()
+            .AddHttpMessageHandler<CookieForwardingHandler>();
+        services.AddHttpClient<IPinnedResultsCrudService, PinnedResultsCrudService>()
+            .AddHttpMessageHandler<CookieForwardingHandler>();
+        services.AddHttpClient<IPinnedResultsCollectionCrudService, PinnedResultsCollectionCrudService>()
+            .AddHttpMessageHandler<CookieForwardingHandler>();
+        // HttpClient for Graph API calls (uses Basic Auth, no cookie forwarding needed)
+        services.AddHttpClient<ISynonymGraphSyncService, SynonymGraphSyncService>();
+        services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
@@ -144,8 +154,7 @@ public static class OptiGraphExtensionsServiceExtensions
             return new CachedSynonymRepository(baseRepository, cacheService);
         });
         services.AddScoped<ISynonymService, SynonymService>();
-        services.AddScoped<ISynonymCrudService, SynonymCrudService>();
-        services.AddScoped<ISynonymGraphSyncService, SynonymGraphSyncService>();
+        // ISynonymCrudService and ISynonymGraphSyncService are registered via AddHttpClient above
         services.AddScoped<ISynonymApiService, SynonymApiService>();
         services.AddScoped<ISynonymValidationService, SynonymValidationService>();
         
@@ -168,9 +177,8 @@ public static class OptiGraphExtensionsServiceExtensions
 
         services.AddScoped<IPinnedResultService, PinnedResultService>();
         services.AddScoped<IPinnedResultsCollectionService, PinnedResultsCollectionService>();
-        services.AddScoped<IPinnedResultsCrudService, PinnedResultsCrudService>();
-        services.AddScoped<IPinnedResultsCollectionCrudService, PinnedResultsCollectionCrudService>();
-        services.AddScoped<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
+        // IPinnedResultsCrudService, IPinnedResultsCollectionCrudService, and IPinnedResultsGraphSyncService
+        // are registered via AddHttpClient above
         services.AddScoped<IPinnedResultsApiService, PinnedResultsApiService>();
         services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
     }

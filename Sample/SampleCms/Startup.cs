@@ -48,7 +48,7 @@ public class Startup
         {
             authorizationOptions.AddPolicy(OptiGraphExtensionsConstants.AuthorizationPolicy, policy =>
             {
-                policy.RequireRole("WebAdmins", "Everyone");
+                policy.RequireRole("WebAdmins");
             });
         });
     }
