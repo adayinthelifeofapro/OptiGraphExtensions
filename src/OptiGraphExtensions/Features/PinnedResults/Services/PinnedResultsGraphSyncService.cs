@@ -274,6 +274,7 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
     {
         return new
         {
+            key = collection.Id.ToString(),
             title = collection.Title,
             isActive = collection.IsActive
         };

@@ -115,7 +115,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
                         continue;
 
                     // Convert timestamps from Unix milliseconds to DateTime
-                    var createdAt = DateTimeOffset.FromUnixTimeMilliseconds(graphCollection.CreatedAt).UtcDateTime;
+                    //var createdAt = DateTimeOffset.FromUnixTimeMilliseconds(graphCollection.CreatedAt).UtcDateTime;
                     
                     // Create or update local collection
                     var localCollection = new PinnedResultsCollection
@@ -124,7 +124,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
                         GraphCollectionId = graphCollection.Id,
                         Title = graphCollection.Title,
                         IsActive = graphCollection.IsActive,
-                        CreatedAt = createdAt,
+                        CreatedAt = graphCollection.CreatedAt,
                         CreatedBy = "Optimizely Graph Sync"
                     };
 
