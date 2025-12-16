@@ -21,9 +21,19 @@ namespace OptiGraphExtensions.Features.Synonyms
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Synonym>>> GetSynonyms()
+        public async Task<ActionResult<IEnumerable<Synonym>>> GetSynonyms([FromQuery] string? language = null)
         {
-            var synonyms = await _synonymService.GetAllSynonymsAsync();
+            IEnumerable<Synonym> synonyms;
+
+            if (!string.IsNullOrWhiteSpace(language))
+            {
+                synonyms = await _synonymService.GetSynonymsByLanguageAsync(language);
+            }
+            else
+            {
+                synonyms = await _synonymService.GetAllSynonymsAsync();
+            }
+
             return Ok(synonyms);
         }
 
@@ -48,7 +58,12 @@ namespace OptiGraphExtensions.Features.Synonyms
                 return BadRequest("Synonym text is required.");
             }
 
-            var synonym = await _synonymService.CreateSynonymAsync(request.Synonym, User.Identity?.Name);
+            if (string.IsNullOrWhiteSpace(request.Language))
+            {
+                return BadRequest("Language is required.");
+            }
+
+            var synonym = await _synonymService.CreateSynonymAsync(request.Synonym, request.Language, User.Identity?.Name);
             return CreatedAtAction(nameof(GetSynonym), new { id = synonym.Id }, synonym);
         }
 
@@ -60,7 +75,12 @@ namespace OptiGraphExtensions.Features.Synonyms
                 return BadRequest("Synonym text is required.");
             }
 
-            var updatedSynonym = await _synonymService.UpdateSynonymAsync(id, request.Synonym);
+            if (string.IsNullOrWhiteSpace(request.Language))
+            {
+                return BadRequest("Language is required.");
+            }
+
+            var updatedSynonym = await _synonymService.UpdateSynonymAsync(id, request.Synonym, request.Language);
             if (updatedSynonym == null)
             {
                 return NotFound();
@@ -81,5 +101,4 @@ namespace OptiGraphExtensions.Features.Synonyms
             return NoContent();
         }
     }
-
 }

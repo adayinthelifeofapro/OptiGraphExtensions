@@ -42,5 +42,9 @@ namespace OptiGraphExtensions.Features.Synonyms.Services
             return await _graphSyncService.SyncSynonymsToOptimizelyGraphAsync();
         }
 
+        public async Task<bool> SyncSynonymsForLanguageAsync(string language)
+        {
+            return await _graphSyncService.SyncSynonymsForLanguageAsync(language);
+        }
     }
 }

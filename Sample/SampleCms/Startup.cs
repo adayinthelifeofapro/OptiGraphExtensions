@@ -5,6 +5,8 @@ using EPiServer.Scheduler;
 using EPiServer.ServiceLocation;
 using EPiServer.Web.Routing;
 
+using Geta.Optimizely.Sitemaps;
+
 using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Features.Configuration;
 
@@ -38,6 +40,13 @@ public class Startup
 
         services.AddServerSideBlazor();
 
+        services.AddSitemaps(x =>
+        {
+            x.EnableRealtimeSitemap = false;
+            x.EnableRealtimeCaching = true;
+            x.RealtimeCacheExpirationInMinutes = 60;
+        });
+
         services.AddStottSecurity();
         services.AddRobotsHandler();
         services.AddOptiGraphExtensions(optiGraphExtensionsSetupOptions =>
@@ -70,6 +79,7 @@ public class Startup
 
         app.UseEndpoints(endpoints =>
         {
+            endpoints.MapRazorPages();
             endpoints.MapContent();
             endpoints.MapBlazorHub();
             endpoints.MapControllers();

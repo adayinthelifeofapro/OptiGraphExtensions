@@ -23,12 +23,19 @@ namespace OptiGraphExtensions.Features.Synonyms
         [Inject]
         protected IRequestMapper<SynonymModel, CreateSynonymRequest, UpdateSynonymRequest> RequestMapper { get; set; } = null!;
 
+        [Inject]
+        protected ILanguageService LanguageService { get; set; } = null!;
+
         protected PaginationResult<Synonym>? PaginationResult { get; set; }
         protected IList<Synonym> AllSynonyms { get; set; } = new List<Synonym>();
+        protected IList<Synonym> FilteredSynonyms { get; set; } = new List<Synonym>();
         protected SynonymModel NewSynonym { get; set; } = new();
         protected SynonymModel EditingSynonym { get; set; } = new();
         protected bool IsEditing { get; set; }
         protected bool IsSyncing { get; set; }
+
+        protected IEnumerable<LanguageInfo> AvailableLanguages { get; set; } = Enumerable.Empty<LanguageInfo>();
+        protected string SelectedLanguageFilter { get; set; } = string.Empty;
 
         protected int CurrentPage { get; set; } = 1;
         protected int PageSize { get; set; } = 10;
@@ -38,7 +45,19 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected override async Task LoadDataAsync()
         {
+            LoadLanguages();
             await LoadSynonyms();
+        }
+
+        protected void LoadLanguages()
+        {
+            AvailableLanguages = LanguageService.GetEnabledLanguages();
+
+            // Set default language for new synonym if we have languages available
+            if (AvailableLanguages.Any() && string.IsNullOrEmpty(NewSynonym.Language))
+            {
+                NewSynonym.Language = AvailableLanguages.First().LanguageCode;
+            }
         }
 
         protected async Task LoadSynonyms()
@@ -46,8 +65,29 @@ namespace OptiGraphExtensions.Features.Synonyms
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 AllSynonyms = await SynonymApiService.GetSynonymsAsync();
-                UpdatePaginatedSynonyms();
+                ApplyLanguageFilter();
             }, "loading synonyms");
+        }
+
+        protected void ApplyLanguageFilter()
+        {
+            if (string.IsNullOrEmpty(SelectedLanguageFilter))
+            {
+                FilteredSynonyms = AllSynonyms;
+            }
+            else
+            {
+                FilteredSynonyms = AllSynonyms.Where(s => s.Language == SelectedLanguageFilter).ToList();
+            }
+
+            CurrentPage = 1;
+            UpdatePaginatedSynonyms();
+        }
+
+        protected void OnLanguageFilterChanged(ChangeEventArgs e)
+        {
+            SelectedLanguageFilter = e.Value?.ToString() ?? string.Empty;
+            ApplyLanguageFilter();
         }
 
         protected async Task CreateSynonym()
@@ -57,7 +97,8 @@ namespace OptiGraphExtensions.Features.Synonyms
                 await ValidateModel(NewSynonym);
                 var request = RequestMapper.MapToCreateRequest(NewSynonym);
                 await SynonymApiService.CreateSynonymAsync(request);
-                NewSynonym = new();
+                var selectedLanguage = NewSynonym.Language;
+                NewSynonym = new SynonymModel { Language = selectedLanguage };
                 SetSuccessMessage("Synonym created successfully.");
                 await LoadSynonyms();
             }, "creating synonym", showLoading: false);
@@ -69,7 +110,8 @@ namespace OptiGraphExtensions.Features.Synonyms
             EditingSynonym = new SynonymModel
             {
                 Id = synonym.Id,
-                Synonym = synonym.SynonymItem
+                Synonym = synonym.SynonymItem,
+                Language = synonym.Language
             };
         }
 
@@ -102,7 +144,6 @@ namespace OptiGraphExtensions.Features.Synonyms
             }, "deleting synonym", showLoading: false);
         }
 
-
         protected async Task<bool> ConfirmDelete()
         {
             // For now, we'll return true. In a production app, you'd want to implement
@@ -115,14 +156,29 @@ namespace OptiGraphExtensions.Features.Synonyms
             await ExecuteWithSyncHandlingAsync(async () =>
             {
                 await SynonymApiService.SyncSynonymsToOptimizelyGraphAsync();
-                SetSuccessMessage("Successfully synced synonyms to Optimizely Graph.");
+                SetSuccessMessage("Successfully synced all synonyms to Optimizely Graph (grouped by language).");
             }, "syncing synonyms to Optimizely Graph");
         }
 
+        protected async Task SyncSynonymsForSelectedLanguage()
+        {
+            if (string.IsNullOrEmpty(SelectedLanguageFilter))
+            {
+                SetErrorMessage("Please select a language to sync.");
+                return;
+            }
+
+            await ExecuteWithSyncHandlingAsync(async () =>
+            {
+                await SynonymApiService.SyncSynonymsForLanguageAsync(SelectedLanguageFilter);
+                var languageName = AvailableLanguages.FirstOrDefault(l => l.LanguageCode == SelectedLanguageFilter)?.DisplayName ?? SelectedLanguageFilter;
+                SetSuccessMessage($"Successfully synced synonyms for '{languageName}' to Optimizely Graph.");
+            }, "syncing synonyms for language to Optimizely Graph");
+        }
 
         protected void UpdatePaginatedSynonyms()
         {
-            PaginationResult = PaginationService.GetPage(AllSynonyms, CurrentPage, PageSize);
+            PaginationResult = PaginationService.GetPage(FilteredSynonyms, CurrentPage, PageSize);
             StateHasChanged();
         }
 
@@ -139,6 +195,16 @@ namespace OptiGraphExtensions.Features.Synonyms
         protected void GoToNextPage()
         {
             NavigateToNextPage(CurrentPage, TotalPages, (p) => CurrentPage = p, UpdatePaginatedSynonymsAsync);
+        }
+
+        protected string GetLanguageDisplayName(string? languageCode)
+        {
+            if (string.IsNullOrEmpty(languageCode))
+            {
+                return "Unknown";
+            }
+
+            return AvailableLanguages.FirstOrDefault(l => l.LanguageCode == languageCode)?.DisplayName ?? languageCode;
         }
 
         private Task UpdatePaginatedSynonymsAsync()
@@ -177,6 +243,5 @@ namespace OptiGraphExtensions.Features.Synonyms
                 StateHasChanged();
             }
         }
-
     }
 }

@@ -10,5 +10,6 @@ namespace OptiGraphExtensions.Features.Synonyms.Services.Abstractions
         Task<bool> UpdateSynonymAsync(Guid id, UpdateSynonymRequest request);
         Task<bool> DeleteSynonymAsync(Guid id);
         Task<bool> SyncSynonymsToOptimizelyGraphAsync();
+        Task<bool> SyncSynonymsForLanguageAsync(string language);
     }
 }

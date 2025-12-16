@@ -130,6 +130,7 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IGraphConfigurationValidator, GraphConfigurationValidator>();
         services.AddScoped<IOptiGraphConfigurationService, OptiGraphConfigurationService>();
         services.AddScoped<IComponentErrorHandler, ComponentErrorHandler>();
+        services.AddScoped<ILanguageService, LanguageService>();
         services.AddScoped(typeof(IPaginationService<>), typeof(PaginationService<>));
         
         // Register validation services

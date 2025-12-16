@@ -5,9 +5,10 @@ namespace OptiGraphExtensions.Features.Synonyms.Services.Abstractions
     public interface ISynonymService
     {
         Task<IEnumerable<Synonym>> GetAllSynonymsAsync();
+        Task<IEnumerable<Synonym>> GetSynonymsByLanguageAsync(string language);
         Task<Synonym?> GetSynonymByIdAsync(Guid id);
-        Task<Synonym> CreateSynonymAsync(string synonymText, string? createdBy = null);
-        Task<Synonym?> UpdateSynonymAsync(Guid id, string synonymText);
+        Task<Synonym> CreateSynonymAsync(string synonymText, string language, string? createdBy = null);
+        Task<Synonym?> UpdateSynonymAsync(Guid id, string synonymText, string language);
         Task<bool> DeleteSynonymAsync(Guid id);
         Task<bool> SynonymExistsAsync(Guid id);
     }

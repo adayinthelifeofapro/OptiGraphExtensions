@@ -30,6 +30,21 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
             return result;
         }
 
+        public async Task<IEnumerable<Synonym>> GetByLanguageAsync(string language)
+        {
+            var cacheKey = $"{CacheKeyBuilder.BuildEntityListKey<Synonym>()}:language:{language}";
+            var cachedResult = await _cacheService.GetAsync<IEnumerable<Synonym>>(cacheKey);
+
+            if (cachedResult != null)
+            {
+                return cachedResult;
+            }
+
+            var result = await _repository.GetByLanguageAsync(language);
+            await _cacheService.SetAsync(cacheKey, result, _cacheExpiration);
+            return result;
+        }
+
         public async Task<Synonym?> GetByIdAsync(Guid id)
         {
             var cacheKey = CacheKeyBuilder.BuildEntityKey<Synonym>(id);

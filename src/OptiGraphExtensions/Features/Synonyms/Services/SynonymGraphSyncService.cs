@@ -36,9 +36,61 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
 
         var synonyms = await GetSynonymsForSync();
         var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
-
         var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
-        var graphApiUrl = $"{gatewayUrl}/resources/synonyms";
+
+        // Group synonyms by language and sync each language separately
+        var synonymsByLanguage = synonyms
+            .GroupBy(s => s.Language ?? string.Empty)
+            .ToList();
+
+        var errors = new List<string>();
+
+        foreach (var languageGroup in synonymsByLanguage)
+        {
+            var language = languageGroup.Key;
+            var languageSynonyms = languageGroup.ToList();
+
+            try
+            {
+                await SyncSynonymsForLanguageAsync(gatewayUrl, authenticationHeader, language, languageSynonyms);
+            }
+            catch (GraphSyncException ex)
+            {
+                errors.Add($"Language '{language}': {ex.Message}");
+            }
+        }
+
+        if (errors.Any())
+        {
+            throw new GraphSyncException($"Errors occurred while syncing synonyms: {string.Join("; ", errors)}");
+        }
+
+        return true;
+    }
+
+    public async Task<bool> SyncSynonymsForLanguageAsync(string language)
+    {
+        EnsureUserAuthenticated();
+
+        var allSynonyms = await _synonymCrudService.GetSynonymsAsync();
+        var synonymsForLanguage = allSynonyms.Where(s => s.Language == language).ToList();
+
+        if (!synonymsForLanguage.Any())
+        {
+            throw new InvalidOperationException($"No synonyms found for language '{language}' to sync to Optimizely Graph");
+        }
+
+        var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
+        var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
+
+        await SyncSynonymsForLanguageAsync(gatewayUrl, authenticationHeader, language, synonymsForLanguage);
+
+        return true;
+    }
+
+    private async Task SyncSynonymsForLanguageAsync(string gatewayUrl, string authenticationHeader, string language, IList<Synonym> synonyms)
+    {
+        var graphApiUrl = BuildGraphApiUrl(gatewayUrl, language);
         var synonymsContent = BuildSynonymsContent(synonyms);
 
         using var request = CreateAuthenticatedRequest(HttpMethod.Put, graphApiUrl, authenticationHeader);
@@ -49,10 +101,20 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync();
-            throw new GraphSyncException($"Error syncing to Optimizely Graph: {response.StatusCode} - {errorContent}");
+            throw new GraphSyncException($"Error syncing to Optimizely Graph for language '{language}': {response.StatusCode} - {errorContent}");
+        }
+    }
+
+    private static string BuildGraphApiUrl(string gatewayUrl, string language)
+    {
+        var baseUrl = $"{gatewayUrl}/resources/synonyms";
+
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            return $"{baseUrl}?language_routing={Uri.EscapeDataString(language)}";
         }
 
-        return true;
+        return baseUrl;
     }
 
     private void EnsureUserAuthenticated()
@@ -66,7 +128,7 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
         var synonyms = await _synonymCrudService.GetSynonymsAsync();
         if (!synonyms.Any())
             throw new InvalidOperationException("No synonyms found to sync to Optimizely Graph");
-        
+
         return synonyms;
     }
 

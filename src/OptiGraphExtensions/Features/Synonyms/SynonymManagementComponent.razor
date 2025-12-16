@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Components
 @using OptiGraphExtensions.Features.Synonyms
+@using OptiGraphExtensions.Features.Common.Services
 @using OptiGraphExtensions.Entities
 @inherits SynonymManagementComponentBase
 
@@ -29,10 +30,21 @@
             <h2 class="epi-h2">Add New Synonym</h2>
         </div>
         <div class="epi-form">
-            <div class="epi-form-field">
-                <label for="newSynonym" class="epi-label">Synonym Text</label>
-                <input id="newSynonym" @bind="NewSynonym.Synonym" @onkeypress="@(async (e) => { if (e.Key == "Enter") await CreateSynonym(); })" 
-                       class="epi-textbox" placeholder="Enter synonym..." maxlength="255" />
+            <div class="epi-form-row">
+                <div class="epi-form-field epi-form-field--language">
+                    <label for="newSynonymLanguage" class="epi-label">Language</label>
+                    <select id="newSynonymLanguage" @bind="NewSynonym.Language" class="epi-select">
+                        @foreach (var language in AvailableLanguages)
+                        {
+                            <option value="@language.LanguageCode">@language.DisplayName</option>
+                        }
+                    </select>
+                </div>
+                <div class="epi-form-field epi-form-field--synonym">
+                    <label for="newSynonym" class="epi-label">Synonym Text</label>
+                    <input id="newSynonym" @bind="NewSynonym.Synonym" @onkeypress="@(async (e) => { if (e.Key == "Enter") await CreateSynonym(); })"
+                           class="epi-textbox" placeholder="Enter synonym (e.g., car, auto, automobile)..." maxlength="255" />
+                </div>
             </div>
             <div class="epi-form-actions">
                 <button @onclick="CreateSynonym" class="epi-button epi-button--primary" disabled="@IsLoading">
@@ -50,14 +62,36 @@
         <div class="epi-groupHeader">
             <h2 class="epi-h2">Existing Synonyms</h2>
             <div class="epi-header-actions">
-                <span class="epi-badge">@TotalItems total synonyms</span>
-                <button @onclick="SyncSynonymsToOptimizelyGraph" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)">
-                    @if (IsSyncing)
+                <div class="epi-filter-group">
+                    <label for="languageFilter" class="epi-label-inline">Filter by Language:</label>
+                    <select id="languageFilter" @onchange="OnLanguageFilterChanged" class="epi-select epi-select--small">
+                        <option value="">All Languages</option>
+                        @foreach (var language in AvailableLanguages)
+                        {
+                            <option value="@language.LanguageCode" selected="@(SelectedLanguageFilter == language.LanguageCode)">@language.DisplayName</option>
+                        }
+                    </select>
+                </div>
+                <span class="epi-badge">@TotalItems @(string.IsNullOrEmpty(SelectedLanguageFilter) ? "total" : "filtered") synonyms</span>
+                <div class="epi-button-group">
+                    @if (!string.IsNullOrEmpty(SelectedLanguageFilter))
                     {
-                        <span class="epi-loader-small"></span>
+                        <button @onclick="SyncSynonymsForSelectedLanguage" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)" title="Sync synonyms for the selected language only">
+                            @if (IsSyncing)
+                            {
+                                <span class="epi-loader-small"></span>
+                            }
+                            Sync @GetLanguageDisplayName(SelectedLanguageFilter)
+                        </button>
                     }
-                    Sync to Graph
-                </button>
+                    <button @onclick="SyncSynonymsToOptimizelyGraph" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)" title="Sync all synonyms to Graph (grouped by language)">
+                        @if (IsSyncing)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        Sync All to Graph
+                    </button>
+                </div>
             </div>
         </div>
         <div class="epi-content">
@@ -68,10 +102,17 @@
                     <p>Loading synonyms...</p>
                 </div>
             }
-            else if (!AllSynonyms.Any())
+            else if (!FilteredSynonyms.Any())
             {
                 <div class="epi-empty-state">
-                    <p>No synonyms found. Create your first synonym above.</p>
+                    @if (string.IsNullOrEmpty(SelectedLanguageFilter))
+                    {
+                        <p>No synonyms found. Create your first synonym above.</p>
+                    }
+                    else
+                    {
+                        <p>No synonyms found for the selected language. Create a synonym or select a different language filter.</p>
+                    }
                 </div>
             }
             else
@@ -81,6 +122,7 @@
                         <thead>
                             <tr>
                                 <th>Synonym</th>
+                                <th>Language</th>
                                 <th>Created By</th>
                                 <th>Created Date</th>
                                 <th class="epi-align-right">Actions</th>
@@ -93,12 +135,27 @@
                                     <td>
                                         @if (IsEditing && EditingSynonym.Id == synonym.Id)
                                         {
-                                            <input @bind="EditingSynonym.Synonym" @onkeypress="@(async (e) => { if (e.Key == "Enter") await UpdateSynonym(); else if (e.Key == "Escape") CancelEdit(); })" 
+                                            <input @bind="EditingSynonym.Synonym" @onkeypress="@(async (e) => { if (e.Key == "Enter") await UpdateSynonym(); else if (e.Key == "Escape") CancelEdit(); })"
                                                    class="epi-textbox epi-textbox--small" maxlength="255" />
                                         }
                                         else
                                         {
                                             <span>@synonym.SynonymItem</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (IsEditing && EditingSynonym.Id == synonym.Id)
+                                        {
+                                            <select @bind="EditingSynonym.Language" class="epi-select epi-select--small">
+                                                @foreach (var language in AvailableLanguages)
+                                                {
+                                                    <option value="@language.LanguageCode">@language.DisplayName</option>
+                                                }
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <span class="epi-language-badge">@GetLanguageDisplayName(synonym.Language)</span>
                                         }
                                     </td>
                                     <td>
@@ -125,9 +182,9 @@
                                                 <button @onclick="() => StartEdit(synonym)" class="epi-button epi-button--secondary epi-button--small" title="Edit" disabled="@IsEditing">
                                                     Edit
                                                 </button>
-                                                <button @onclick="@(async () => { if (await ConfirmDelete()) await DeleteSynonym(synonym.Id); })" 
-                                                        class="epi-button epi-button--danger epi-button--small" 
-                                                        title="Delete" 
+                                                <button @onclick="@(async () => { if (await ConfirmDelete()) await DeleteSynonym(synonym.Id); })"
+                                                        class="epi-button epi-button--danger epi-button--small"
+                                                        title="Delete"
                                                         disabled="@IsEditing">
                                                     Delete
                                                 </button>
@@ -139,7 +196,7 @@
                         </tbody>
                     </table>
                 </div>
-                
+
                 @if (TotalPages > 1)
                 {
                     <div class="epi-pagination">
@@ -147,23 +204,23 @@
                             Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, TotalItems) of @TotalItems synonyms
                         </div>
                         <div class="epi-pagination-controls">
-                            <button @onclick="GoToPreviousPage" 
-                                    class="epi-button epi-button--secondary epi-button--small" 
+                            <button @onclick="GoToPreviousPage"
+                                    class="epi-button epi-button--secondary epi-button--small"
                                     disabled="@(CurrentPage == 1)">
                                 Previous
                             </button>
-                            
+
                             @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
                             {
                                 var pageNumber = i; // Capture for lambda
-                                <button @onclick="() => GoToPage(pageNumber)" 
+                                <button @onclick="() => GoToPage(pageNumber)"
                                         class="epi-button epi-button--small @(CurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
                                     @pageNumber
                                 </button>
                             }
-                            
-                            <button @onclick="GoToNextPage" 
-                                    class="epi-button epi-button--secondary epi-button--small" 
+
+                            <button @onclick="GoToNextPage"
+                                    class="epi-button epi-button--secondary epi-button--small"
                                     disabled="@(CurrentPage == TotalPages)">
                                 Next
                             </button>
@@ -216,20 +273,50 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
     }
 
     .epi-header-actions {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .epi-filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .epi-label-inline {
+        font-weight: 500;
+        color: #333;
+        white-space: nowrap;
     }
 
     .epi-content, .epi-form {
         padding: 20px;
     }
 
+    .epi-form-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
     .epi-form-field {
         margin-bottom: 15px;
+    }
+
+    .epi-form-field--language {
+        flex: 0 0 200px;
+    }
+
+    .epi-form-field--synonym {
+        flex: 1;
+        min-width: 300px;
     }
 
     .epi-label {
@@ -250,6 +337,23 @@
     .epi-textbox--small {
         padding: 4px 8px;
         font-size: 13px;
+    }
+
+    .epi-select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: #fff;
+        cursor: pointer;
+    }
+
+    .epi-select--small {
+        padding: 4px 8px;
+        font-size: 13px;
+        width: auto;
+        min-width: 150px;
     }
 
     .epi-button {
@@ -356,6 +460,15 @@
         font-weight: 500;
     }
 
+    .epi-language-badge {
+        background: #17a2b8;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
     .epi-notificationbar {
         padding: 12px 16px;
         margin-bottom: 16px;
@@ -449,15 +562,28 @@
     }
 
     @@media (max-width: 768px) {
+        .epi-form-row {
+            flex-direction: column;
+        }
+
+        .epi-form-field--language {
+            flex: 1;
+        }
+
+        .epi-groupHeader {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
         .epi-pagination {
             flex-direction: column;
             gap: 12px;
         }
-        
+
         .epi-pagination-info {
             order: 2;
         }
-        
+
         .epi-pagination-controls {
             order: 1;
         }

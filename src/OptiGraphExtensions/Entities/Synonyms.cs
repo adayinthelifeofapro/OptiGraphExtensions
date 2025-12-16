@@ -9,8 +9,10 @@ namespace OptiGraphExtensions.Entities
 
         public string? SynonymItem { get; set; }
 
+        public string? Language { get; set; }
+
         public DateTime? CreatedAt { get; set; }
 
-        public string? CreatedBy { get; set; }  
+        public string? CreatedBy { get; set; }
     }
 }
