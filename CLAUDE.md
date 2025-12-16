@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is an Optimizely CMS 12 AddOn package called OptiGraphExtensions that provides management of synonyms and pinned results within Optimizely Graph. The project consists of the main library and a sample CMS implementation.
+This is an Optimizely CMS 12 AddOn package called OptiGraphExtensions that provides management of synonyms, stop words, and pinned results within Optimizely Graph. The project consists of the main library and a sample CMS implementation.
 
 ## Development Commands
 
@@ -60,6 +60,7 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - `Entities/IOptiGraphExtensionsDataContext.cs`: Data context interface
 - `Entities/Synonyms.cs`: Synonym entity model with language and slot support
 - `Entities/SynonymSlot.cs`: Enum defining synonym slots (ONE, TWO) for Optimizely Graph API
+- `Entities/StopWord.cs`: Stop word entity model with language support
 - `Entities/PinnedResult.cs`: Pinned result entity model with collection relationships
 - `Entities/PinnedResultsCollection.cs`: Pinned results collection entity with Graph integration
 - Uses Entity Framework migrations for database management
@@ -70,6 +71,7 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - Routes: `/optimizely-graphextensions/administration/`
   - `/about` - About page
   - `/synonyms` - Synonym management
+  - `/stop-words` - Stop words management
   - `/pinned-results` - Pinned results management
 - Protected by authorization policy requiring CmsAdmins, Administrator, or WebAdmins roles
 
@@ -77,6 +79,7 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - Uses Razor views located in `Views/OptiGraphExtensions/Administration/`
 - Blazor components for interactive UI:
   - `Features/Synonyms/SynonymManagementComponentBase.cs`: Synonym management component
+  - `Features/StopWords/StopWordManagementComponentBase.cs`: Stop words management component
   - `Features/PinnedResults/PinnedResultsManagementComponentBase.cs`: Pinned results management component
 - Layout: `Views/Shared/Layouts/_LayoutBlazorAdminPage.cshtml`
 
@@ -117,6 +120,24 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - UI dropdown for selecting slot when creating/editing synonyms
   - Graph synchronization groups synonyms by both language and slot
 
+##### Stop Words Feature (SOLID Principles Applied)
+- **Services** (following Single Responsibility Principle):
+  - `IStopWordCrudService` / `StopWordCrudService`: Focused CRUD operations with HttpClient connection pooling
+  - `IStopWordGraphSyncService` / `StopWordGraphSyncService`: Dedicated Graph synchronization with IHttpClientFactory, supports language routing and delete all from Graph
+  - `IStopWordApiService` / `StopWordApiService`: Facade pattern coordinating CRUD and sync services
+  - `IStopWordValidationService` / `StopWordValidationService`: Business validation logic (single words only, max 100 chars)
+  - `StopWordRequestMapper`: Maps between StopWordModel and API request DTOs
+- **Repositories**:
+  - `IStopWordRepository` / `StopWordRepository`: Data access layer
+  - `CachedStopWordRepository`: Decorator pattern adding caching layer with automatic invalidation
+- **Components**:
+  - `StopWordManagementComponentBase`: Includes language filter, pagination, sync per language, and delete all from Graph
+- **Stop Word Features**:
+  - Stop words filter out common, insignificant words from search queries
+  - Language-specific stop word configuration
+  - Sync all stop words or per-language to Optimizely Graph
+  - Delete all stop words for a language from Graph
+
 ##### Pinned Results Feature (Clean Architecture)
 - **Services** (decomposed following Single Responsibility Principle):
   - `IPinnedResultsCrudService` / `PinnedResultsCrudService`: Focused CRUD operations with HttpClient pooling
@@ -144,6 +165,9 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - `Features/Synonyms/SynonymsApiController.cs`: RESTful API for synonym management
   - Endpoints: GET, POST, PUT, DELETE operations for synonyms
   - Integrated with caching and validation services
+- `Features/StopWords/StopWordsApiController.cs`: RESTful API for stop words management
+  - Endpoints: GET, POST, PUT, DELETE operations for stop words
+  - Language filtering support via query parameter
 - `Features/PinnedResults/PinnedResultsApiController.cs`: RESTful API for pinned results management
   - Full CRUD operations for individual pinned results
   - Collection association management
@@ -161,6 +185,11 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `language_routing`: Groups synonyms by language for localized search experiences
   - `synonym_slot`: Assigns synonyms to Slot ONE or TWO for different synonym sets
   - API URL format: `{gatewayUrl}/resources/synonyms?language_routing={language}&synonym_slot={ONE|TWO}`
+- **Stop Words API**:
+  - `language_routing`: Groups stop words by language for localized search filtering
+  - PUT endpoint stores/updates stop words for a language
+  - DELETE endpoint removes all stop words for a language from Graph
+  - API URL format: `{gatewayUrl}/resources/stopwords?language_routing={language}`
 
 ### Dependencies
 - .NET 8.0 target framework

@@ -13,13 +13,17 @@ using OptiGraphExtensions.Features.Synonyms.Repositories;
 using OptiGraphExtensions.Features.Synonyms.Services;
 using OptiGraphExtensions.Features.PinnedResults.Repositories;
 using OptiGraphExtensions.Features.PinnedResults.Services;
+using OptiGraphExtensions.Features.StopWords.Repositories;
+using OptiGraphExtensions.Features.StopWords.Services;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
+using OptiGraphExtensions.Features.StopWords.Services.Abstractions;
 using OptiGraphExtensions.Features.Common.Services;
 using OptiGraphExtensions.Features.Common.Validation;
 using OptiGraphExtensions.Features.Common.Caching;
 using OptiGraphExtensions.Features.Synonyms.Models;
 using OptiGraphExtensions.Features.PinnedResults.Models;
+using OptiGraphExtensions.Features.StopWords.Models;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -72,9 +76,12 @@ public static class OptiGraphExtensionsServiceExtensions
             .AddHttpMessageHandler<CookieForwardingHandler>();
         services.AddHttpClient<IPinnedResultsCollectionCrudService, PinnedResultsCollectionCrudService>()
             .AddHttpMessageHandler<CookieForwardingHandler>();
+        services.AddHttpClient<IStopWordCrudService, StopWordCrudService>()
+            .AddHttpMessageHandler<CookieForwardingHandler>();
         // HttpClient for Graph API calls (uses Basic Auth, no cookie forwarding needed)
         services.AddHttpClient<ISynonymGraphSyncService, SynonymGraphSyncService>();
         services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
+        services.AddHttpClient<IStopWordGraphSyncService, StopWordGraphSyncService>();
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
@@ -140,11 +147,14 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IValidationService<UpdatePinnedResultRequest>, AttributeValidationService<UpdatePinnedResultRequest>>();
         services.AddScoped<IValidationService<CreatePinnedResultsCollectionRequest>, AttributeValidationService<CreatePinnedResultsCollectionRequest>>();
         services.AddScoped<IValidationService<UpdatePinnedResultsCollectionRequest>, AttributeValidationService<UpdatePinnedResultsCollectionRequest>>();
-        
+        services.AddScoped<IValidationService<CreateStopWordRequest>, AttributeValidationService<CreateStopWordRequest>>();
+        services.AddScoped<IValidationService<UpdateStopWordRequest>, AttributeValidationService<UpdateStopWordRequest>>();
+
         // Register request mappers
         services.AddScoped<IRequestMapper<SynonymModel, CreateSynonymRequest, UpdateSynonymRequest>, SynonymRequestMapper>();
         services.AddScoped<IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest>, PinnedResultRequestMapper>();
         services.AddScoped<IRequestMapper<PinnedResultsCollectionModel, CreatePinnedResultsCollectionRequest, UpdatePinnedResultsCollectionRequest>, PinnedResultsCollectionRequestMapper>();
+        services.AddScoped<IRequestMapper<StopWordModel, CreateStopWordRequest, UpdateStopWordRequest>, StopWordRequestMapper>();
         
         // Register synonym services with caching decorators
         services.AddScoped<SynonymRepository>();
@@ -182,5 +192,18 @@ public static class OptiGraphExtensionsServiceExtensions
         // are registered via AddHttpClient above
         services.AddScoped<IPinnedResultsApiService, PinnedResultsApiService>();
         services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
+
+        // Register stop word repositories and services with caching decorators
+        services.AddScoped<StopWordRepository>();
+        services.AddScoped<IStopWordRepository>(provider =>
+        {
+            var baseRepository = provider.GetRequiredService<StopWordRepository>();
+            var cacheService = provider.GetRequiredService<ICacheService>();
+            return new CachedStopWordRepository(baseRepository, cacheService);
+        });
+        services.AddScoped<IStopWordService, StopWordService>();
+        // IStopWordCrudService and IStopWordGraphSyncService are registered via AddHttpClient above
+        services.AddScoped<IStopWordApiService, StopWordApiService>();
+        services.AddScoped<IStopWordValidationService, StopWordValidationService>();
     }
 }

@@ -6,7 +6,8 @@
       "Bash(dotnet build:*)",
       "WebFetch(domain:docs.developers.optimizely.com)",
       "Bash(dotnet ef migrations:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,8 @@
+@using EPiServer.Shell.Navigation
+@model OptiGraphExtensions.Administration.AdministrationViewModel
+
+@{
+    Layout = "/Views/Shared/Layouts/_LayoutBlazorAdminPage.cshtml";
+}
+
+@(await Html.RenderComponentAsync<OptiGraphExtensions.Features.StopWords.StopWordManagementComponent>(Microsoft.AspNetCore.Mvc.Rendering.RenderMode.Server))

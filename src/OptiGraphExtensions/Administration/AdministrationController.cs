@@ -34,6 +34,18 @@ public sealed class AdministrationController : Controller
     }
 
     [HttpGet]
+    [Route("~/optimizely-graphextensions/administration/stop-words")]
+    public IActionResult StopWords()
+    {
+        var model = new AdministrationViewModel
+        {
+            Title = "Opti Graph Extensions - Stop Words",
+        };
+
+        return View("~/Views/OptiGraphExtensions/Administration/StopWords/Index.cshtml", model);
+    }
+
+    [HttpGet]
     [Route("~/optimizely-graphextensions/administration/pinned-results")]
     public IActionResult PinnedResults()
     {

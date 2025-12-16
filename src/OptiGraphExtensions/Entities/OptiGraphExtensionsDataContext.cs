@@ -19,9 +19,11 @@ namespace OptiGraphExtensions.Entities
         }
 
         public DbSet<Synonym> Synonyms { get; set; }
-        
+
         public DbSet<PinnedResultsCollection> PinnedResultsCollections { get; set; }
-        
+
         public DbSet<PinnedResult> PinnedResults { get; set; }
+
+        public DbSet<StopWord> StopWords { get; set; }
     }
 }

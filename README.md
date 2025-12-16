@@ -1,6 +1,6 @@
 # OptiGraphExtensions
 
-An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms and pinned results within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping and result pinning capabilities.
+An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, stop words, and pinned results within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, stop word filtering, and result pinning capabilities.
 
 [![NuGet Version](https://img.shields.io/nuget/v/OptiGraphExtensions.svg)](https://www.nuget.org/packages/OptiGraphExtensions/)
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
@@ -15,6 +15,14 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms an
 - Real-time synchronization with Optimizely Graph (grouped by language and slot)
 - Intelligent caching with automatic invalidation
 - Clean admin interface with language filter and slot selection dropdowns
+
+### 🚫 Stop Words Management
+- Create, update, and delete stop words to filter common words from search queries
+- **Language Routing**: Configure stop words per language for localized search filtering
+- Sync all stop words or per-language to Optimizely Graph
+- **Delete All from Graph**: Remove all stop words for a language from Optimizely Graph
+- Intelligent caching with automatic invalidation
+- Clean admin interface with language filter and pagination
 
 ### 📌 Pinned Results Management
 - Create and manage pinned results collections
@@ -147,6 +155,10 @@ src/
 │   │   │   ├── Services/           # CRUD, sync, validation services
 │   │   │   ├── Repositories/       # Data access with caching
 │   │   │   └── Models/             # Request/response models
+│   │   ├── StopWords/              # Stop words management feature
+│   │   │   ├── Services/           # CRUD, sync, validation services
+│   │   │   ├── Repositories/       # Data access with caching
+│   │   │   └── Models/             # Request/response models
 │   │   └── PinnedResults/          # Pinned results management feature
 │   │       ├── Services/           # CRUD, sync, validation services
 │   │       ├── Repositories/       # Data access with caching
@@ -251,6 +263,8 @@ The AddOn creates the following database tables:
 
 - `tbl_OptiGraphExtensions_Synonyms`: Stores synonym definitions
   - Columns: Id, SynonymItem, Language, Slot (ONE=1, TWO=2), CreatedAt, CreatedBy
+- `tbl_OptiGraphExtensions_StopWords`: Stores stop word definitions
+  - Columns: Id, Word, Language, CreatedAt, CreatedBy
 - `tbl_OptiGraphExtensions_PinnedResultsCollections`: Stores pinned results collections
 - `tbl_OptiGraphExtensions_PinnedResults`: Stores individual pinned results
 
@@ -283,6 +297,27 @@ When syncing synonyms to Optimizely Graph, the following parameters are used:
 Synonyms are grouped by both language and slot when syncing, allowing for:
 - Language-specific synonym sets for multilingual sites
 - Multiple synonym configurations per language using different slots
+
+### Stop Words API Parameters
+
+When syncing stop words to Optimizely Graph, the following parameters are used:
+
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `language_routing` | Groups stop words by language for localized search filtering | Language code (e.g., "en", "sv") |
+
+**API URL Format:**
+```
+{gatewayUrl}/resources/stopwords?language_routing={language}
+```
+
+**Supported Operations:**
+- **PUT**: Store/update stop words for a language (sends newline-separated list of words)
+- **DELETE**: Remove all stop words for a language from Optimizely Graph
+
+Stop words are grouped by language when syncing, allowing for:
+- Language-specific stop word filtering for multilingual sites
+- Removal of common words (e.g., "the", "a", "an", "is") from search queries
 
 ## Authorization
 

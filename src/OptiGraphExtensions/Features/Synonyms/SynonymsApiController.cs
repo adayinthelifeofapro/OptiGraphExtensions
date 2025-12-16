@@ -68,6 +68,7 @@ namespace OptiGraphExtensions.Features.Synonyms
         }
 
         [HttpPut("{id}")]
+        [Route("{id}")]
         public async Task<IActionResult> UpdateSynonym(Guid id, UpdateSynonymRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Synonym))
@@ -90,6 +91,7 @@ namespace OptiGraphExtensions.Features.Synonyms
         }
 
         [HttpDelete("{id}")]
+        [Route("{id}")]
         public async Task<IActionResult> DeleteSynonym(Guid id)
         {
             var deleted = await _synonymService.DeleteSynonymAsync(id);
