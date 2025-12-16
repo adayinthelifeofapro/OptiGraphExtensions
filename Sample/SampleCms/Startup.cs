@@ -1,6 +1,8 @@
 using EPiServer.Cms.Shell;
 using EPiServer.Cms.Shell.UI;
 using EPiServer.Cms.UI.AspNetIdentity;
+using EPiServer.ContentApi.Core.DependencyInjection;
+using EPiServer.DependencyInjection;
 using EPiServer.Scheduler;
 using EPiServer.ServiceLocation;
 using EPiServer.Web.Routing;
@@ -46,6 +48,17 @@ public class Startup
             x.EnableRealtimeCaching = true;
             x.RealtimeCacheExpirationInMinutes = 60;
         });
+
+        services.ConfigureContentApiOptions(o =>
+        {
+            o.IncludeInternalContentRoots = true;
+            o.IncludeSiteHosts = true;
+            // o.EnablePreviewFeatures = true; // optional
+        });
+
+        services.AddContentDeliveryApi();
+
+        services.AddContentGraph();
 
         services.AddStottSecurity();
         services.AddRobotsHandler();

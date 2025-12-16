@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Project-specific ignores
+Sample/SampleCms/appsettings.Development.json
