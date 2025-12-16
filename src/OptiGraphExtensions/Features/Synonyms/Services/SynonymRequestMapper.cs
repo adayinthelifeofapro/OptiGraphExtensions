@@ -13,7 +13,8 @@ public class SynonymRequestMapper : IRequestMapper<SynonymModel, CreateSynonymRe
         return new CreateSynonymRequest
         {
             Synonym = model.Synonym?.Trim() ?? string.Empty,
-            Language = model.Language?.Trim() ?? string.Empty
+            Language = model.Language?.Trim() ?? string.Empty,
+            Slot = model.Slot
         };
     }
 
@@ -25,7 +26,8 @@ public class SynonymRequestMapper : IRequestMapper<SynonymModel, CreateSynonymRe
         return new UpdateSynonymRequest
         {
             Synonym = model.Synonym?.Trim() ?? string.Empty,
-            Language = model.Language?.Trim() ?? string.Empty
+            Language = model.Language?.Trim() ?? string.Empty,
+            Slot = model.Slot
         };
     }
 }

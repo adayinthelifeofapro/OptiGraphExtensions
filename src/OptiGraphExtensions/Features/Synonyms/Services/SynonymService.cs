@@ -28,13 +28,14 @@ namespace OptiGraphExtensions.Features.Synonyms.Services
             return await _synonymRepository.GetByIdAsync(id);
         }
 
-        public async Task<Synonym> CreateSynonymAsync(string synonymText, string language, string? createdBy = null)
+        public async Task<Synonym> CreateSynonymAsync(string synonymText, string language, SynonymSlot slot, string? createdBy = null)
         {
             var synonym = new Synonym
             {
                 Id = Guid.NewGuid(),
                 SynonymItem = synonymText,
                 Language = language,
+                Slot = slot,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = createdBy
             };
@@ -42,7 +43,7 @@ namespace OptiGraphExtensions.Features.Synonyms.Services
             return await _synonymRepository.CreateAsync(synonym);
         }
 
-        public async Task<Synonym?> UpdateSynonymAsync(Guid id, string synonymText, string language)
+        public async Task<Synonym?> UpdateSynonymAsync(Guid id, string synonymText, string language, SynonymSlot slot)
         {
             var synonym = await _synonymRepository.GetByIdAsync(id);
             if (synonym == null)
@@ -52,6 +53,7 @@ namespace OptiGraphExtensions.Features.Synonyms.Services
 
             synonym.SynonymItem = synonymText;
             synonym.Language = language;
+            synonym.Slot = slot;
             return await _synonymRepository.UpdateAsync(synonym);
         }
 

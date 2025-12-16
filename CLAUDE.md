@@ -58,7 +58,8 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 #### Data Layer
 - `Entities/OptiGraphExtensionsDataContext.cs`: Entity Framework DbContext
 - `Entities/IOptiGraphExtensionsDataContext.cs`: Data context interface
-- `Entities/Synonyms.cs`: Synonym entity model
+- `Entities/Synonyms.cs`: Synonym entity model with language and slot support
+- `Entities/SynonymSlot.cs`: Enum defining synonym slots (ONE, TWO) for Optimizely Graph API
 - `Entities/PinnedResult.cs`: Pinned result entity model with collection relationships
 - `Entities/PinnedResultsCollection.cs`: Pinned results collection entity with Graph integration
 - Uses Entity Framework migrations for database management
@@ -102,15 +103,19 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 ##### Synonyms Feature (SOLID Principles Applied)
 - **Services** (decomposed from large monolithic services):
   - `ISynonymCrudService` / `SynonymCrudService`: Focused CRUD operations with HttpClient connection pooling
-  - `ISynonymGraphSyncService` / `SynonymGraphSyncService`: Dedicated Graph synchronization with IHttpClientFactory
+  - `ISynonymGraphSyncService` / `SynonymGraphSyncService`: Dedicated Graph synchronization with IHttpClientFactory, supports language routing and synonym slots
   - `ISynonymApiService` / `SynonymApiService`: Facade pattern coordinating CRUD and sync services
   - `ISynonymValidationService` / `SynonymValidationService`: Business validation logic
-  - `SynonymRequestMapper`: Maps between SynonymModel and API request DTOs
+  - `SynonymRequestMapper`: Maps between SynonymModel and API request DTOs (includes slot mapping)
 - **Repositories**:
   - `ISynonymRepository` / `SynonymRepository`: Data access layer
   - `CachedSynonymRepository`: Decorator pattern adding caching layer with automatic invalidation
 - **Components**:
-  - `SynonymManagementComponentBase`: Refactored from 287 to 178 lines (38% reduction)
+  - `SynonymManagementComponentBase`: Includes language filter, slot selection, and pagination support
+- **Synonym Slot Support**:
+  - Synonyms can be assigned to Slot ONE or Slot TWO (maps to Optimizely Graph's `synonym_slot` API parameter)
+  - UI dropdown for selecting slot when creating/editing synonyms
+  - Graph synchronization groups synonyms by both language and slot
 
 ##### Pinned Results Feature (Clean Architecture)
 - **Services** (decomposed following Single Responsibility Principle):
@@ -152,6 +157,10 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - API services for bi-directional data synchronization
 - Connection pooling via IHttpClientFactory for efficient HTTP connections
 - Support for collection deletion from both local database and Graph
+- **Synonym API Parameters**:
+  - `language_routing`: Groups synonyms by language for localized search experiences
+  - `synonym_slot`: Assigns synonyms to Slot ONE or TWO for different synonym sets
+  - API URL format: `{gatewayUrl}/resources/synonyms?language_routing={language}&synonym_slot={ONE|TWO}`
 
 ### Dependencies
 - .NET 8.0 target framework

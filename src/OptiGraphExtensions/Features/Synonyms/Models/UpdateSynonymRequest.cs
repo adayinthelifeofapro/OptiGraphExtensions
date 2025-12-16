@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using OptiGraphExtensions.Entities;
 
 namespace OptiGraphExtensions.Features.Synonyms.Models
 {
@@ -10,5 +11,7 @@ namespace OptiGraphExtensions.Features.Synonyms.Models
 
         [Required(ErrorMessage = "Language is required")]
         public string Language { get; set; } = string.Empty;
+
+        public SynonymSlot Slot { get; set; } = SynonymSlot.ONE;
     }
 }

@@ -2,6 +2,7 @@
 @using OptiGraphExtensions.Features.Synonyms
 @using OptiGraphExtensions.Features.Common.Services
 @using OptiGraphExtensions.Entities
+@using OptiGraphExtensions.Features.Synonyms.Models
 @inherits SynonymManagementComponentBase
 
 <div class="epi-contentArea">
@@ -37,6 +38,15 @@
                         @foreach (var language in AvailableLanguages)
                         {
                             <option value="@language.LanguageCode">@language.DisplayName</option>
+                        }
+                    </select>
+                </div>
+                <div class="epi-form-field epi-form-field--slot">
+                    <label for="newSynonymSlot" class="epi-label">Slot</label>
+                    <select id="newSynonymSlot" @bind="NewSynonym.Slot" class="epi-select">
+                        @foreach (var slot in AvailableSlots)
+                        {
+                            <option value="@slot">@GetSlotDisplayName(slot)</option>
                         }
                     </select>
                 </div>
@@ -123,6 +133,7 @@
                             <tr>
                                 <th>Synonym</th>
                                 <th>Language</th>
+                                <th>Slot</th>
                                 <th>Created By</th>
                                 <th>Created Date</th>
                                 <th class="epi-align-right">Actions</th>
@@ -156,6 +167,21 @@
                                         else
                                         {
                                             <span class="epi-language-badge">@GetLanguageDisplayName(synonym.Language)</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (IsEditing && EditingSynonym.Id == synonym.Id)
+                                        {
+                                            <select @bind="EditingSynonym.Slot" class="epi-select epi-select--small">
+                                                @foreach (var slot in AvailableSlots)
+                                                {
+                                                    <option value="@slot">@GetSlotDisplayName(slot)</option>
+                                                }
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <span class="epi-slot-badge">@GetSlotDisplayName(synonym.Slot)</span>
                                         }
                                     </td>
                                     <td>
@@ -314,6 +340,10 @@
         flex: 0 0 200px;
     }
 
+    .epi-form-field--slot {
+        flex: 0 0 150px;
+    }
+
     .epi-form-field--synonym {
         flex: 1;
         min-width: 300px;
@@ -469,6 +499,15 @@
         font-weight: 500;
     }
 
+    .epi-slot-badge {
+        background: #6f42c1;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
     .epi-notificationbar {
         padding: 12px 16px;
         margin-bottom: 16px;
@@ -567,6 +606,10 @@
         }
 
         .epi-form-field--language {
+            flex: 1;
+        }
+
+        .epi-form-field--slot {
             flex: 1;
         }
 

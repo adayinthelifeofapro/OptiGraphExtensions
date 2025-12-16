@@ -10,10 +10,11 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms an
 
 ### 🔍 Synonym Management
 - Create, update, and delete synonyms for enhanced search functionality
-- Support for multiple synonym groups with different languages
-- Real-time synchronization with Optimizely Graph
+- **Language Routing**: Support for multiple synonym groups with different languages
+- **Synonym Slots**: Assign synonyms to Slot ONE or TWO for different synonym sets
+- Real-time synchronization with Optimizely Graph (grouped by language and slot)
 - Intelligent caching with automatic invalidation
-- Clean admin interface for easy synonym management
+- Clean admin interface with language filter and slot selection dropdowns
 
 ### 📌 Pinned Results Management
 - Create and manage pinned results collections
@@ -249,6 +250,7 @@ services.AddOptiGraphExtensions(options =>
 The AddOn creates the following database tables:
 
 - `tbl_OptiGraphExtensions_Synonyms`: Stores synonym definitions
+  - Columns: Id, SynonymItem, Language, Slot (ONE=1, TWO=2), CreatedAt, CreatedBy
 - `tbl_OptiGraphExtensions_PinnedResultsCollections`: Stores pinned results collections
 - `tbl_OptiGraphExtensions_PinnedResults`: Stores individual pinned results
 
@@ -263,6 +265,24 @@ The AddOn provides seamless integration with Optimizely Graph:
 - **Error Handling**: Graceful fallback to local data when Graph is unavailable
 - **Authentication**: Supports Optimizely Graph authentication requirements
 - **Sync Status Tracking**: Real-time sync status for collections and results
+
+### Synonym API Parameters
+
+When syncing synonyms to Optimizely Graph, the following parameters are used:
+
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `language_routing` | Groups synonyms by language for localized search | Language code (e.g., "en", "sv") |
+| `synonym_slot` | Assigns synonyms to different slots | `ONE` or `TWO` |
+
+**API URL Format:**
+```
+{gatewayUrl}/resources/synonyms?language_routing={language}&synonym_slot={ONE|TWO}
+```
+
+Synonyms are grouped by both language and slot when syncing, allowing for:
+- Language-specific synonym sets for multilingual sites
+- Multiple synonym configurations per language using different slots
 
 ## Authorization
 

@@ -37,6 +37,15 @@ namespace OptiGraphExtensions.Features.Synonyms
         protected IEnumerable<LanguageInfo> AvailableLanguages { get; set; } = Enumerable.Empty<LanguageInfo>();
         protected string SelectedLanguageFilter { get; set; } = string.Empty;
 
+        protected static IEnumerable<SynonymSlot> AvailableSlots => Enum.GetValues<SynonymSlot>();
+
+        protected static string GetSlotDisplayName(SynonymSlot slot) => slot switch
+        {
+            SynonymSlot.ONE => "Slot ONE",
+            SynonymSlot.TWO => "Slot TWO",
+            _ => slot.ToString()
+        };
+
         protected int CurrentPage { get; set; } = 1;
         protected int PageSize { get; set; } = 10;
         protected int TotalPages => PaginationResult?.TotalPages ?? 0;
@@ -111,7 +120,8 @@ namespace OptiGraphExtensions.Features.Synonyms
             {
                 Id = synonym.Id,
                 Synonym = synonym.SynonymItem,
-                Language = synonym.Language
+                Language = synonym.Language,
+                Slot = synonym.Slot
             };
         }
 

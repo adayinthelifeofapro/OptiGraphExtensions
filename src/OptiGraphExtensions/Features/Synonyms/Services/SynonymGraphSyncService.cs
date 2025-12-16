@@ -38,25 +38,26 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
         var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
         var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
 
-        // Group synonyms by language and sync each language separately
-        var synonymsByLanguage = synonyms
-            .GroupBy(s => s.Language ?? string.Empty)
+        // Group synonyms by language and slot, then sync each group separately
+        var synonymsByLanguageAndSlot = synonyms
+            .GroupBy(s => new { Language = s.Language ?? string.Empty, s.Slot })
             .ToList();
 
         var errors = new List<string>();
 
-        foreach (var languageGroup in synonymsByLanguage)
+        foreach (var group in synonymsByLanguageAndSlot)
         {
-            var language = languageGroup.Key;
-            var languageSynonyms = languageGroup.ToList();
+            var language = group.Key.Language;
+            var slot = group.Key.Slot;
+            var groupSynonyms = group.ToList();
 
             try
             {
-                await SyncSynonymsForLanguageAsync(gatewayUrl, authenticationHeader, language, languageSynonyms);
+                await SyncSynonymsForLanguageAndSlotAsync(gatewayUrl, authenticationHeader, language, slot, groupSynonyms);
             }
             catch (GraphSyncException ex)
             {
-                errors.Add($"Language '{language}': {ex.Message}");
+                errors.Add($"Language '{language}', Slot '{slot}': {ex.Message}");
             }
         }
 
@@ -83,14 +84,39 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
         var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
         var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
 
-        await SyncSynonymsForLanguageAsync(gatewayUrl, authenticationHeader, language, synonymsForLanguage);
+        // Group by slot and sync each slot separately for this language
+        var synonymsBySlot = synonymsForLanguage
+            .GroupBy(s => s.Slot)
+            .ToList();
+
+        var errors = new List<string>();
+
+        foreach (var slotGroup in synonymsBySlot)
+        {
+            var slot = slotGroup.Key;
+            var slotSynonyms = slotGroup.ToList();
+
+            try
+            {
+                await SyncSynonymsForLanguageAndSlotAsync(gatewayUrl, authenticationHeader, language, slot, slotSynonyms);
+            }
+            catch (GraphSyncException ex)
+            {
+                errors.Add($"Slot '{slot}': {ex.Message}");
+            }
+        }
+
+        if (errors.Any())
+        {
+            throw new GraphSyncException($"Errors occurred while syncing synonyms for language '{language}': {string.Join("; ", errors)}");
+        }
 
         return true;
     }
 
-    private async Task SyncSynonymsForLanguageAsync(string gatewayUrl, string authenticationHeader, string language, IList<Synonym> synonyms)
+    private async Task SyncSynonymsForLanguageAndSlotAsync(string gatewayUrl, string authenticationHeader, string language, SynonymSlot slot, IList<Synonym> synonyms)
     {
-        var graphApiUrl = BuildGraphApiUrl(gatewayUrl, language);
+        var graphApiUrl = BuildGraphApiUrl(gatewayUrl, language, slot);
         var synonymsContent = BuildSynonymsContent(synonyms);
 
         using var request = CreateAuthenticatedRequest(HttpMethod.Put, graphApiUrl, authenticationHeader);
@@ -101,20 +127,23 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync();
-            throw new GraphSyncException($"Error syncing to Optimizely Graph for language '{language}': {response.StatusCode} - {errorContent}");
+            throw new GraphSyncException($"Error syncing to Optimizely Graph for language '{language}', slot '{slot}': {response.StatusCode} - {errorContent}");
         }
     }
 
-    private static string BuildGraphApiUrl(string gatewayUrl, string language)
+    private static string BuildGraphApiUrl(string gatewayUrl, string language, SynonymSlot slot)
     {
         var baseUrl = $"{gatewayUrl}/resources/synonyms";
+        var queryParams = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(language))
         {
-            return $"{baseUrl}?language_routing={Uri.EscapeDataString(language)}";
+            queryParams.Add($"language_routing={Uri.EscapeDataString(language)}");
         }
 
-        return baseUrl;
+        queryParams.Add($"synonym_slot={slot.ToString().ToUpperInvariant()}");
+
+        return $"{baseUrl}?{string.Join("&", queryParams)}";
     }
 
     private void EnsureUserAuthenticated()

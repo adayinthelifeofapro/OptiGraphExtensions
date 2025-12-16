@@ -11,6 +11,8 @@ namespace OptiGraphExtensions.Entities
 
         public string? Language { get; set; }
 
+        public SynonymSlot Slot { get; set; } = SynonymSlot.ONE;
+
         public DateTime? CreatedAt { get; set; }
 
         public string? CreatedBy { get; set; }

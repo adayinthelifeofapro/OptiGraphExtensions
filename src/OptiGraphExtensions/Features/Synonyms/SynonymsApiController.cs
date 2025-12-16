@@ -63,7 +63,7 @@ namespace OptiGraphExtensions.Features.Synonyms
                 return BadRequest("Language is required.");
             }
 
-            var synonym = await _synonymService.CreateSynonymAsync(request.Synonym, request.Language, User.Identity?.Name);
+            var synonym = await _synonymService.CreateSynonymAsync(request.Synonym, request.Language, request.Slot, User.Identity?.Name);
             return CreatedAtAction(nameof(GetSynonym), new { id = synonym.Id }, synonym);
         }
 
@@ -80,7 +80,7 @@ namespace OptiGraphExtensions.Features.Synonyms
                 return BadRequest("Language is required.");
             }
 
-            var updatedSynonym = await _synonymService.UpdateSynonymAsync(id, request.Synonym, request.Language);
+            var updatedSynonym = await _synonymService.UpdateSynonymAsync(id, request.Synonym, request.Language, request.Slot);
             if (updatedSynonym == null)
             {
                 return NotFound();
