@@ -36,6 +36,7 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected IEnumerable<LanguageInfo> AvailableLanguages { get; set; } = Enumerable.Empty<LanguageInfo>();
         protected string SelectedLanguageFilter { get; set; } = string.Empty;
+        protected SynonymSlot? SelectedSlotFilter { get; set; }
 
         protected static IEnumerable<SynonymSlot> AvailableSlots => Enum.GetValues<SynonymSlot>();
 
@@ -74,21 +75,25 @@ namespace OptiGraphExtensions.Features.Synonyms
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 AllSynonyms = await SynonymApiService.GetSynonymsAsync();
-                ApplyLanguageFilter();
+                ApplyFilters();
             }, "loading synonyms");
         }
 
-        protected void ApplyLanguageFilter()
+        protected void ApplyFilters()
         {
-            if (string.IsNullOrEmpty(SelectedLanguageFilter))
+            IEnumerable<Synonym> filtered = AllSynonyms;
+
+            if (!string.IsNullOrEmpty(SelectedLanguageFilter))
             {
-                FilteredSynonyms = AllSynonyms;
-            }
-            else
-            {
-                FilteredSynonyms = AllSynonyms.Where(s => s.Language == SelectedLanguageFilter).ToList();
+                filtered = filtered.Where(s => s.Language == SelectedLanguageFilter);
             }
 
+            if (SelectedSlotFilter.HasValue)
+            {
+                filtered = filtered.Where(s => s.Slot == SelectedSlotFilter.Value);
+            }
+
+            FilteredSynonyms = filtered.ToList();
             CurrentPage = 1;
             UpdatePaginatedSynonyms();
         }
@@ -96,8 +101,24 @@ namespace OptiGraphExtensions.Features.Synonyms
         protected void OnLanguageFilterChanged(ChangeEventArgs e)
         {
             SelectedLanguageFilter = e.Value?.ToString() ?? string.Empty;
-            ApplyLanguageFilter();
+            ApplyFilters();
         }
+
+        protected void OnSlotFilterChanged(ChangeEventArgs e)
+        {
+            var value = e.Value?.ToString();
+            if (string.IsNullOrEmpty(value) || !Enum.TryParse<SynonymSlot>(value, out var slot))
+            {
+                SelectedSlotFilter = null;
+            }
+            else
+            {
+                SelectedSlotFilter = slot;
+            }
+            ApplyFilters();
+        }
+
+        protected bool HasActiveFilters => !string.IsNullOrEmpty(SelectedLanguageFilter) || SelectedSlotFilter.HasValue;
 
         protected async Task CreateSynonym()
         {

@@ -73,7 +73,7 @@
             <h2 class="epi-h2">Existing Synonyms</h2>
             <div class="epi-header-actions">
                 <div class="epi-filter-group">
-                    <label for="languageFilter" class="epi-label-inline">Filter by Language:</label>
+                    <label for="languageFilter" class="epi-label-inline">Language:</label>
                     <select id="languageFilter" @onchange="OnLanguageFilterChanged" class="epi-select epi-select--small">
                         <option value="">All Languages</option>
                         @foreach (var language in AvailableLanguages)
@@ -82,7 +82,17 @@
                         }
                     </select>
                 </div>
-                <span class="epi-badge">@TotalItems @(string.IsNullOrEmpty(SelectedLanguageFilter) ? "total" : "filtered") synonyms</span>
+                <div class="epi-filter-group">
+                    <label for="slotFilter" class="epi-label-inline">Slot:</label>
+                    <select id="slotFilter" @onchange="OnSlotFilterChanged" class="epi-select epi-select--small">
+                        <option value="">All Slots</option>
+                        @foreach (var slot in AvailableSlots)
+                        {
+                            <option value="@slot" selected="@(SelectedSlotFilter == slot)">@GetSlotDisplayName(slot)</option>
+                        }
+                    </select>
+                </div>
+                <span class="epi-badge">@TotalItems @(HasActiveFilters ? "filtered" : "total") synonyms</span>
                 <div class="epi-button-group">
                     @if (!string.IsNullOrEmpty(SelectedLanguageFilter))
                     {
@@ -115,13 +125,13 @@
             else if (!FilteredSynonyms.Any())
             {
                 <div class="epi-empty-state">
-                    @if (string.IsNullOrEmpty(SelectedLanguageFilter))
+                    @if (!HasActiveFilters)
                     {
                         <p>No synonyms found. Create your first synonym above.</p>
                     }
                     else
                     {
-                        <p>No synonyms found for the selected language. Create a synonym or select a different language filter.</p>
+                        <p>No synonyms found for the selected filters. Create a synonym or adjust your filter settings.</p>
                     }
                 </div>
             }
