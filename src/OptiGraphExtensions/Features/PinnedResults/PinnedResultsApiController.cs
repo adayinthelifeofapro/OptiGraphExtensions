@@ -55,6 +55,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 request.CollectionId,
                 request.Phrases,
                 request.TargetKey,
+                request.TargetName,
                 request.Language,
                 request.Priority,
                 request.IsActive,
@@ -69,11 +70,12 @@ namespace OptiGraphExtensions.Features.PinnedResults
         public async Task<IActionResult> UpdatePinnedResult(Guid id, UpdatePinnedResultRequest request)
         {
             var updatedPinnedResult = await _pinnedResultService.UpdatePinnedResultAsync(
-                id, 
-                request.Phrases, 
-                request.TargetKey, 
-                request.Language, 
-                request.Priority, 
+                id,
+                request.Phrases,
+                request.TargetKey,
+                request.TargetName,
+                request.Language,
+                request.Priority,
                 request.IsActive);
 
             if (updatedPinnedResult == null)

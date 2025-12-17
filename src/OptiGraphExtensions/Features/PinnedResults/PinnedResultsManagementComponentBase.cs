@@ -269,6 +269,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             SelectedContent = result;
             NewPinnedResult.TargetKey = result.GuidValue;
+            NewPinnedResult.TargetName = result.Name;
             ContentSearchText = result.DisplayText;
             ShowSearchDropdown = false;
             ContentSearchResults = new List<ContentSearchResult>();
@@ -279,6 +280,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             EditingSelectedContent = result;
             EditingPinnedResult.TargetKey = result.GuidValue;
+            EditingPinnedResult.TargetName = result.Name;
             EditingContentSearchText = result.DisplayText;
             ShowEditingSearchDropdown = false;
             EditingContentSearchResults = new List<ContentSearchResult>();
@@ -444,8 +446,10 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             IsEditingPinnedResult = true;
             EditingPinnedResult = MapToPinnedResultModel(pinnedResult);
-            // Initialize editing search text with current target key
-            EditingContentSearchText = pinnedResult.TargetKey ?? string.Empty;
+            // Initialize editing search text with current target name (or key if name not available)
+            EditingContentSearchText = !string.IsNullOrEmpty(pinnedResult.TargetName)
+                ? pinnedResult.TargetName
+                : pinnedResult.TargetKey ?? string.Empty;
             EditingSelectedContent = null;
         }
 
@@ -612,6 +616,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 CollectionId = pinnedResult.CollectionId,
                 Phrases = pinnedResult.Phrases,
                 TargetKey = pinnedResult.TargetKey,
+                TargetName = pinnedResult.TargetName,
                 Language = pinnedResult.Language,
                 Priority = pinnedResult.Priority,
                 IsActive = pinnedResult.IsActive

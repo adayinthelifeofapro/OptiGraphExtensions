@@ -30,7 +30,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             return await _pinnedResultRepository.GetByIdAsync(id);
         }
 
-        public async Task<PinnedResult> CreatePinnedResultAsync(Guid collectionId, string? phrases, string? targetKey, string? language, int priority, bool isActive, string? createdBy = null, string? graphId = null)
+        public async Task<PinnedResult> CreatePinnedResultAsync(Guid collectionId, string? phrases, string? targetKey, string? targetName, string? language, int priority, bool isActive, string? createdBy = null, string? graphId = null)
         {
             var pinnedResult = new PinnedResult
             {
@@ -38,6 +38,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
                 CollectionId = collectionId,
                 Phrases = phrases,
                 TargetKey = targetKey,
+                TargetName = targetName,
                 Language = language,
                 Priority = priority,
                 IsActive = isActive,
@@ -96,7 +97,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             return createdPinnedResult;
         }
 
-        public async Task<PinnedResult?> UpdatePinnedResultAsync(Guid id, string? phrases, string? targetKey, string? language, int priority, bool isActive)
+        public async Task<PinnedResult?> UpdatePinnedResultAsync(Guid id, string? phrases, string? targetKey, string? targetName, string? language, int priority, bool isActive)
         {
             var pinnedResult = await _pinnedResultRepository.GetByIdAsync(id);
             if (pinnedResult == null)
@@ -106,6 +107,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
 
             pinnedResult.Phrases = phrases;
             pinnedResult.TargetKey = targetKey;
+            pinnedResult.TargetName = targetName;
             pinnedResult.Language = language;
             pinnedResult.Priority = priority;
             pinnedResult.IsActive = isActive;

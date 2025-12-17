@@ -299,7 +299,7 @@
                             <thead>
                                 <tr>
                                     <th>Phrases</th>
-                                    <th>Target Key</th>
+                                    <th>Target Content</th>
                                     <th>Language</th>
                                     <th>Priority</th>
                                     <th>Status</th>
@@ -353,7 +353,14 @@
                                             }
                                             else
                                             {
-                                                <small>@pinnedResult.TargetKey</small>
+                                                @if (!string.IsNullOrEmpty(pinnedResult.TargetName))
+                                                {
+                                                    <span title="@pinnedResult.TargetKey">@pinnedResult.TargetName</span>
+                                                }
+                                                else
+                                                {
+                                                    <small class="epi-id-text" title="Content GUID">@pinnedResult.TargetKey</small>
+                                                }
                                             }
                                         </td>
                                         <td>

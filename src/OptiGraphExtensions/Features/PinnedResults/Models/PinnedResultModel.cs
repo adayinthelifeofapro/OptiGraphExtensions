@@ -16,6 +16,9 @@ namespace OptiGraphExtensions.Features.PinnedResults.Models
         [StringLength(100, ErrorMessage = "Target Key must be less than 100 characters")]
         public string? TargetKey { get; set; }
 
+        [StringLength(500, ErrorMessage = "Target Name must be less than 500 characters")]
+        public string? TargetName { get; set; }
+
         [Required(ErrorMessage = "Language is required")]
         [StringLength(10, ErrorMessage = "Language must be less than 10 characters")]
         public string? Language { get; set; }

@@ -14,6 +14,8 @@ namespace OptiGraphExtensions.Entities
 
         public string? TargetKey { get; set; } // Content GUID to pin
 
+        public string? TargetName { get; set; } // Display name of the content item
+
         public string? Language { get; set; } // Language code (e.g., "en", "sv")
 
         public int Priority { get; set; } // Numeric ordering value

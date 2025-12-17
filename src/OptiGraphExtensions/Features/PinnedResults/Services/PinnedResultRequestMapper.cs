@@ -15,6 +15,7 @@ public class PinnedResultRequestMapper : IRequestMapper<PinnedResultModel, Creat
             CollectionId = model.CollectionId,
             Phrases = model.Phrases?.Trim() ?? string.Empty,
             TargetKey = model.TargetKey?.Trim() ?? string.Empty,
+            TargetName = model.TargetName?.Trim(),
             Language = model.Language?.Trim() ?? string.Empty,
             Priority = model.Priority,
             IsActive = model.IsActive
@@ -30,6 +31,7 @@ public class PinnedResultRequestMapper : IRequestMapper<PinnedResultModel, Creat
         {
             Phrases = model.Phrases?.Trim() ?? string.Empty,
             TargetKey = model.TargetKey?.Trim() ?? string.Empty,
+            TargetName = model.TargetName?.Trim(),
             Language = model.Language?.Trim() ?? string.Empty,
             Priority = model.Priority,
             IsActive = model.IsActive

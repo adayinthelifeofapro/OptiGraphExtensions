@@ -243,17 +243,29 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         var responseContent = await response.Content.ReadAsStringAsync();
         var graphPinnedResults = await DeserializeGraphPinnedResultsResponse(responseContent);
 
+        // Preserve existing TargetName values before deletion (Graph doesn't store them)
+        var existingResults = await _pinnedResultsCrudService.GetPinnedResultsAsync(collectionId);
+        var targetNameLookup = existingResults
+            .Where(r => !string.IsNullOrEmpty(r.TargetKey) && !string.IsNullOrEmpty(r.TargetName))
+            .ToDictionary(r => r.TargetKey!, r => r.TargetName);
+
         // Clear existing pinned results for this collection
         await _pinnedResultsCrudService.DeletePinnedResultsByCollectionIdAsync(collectionId);
 
         // Create new pinned results from Graph data
         foreach (var graphItem in graphPinnedResults)
         {
+            // Look up preserved TargetName by TargetKey
+            var targetName = graphItem.TargetKey != null && targetNameLookup.TryGetValue(graphItem.TargetKey, out var name)
+                ? name
+                : null;
+
             var createRequest = new CreatePinnedResultRequest
             {
                 CollectionId = collectionId,
                 Phrases = graphItem.Phrases ?? string.Empty,
                 TargetKey = graphItem.TargetKey ?? string.Empty,
+                TargetName = targetName,
                 Language = graphItem.Language ?? "en",
                 Priority = graphItem.Priority,
                 IsActive = graphItem.IsActive,

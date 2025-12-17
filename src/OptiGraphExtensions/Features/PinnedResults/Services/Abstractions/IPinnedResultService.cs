@@ -6,8 +6,8 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services.Abstractions
     {
         Task<IEnumerable<PinnedResult>> GetAllPinnedResultsAsync(Guid? collectionId = null);
         Task<PinnedResult?> GetPinnedResultByIdAsync(Guid id);
-        Task<PinnedResult> CreatePinnedResultAsync(Guid collectionId, string? phrases, string? targetKey, string? language, int priority, bool isActive, string? createdBy = null, string? graphId = null);
-        Task<PinnedResult?> UpdatePinnedResultAsync(Guid id, string? phrases, string? targetKey, string? language, int priority, bool isActive);
+        Task<PinnedResult> CreatePinnedResultAsync(Guid collectionId, string? phrases, string? targetKey, string? targetName, string? language, int priority, bool isActive, string? createdBy = null, string? graphId = null);
+        Task<PinnedResult?> UpdatePinnedResultAsync(Guid id, string? phrases, string? targetKey, string? targetName, string? language, int priority, bool isActive);
         Task<bool> DeletePinnedResultAsync(Guid id);
         Task<bool> DeletePinnedResultsByCollectionIdAsync(Guid collectionId);
         Task<bool> PinnedResultExistsAsync(Guid id);
