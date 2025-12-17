@@ -6,10 +6,12 @@ using OptiGraphExtensions.Features.Common.Exceptions;
 using OptiGraphExtensions.Features.PinnedResults.Models;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
+using OptiGraphExtensions.Features.ContentSearch.Models;
+using OptiGraphExtensions.Features.ContentSearch.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.PinnedResults
 {
-    public class PinnedResultsManagementComponentBase : ManagementComponentBase<PinnedResult, PinnedResultModel>
+    public class PinnedResultsManagementComponentBase : ManagementComponentBase<PinnedResult, PinnedResultModel>, IDisposable
     {
         [Inject]
         protected IPinnedResultsApiService ApiService { get; set; } = null!;
@@ -32,6 +34,9 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Inject]
         protected ILanguageService LanguageService { get; set; } = null!;
 
+        [Inject]
+        protected IContentSearchService ContentSearchService { get; set; } = null!;
+
         // Languages
         protected IEnumerable<LanguageInfo> AvailableLanguages { get; set; } = Enumerable.Empty<LanguageInfo>();
         protected string SelectedLanguageFilter { get; set; } = string.Empty;
@@ -52,6 +57,28 @@ namespace OptiGraphExtensions.Features.PinnedResults
         // State Management
         protected bool IsSyncing { get; set; }
 
+        // Content Search Autocomplete State (New Pinned Result)
+        protected string ContentSearchText { get; set; } = string.Empty;
+        protected IList<ContentSearchResult> ContentSearchResults { get; set; } = new List<ContentSearchResult>();
+        protected IList<string> AvailableContentTypes { get; set; } = new List<string>();
+        protected string SelectedContentTypeFilter { get; set; } = string.Empty;
+        protected bool IsSearching { get; set; }
+        protected bool ShowSearchDropdown { get; set; }
+        protected ContentSearchResult? SelectedContent { get; set; }
+
+        // Content Search Autocomplete State (Editing Pinned Result)
+        protected string EditingContentSearchText { get; set; } = string.Empty;
+        protected IList<ContentSearchResult> EditingContentSearchResults { get; set; } = new List<ContentSearchResult>();
+        protected bool IsEditingSearching { get; set; }
+        protected bool ShowEditingSearchDropdown { get; set; }
+        protected ContentSearchResult? EditingSelectedContent { get; set; }
+
+        // Debounce timers for search
+        private System.Timers.Timer? _searchDebounceTimer;
+        private System.Timers.Timer? _editingSearchDebounceTimer;
+        private const int DebounceDelayMs = 300;
+        private bool _disposed;
+
         // Pagination
         protected int CurrentPage { get; set; } = 1;
         protected int PageSize { get; set; } = 10;
@@ -63,6 +90,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             LoadLanguages();
             await LoadCollections();
+            await LoadContentTypesAsync();
         }
 
         protected void LoadLanguages()
@@ -106,6 +134,201 @@ namespace OptiGraphExtensions.Features.PinnedResults
             SelectedLanguageFilter = e.Value?.ToString() ?? string.Empty;
             ApplyLanguageFilter();
         }
+
+        #region Content Search Autocomplete
+
+        protected async Task LoadContentTypesAsync()
+        {
+            try
+            {
+                AvailableContentTypes = await ContentSearchService.GetAvailableContentTypesAsync();
+            }
+            catch
+            {
+                // Content types are optional - don't fail if we can't load them
+                AvailableContentTypes = new List<string>();
+            }
+        }
+
+        protected void OnContentSearchInput(ChangeEventArgs e)
+        {
+            ContentSearchText = e.Value?.ToString() ?? string.Empty;
+
+            // Clear selection if user is typing
+            SelectedContent = null;
+            NewPinnedResult.TargetKey = string.Empty;
+
+            // Cancel previous timer
+            _searchDebounceTimer?.Stop();
+            _searchDebounceTimer?.Dispose();
+
+            if (string.IsNullOrWhiteSpace(ContentSearchText) || ContentSearchText.Length < 2)
+            {
+                ContentSearchResults = new List<ContentSearchResult>();
+                ShowSearchDropdown = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Start new debounce timer
+            _searchDebounceTimer = new System.Timers.Timer(DebounceDelayMs);
+            _searchDebounceTimer.Elapsed += async (sender, args) =>
+            {
+                _searchDebounceTimer?.Stop();
+                await InvokeAsync(async () => await PerformContentSearchAsync());
+            };
+            _searchDebounceTimer.AutoReset = false;
+            _searchDebounceTimer.Start();
+        }
+
+        protected void OnEditingContentSearchInput(ChangeEventArgs e)
+        {
+            EditingContentSearchText = e.Value?.ToString() ?? string.Empty;
+
+            EditingSelectedContent = null;
+            EditingPinnedResult.TargetKey = string.Empty;
+
+            _editingSearchDebounceTimer?.Stop();
+            _editingSearchDebounceTimer?.Dispose();
+
+            if (string.IsNullOrWhiteSpace(EditingContentSearchText) || EditingContentSearchText.Length < 2)
+            {
+                EditingContentSearchResults = new List<ContentSearchResult>();
+                ShowEditingSearchDropdown = false;
+                StateHasChanged();
+                return;
+            }
+
+            _editingSearchDebounceTimer = new System.Timers.Timer(DebounceDelayMs);
+            _editingSearchDebounceTimer.Elapsed += async (sender, args) =>
+            {
+                _editingSearchDebounceTimer?.Stop();
+                await InvokeAsync(async () => await PerformEditingContentSearchAsync());
+            };
+            _editingSearchDebounceTimer.AutoReset = false;
+            _editingSearchDebounceTimer.Start();
+        }
+
+        protected async Task PerformContentSearchAsync()
+        {
+            try
+            {
+                IsSearching = true;
+                StateHasChanged();
+
+                ContentSearchResults = await ContentSearchService.SearchContentAsync(
+                    ContentSearchText,
+                    string.IsNullOrEmpty(SelectedContentTypeFilter) ? null : SelectedContentTypeFilter,
+                    NewPinnedResult.Language,
+                    10);
+
+                ShowSearchDropdown = ContentSearchResults.Any();
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Search failed: {ex.Message}");
+                ContentSearchResults = new List<ContentSearchResult>();
+                ShowSearchDropdown = false;
+            }
+            finally
+            {
+                IsSearching = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task PerformEditingContentSearchAsync()
+        {
+            try
+            {
+                IsEditingSearching = true;
+                StateHasChanged();
+
+                EditingContentSearchResults = await ContentSearchService.SearchContentAsync(
+                    EditingContentSearchText,
+                    string.IsNullOrEmpty(SelectedContentTypeFilter) ? null : SelectedContentTypeFilter,
+                    EditingPinnedResult.Language,
+                    10);
+
+                ShowEditingSearchDropdown = EditingContentSearchResults.Any();
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Search failed: {ex.Message}");
+                EditingContentSearchResults = new List<ContentSearchResult>();
+                ShowEditingSearchDropdown = false;
+            }
+            finally
+            {
+                IsEditingSearching = false;
+                StateHasChanged();
+            }
+        }
+
+        protected void SelectContent(ContentSearchResult result)
+        {
+            SelectedContent = result;
+            NewPinnedResult.TargetKey = result.GuidValue;
+            ContentSearchText = result.DisplayText;
+            ShowSearchDropdown = false;
+            ContentSearchResults = new List<ContentSearchResult>();
+            StateHasChanged();
+        }
+
+        protected void SelectEditingContent(ContentSearchResult result)
+        {
+            EditingSelectedContent = result;
+            EditingPinnedResult.TargetKey = result.GuidValue;
+            EditingContentSearchText = result.DisplayText;
+            ShowEditingSearchDropdown = false;
+            EditingContentSearchResults = new List<ContentSearchResult>();
+            StateHasChanged();
+        }
+
+        protected void OnContentTypeFilterChanged(ChangeEventArgs e)
+        {
+            SelectedContentTypeFilter = e.Value?.ToString() ?? string.Empty;
+
+            // Re-search if we have text
+            if (!string.IsNullOrWhiteSpace(ContentSearchText) && ContentSearchText.Length >= 2)
+            {
+                _ = PerformContentSearchAsync();
+            }
+        }
+
+        protected void ClearContentSelection()
+        {
+            SelectedContent = null;
+            NewPinnedResult.TargetKey = string.Empty;
+            ContentSearchText = string.Empty;
+            ContentSearchResults = new List<ContentSearchResult>();
+            ShowSearchDropdown = false;
+            StateHasChanged();
+        }
+
+        protected void ClearEditingContentSelection()
+        {
+            EditingSelectedContent = null;
+            EditingPinnedResult.TargetKey = string.Empty;
+            EditingContentSearchText = string.Empty;
+            EditingContentSearchResults = new List<ContentSearchResult>();
+            ShowEditingSearchDropdown = false;
+            StateHasChanged();
+        }
+
+        protected void CloseSearchDropdown()
+        {
+            ShowSearchDropdown = false;
+            StateHasChanged();
+        }
+
+        protected void CloseEditingSearchDropdown()
+        {
+            ShowEditingSearchDropdown = false;
+            StateHasChanged();
+        }
+
+        #endregion
 
         #region Collections Management
 
@@ -187,6 +410,8 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 var request = PinnedResultRequestMapper.MapToCreateRequest(NewPinnedResult);
                 await ApiService.CreatePinnedResultAsync(request);
                 NewPinnedResult = new();
+                // Reset content search state
+                ClearContentSelection();
                 SetSuccessMessage("Pinned result created successfully.");
                 await LoadPinnedResults();
             }, "creating pinned result", showLoading: false);
@@ -219,12 +444,17 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             IsEditingPinnedResult = true;
             EditingPinnedResult = MapToPinnedResultModel(pinnedResult);
+            // Initialize editing search text with current target key
+            EditingContentSearchText = pinnedResult.TargetKey ?? string.Empty;
+            EditingSelectedContent = null;
         }
 
         protected void CancelEditPinnedResult()
         {
             IsEditingPinnedResult = false;
             EditingPinnedResult = new PinnedResultModel();
+            // Clear editing search state
+            ClearEditingContentSelection();
         }
 
         protected async Task OnCollectionChanged(ChangeEventArgs args)
@@ -407,6 +637,31 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 IsSyncing = false;
                 StateHasChanged();
             }
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+
+            if (disposing)
+            {
+                _searchDebounceTimer?.Stop();
+                _searchDebounceTimer?.Dispose();
+                _editingSearchDebounceTimer?.Stop();
+                _editingSearchDebounceTimer?.Dispose();
+            }
+
+            _disposed = true;
         }
 
         #endregion

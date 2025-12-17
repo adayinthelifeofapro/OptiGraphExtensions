@@ -173,13 +173,64 @@
                 <div class="epi-form-row">
                     <div class="epi-form-field epi-form-field--half">
                         <label for="newPhrases" class="epi-label">Search Phrases (comma-separated)</label>
-                        <input id="newPhrases" @bind="NewPinnedResult.Phrases" 
+                        <input id="newPhrases" @bind="NewPinnedResult.Phrases"
                                class="epi-textbox" placeholder="e.g., laptop, computer, notebook" maxlength="1000" />
                     </div>
-                    <div class="epi-form-field epi-form-field--half">
-                        <label for="newTargetKey" class="epi-label">Target Key (Content GUID)</label>
-                        <input id="newTargetKey" @bind="NewPinnedResult.TargetKey" 
-                               class="epi-textbox" placeholder="e.g., 12345678-1234-1234-1234-123456789012" maxlength="100" />
+                    <div class="epi-form-field epi-form-field--quarter">
+                        <label for="contentTypeFilter" class="epi-label">Content Type Filter</label>
+                        <select id="contentTypeFilter" @onchange="OnContentTypeFilterChanged" class="epi-select">
+                            <option value="">All Types</option>
+                            @foreach (var contentType in AvailableContentTypes)
+                            {
+                                <option value="@contentType" selected="@(SelectedContentTypeFilter == contentType)">@contentType</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="epi-form-row">
+                    <div class="epi-form-field epi-form-field--full">
+                        <label for="newTargetKey" class="epi-label">Target Content</label>
+                        <div class="epi-autocomplete-container">
+                            <div class="epi-autocomplete-input-wrapper">
+                                <input id="newTargetKey"
+                                       value="@ContentSearchText"
+                                       @oninput="OnContentSearchInput"
+                                       class="epi-textbox"
+                                       placeholder="Search for content..."
+                                       autocomplete="off" />
+                                @if (IsSearching)
+                                {
+                                    <span class="epi-autocomplete-spinner"></span>
+                                }
+                            </div>
+
+                            @if (ShowSearchDropdown && ContentSearchResults.Any())
+                            {
+                                <div class="epi-autocomplete-dropdown">
+                                    @foreach (var result in ContentSearchResults)
+                                    {
+                                        <div class="epi-autocomplete-item" @onclick="() => SelectContent(result)">
+                                            <div class="epi-autocomplete-item-name">@result.Name</div>
+                                            <div class="epi-autocomplete-item-meta">
+                                                <span class="epi-autocomplete-item-url">@result.Url</span>
+                                                <span class="epi-autocomplete-item-type">@result.ContentType</span>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            @if (SelectedContent != null)
+                            {
+                                <div class="epi-selected-content">
+                                    <span>Selected: @SelectedContent.Name</span>
+                                    <button type="button" class="epi-clear-selection" @onclick="ClearContentSelection">
+                                        Clear
+                                    </button>
+                                </div>
+                            }
+                        </div>
                     </div>
                 </div>
                 
@@ -274,7 +325,31 @@
                                         <td>
                                             @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
                                             {
-                                                <input @bind="EditingPinnedResult.TargetKey" class="epi-textbox epi-textbox--small" maxlength="100" />
+                                                <div class="epi-autocomplete-container epi-autocomplete-container--inline">
+                                                    <div class="epi-autocomplete-input-wrapper">
+                                                        <input value="@EditingContentSearchText"
+                                                               @oninput="OnEditingContentSearchInput"
+                                                               class="epi-textbox epi-textbox--small"
+                                                               placeholder="Search..."
+                                                               autocomplete="off" />
+                                                        @if (IsEditingSearching)
+                                                        {
+                                                            <span class="epi-autocomplete-spinner epi-autocomplete-spinner--small"></span>
+                                                        }
+                                                    </div>
+                                                    @if (ShowEditingSearchDropdown && EditingContentSearchResults.Any())
+                                                    {
+                                                        <div class="epi-autocomplete-dropdown epi-autocomplete-dropdown--inline">
+                                                            @foreach (var result in EditingContentSearchResults)
+                                                            {
+                                                                <div class="epi-autocomplete-item" @onclick="() => SelectEditingContent(result)">
+                                                                    <div class="epi-autocomplete-item-name">@result.Name</div>
+                                                                    <small class="epi-autocomplete-item-url">@result.Url</small>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
                                             }
                                             else
                                             {
@@ -467,6 +542,16 @@
         width: calc(33.333% - 10px);
         display: inline-block;
         margin-right: 15px;
+    }
+
+    .epi-form-field--quarter {
+        width: calc(25% - 12px);
+        display: inline-block;
+        margin-right: 16px;
+    }
+
+    .epi-form-field--full {
+        width: 100%;
     }
 
     .epi-form-row {
@@ -785,6 +870,152 @@
         .epi-pagination-controls {
             order: 1;
         }
+
+        .epi-form-field--quarter {
+            width: 100%;
+            display: block;
+            margin-right: 0;
+        }
+
+        .epi-autocomplete-dropdown--inline {
+            min-width: 100%;
+        }
+    }
+
+    /* Autocomplete Component Styles */
+    .epi-autocomplete-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .epi-autocomplete-container--inline {
+        display: inline-block;
+        min-width: 200px;
+    }
+
+    .epi-autocomplete-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .epi-autocomplete-input-wrapper .epi-textbox {
+        padding-right: 30px;
+    }
+
+    .epi-autocomplete-spinner {
+        position: absolute;
+        right: 10px;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #e0e0e0;
+        border-top-color: #0066cc;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    .epi-autocomplete-spinner--small {
+        width: 12px;
+        height: 12px;
+        border-width: 1.5px;
+    }
+
+    .epi-autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .epi-autocomplete-dropdown--inline {
+        min-width: 300px;
+    }
+
+    .epi-autocomplete-item {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.15s ease;
+    }
+
+    .epi-autocomplete-item:last-child {
+        border-bottom: none;
+    }
+
+    .epi-autocomplete-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    .epi-autocomplete-item-name {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 2px;
+    }
+
+    .epi-autocomplete-item-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .epi-autocomplete-item-url {
+        font-size: 12px;
+        color: #666;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+    }
+
+    .epi-autocomplete-item-type {
+        font-size: 11px;
+        color: #fff;
+        background: #6c757d;
+        padding: 2px 6px;
+        border-radius: 3px;
+        white-space: nowrap;
+    }
+
+    .epi-selected-content {
+        display: flex;
+        align-items: center;
+        margin-top: 8px;
+        padding: 8px 12px;
+        background: #e8f5e9;
+        border: 1px solid #c8e6c9;
+        border-radius: 4px;
+        color: #2e7d32;
+        font-size: 13px;
+    }
+
+    .epi-selected-content span {
+        flex: 1;
+    }
+
+    .epi-clear-selection {
+        background: none;
+        border: none;
+        color: #d32f2f;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 4px 8px;
+        margin-left: 8px;
+        border-radius: 3px;
+        transition: background-color 0.15s ease;
+    }
+
+    .epi-clear-selection:hover {
+        background: rgba(211, 47, 47, 0.1);
+        text-decoration: underline;
     }
 </style>
 

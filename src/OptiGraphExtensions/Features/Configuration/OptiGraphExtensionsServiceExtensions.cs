@@ -18,6 +18,8 @@ using OptiGraphExtensions.Features.StopWords.Services;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 using OptiGraphExtensions.Features.StopWords.Services.Abstractions;
+using OptiGraphExtensions.Features.ContentSearch.Services;
+using OptiGraphExtensions.Features.ContentSearch.Services.Abstractions;
 using OptiGraphExtensions.Features.Common.Services;
 using OptiGraphExtensions.Features.Common.Validation;
 using OptiGraphExtensions.Features.Common.Caching;
@@ -82,6 +84,7 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddHttpClient<ISynonymGraphSyncService, SynonymGraphSyncService>();
         services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
         services.AddHttpClient<IStopWordGraphSyncService, StopWordGraphSyncService>();
+        services.AddHttpClient<IContentSearchService, ContentSearchService>();
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
