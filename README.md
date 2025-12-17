@@ -28,10 +28,12 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, s
 ### 📌 Pinned Results Management
 - Create and manage pinned results collections
 - Associate specific content with search phrases
+- **Content Search Autocomplete**: Search for content items instead of manually entering GUIDs
+- **Target Content Display**: Shows human-readable content names in the table instead of GUIDs
 - Priority-based result ordering
 - **Language Filter**: Filter pinned results by language with dropdown selector
 - **Collection ID Display**: View collection IDs in the collections table for easy reference
-- Bidirectional synchronization with Optimizely Graph
+- Bidirectional synchronization with Optimizely Graph (preserves content names during sync)
 - **Cascade Delete**: Delete collections with associated pinned items properly handled
 - Full CRUD operations including collection deletion from Graph
 
@@ -154,6 +156,9 @@ src/
 │   │   │   ├── Services/           # Shared services (error handling, validation)
 │   │   │   └── Validation/         # Validation framework
 │   │   ├── Configuration/          # Service registration and setup
+│   │   ├── ContentSearch/          # Content search for autocomplete
+│   │   │   ├── Services/           # Graph search service
+│   │   │   └── Models/             # Search result models
 │   │   ├── Synonyms/               # Synonym management feature
 │   │   │   ├── Services/           # CRUD, sync, validation services
 │   │   │   ├── Repositories/       # Data access with caching
@@ -243,7 +248,7 @@ The AddOn follows clean architecture and SOLID principles with clear separation 
 - Graceful fallback to local data when Graph is unavailable
 
 #### ✅ Comprehensive Testing
-- 90+ unit tests with 100% pass rate
+- 145+ unit tests with 100% pass rate
 - Service layer testing with Moq framework
 - Repository operation testing
 - Validation logic coverage
@@ -269,7 +274,9 @@ The AddOn creates the following database tables:
 - `tbl_OptiGraphExtensions_StopWords`: Stores stop word definitions
   - Columns: Id, Word, Language, CreatedAt, CreatedBy
 - `tbl_OptiGraphExtensions_PinnedResultsCollections`: Stores pinned results collections
+  - Columns: Id, Title, IsActive, GraphCollectionId, CreatedAt, CreatedBy
 - `tbl_OptiGraphExtensions_PinnedResults`: Stores individual pinned results
+  - Columns: Id, CollectionId, Phrases, TargetKey (GUID), TargetName (display name), Language, Priority, IsActive, GraphId, CreatedAt, CreatedBy
 
 ## Optimizely Graph Integration
 
@@ -338,6 +345,7 @@ The project includes comprehensive NUnit tests covering:
 - Controller standards and conventions
 - CRUD operations for all entities
 - Graph synchronization services
+- Content search service and API controller
 - Request mapping and DTOs
 
 ## Contributing

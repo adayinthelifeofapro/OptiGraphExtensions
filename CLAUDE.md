@@ -139,11 +139,30 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - Sync all stop words or per-language to Optimizely Graph
   - Delete all stop words for a language from Graph
 
+##### Content Search Feature (Autocomplete for Pinned Results)
+- **Services**:
+  - `IContentSearchService` / `ContentSearchService`: Searches Optimizely Graph for content items
+  - Uses GraphQL fulltext search with `_fulltext: { match: ... }` query
+  - Supports content type filtering and language-specific searches
+- **API Controller**:
+  - `ContentSearchApiController`: REST API for content search
+  - `GET /api/optimizely-graphextensions/content-search?q=&contentType=&language=&limit=`
+  - `GET /api/optimizely-graphextensions/content-search/content-types`
+- **Models**:
+  - `ContentSearchResult`: Search result with GuidValue, Name, Url, ContentType, Language
+  - `ContentSearchGraphModels.cs`: GraphQL request/response models
+- **UI Integration**:
+  - Autocomplete input replaces manual GUID entry in pinned results
+  - 300ms debounce timer for search input
+  - Dropdown displays Name + URL + ContentType badge
+  - Content type filter dropdown for narrowing results
+  - Maximum 10 results returned per search
+
 ##### Pinned Results Feature (Clean Architecture)
 - **Services** (decomposed following Single Responsibility Principle):
   - `IPinnedResultsCrudService` / `PinnedResultsCrudService`: Focused CRUD operations with HttpClient pooling
   - `IPinnedResultsCollectionCrudService` / `PinnedResultsCollectionCrudService`: Collection CRUD with delete support
-  - `IPinnedResultsGraphSyncService` / `PinnedResultsGraphSyncService`: Graph sync with IHttpClientFactory
+  - `IPinnedResultsGraphSyncService` / `PinnedResultsGraphSyncService`: Graph sync with IHttpClientFactory, preserves TargetName during sync
   - `IPinnedResultsApiService` / `PinnedResultsApiService`: Facade coordinating specialized services
   - `IPinnedResultsValidationService` / `PinnedResultsValidationService`: Business validation
   - `PinnedResultRequestMapper` / `PinnedResultsCollectionRequestMapper`: Request mapping services
@@ -153,19 +172,21 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `IPinnedResultsCollectionRepository` / `PinnedResultsCollectionRepository`: Collections data access
   - `CachedPinnedResultsCollectionRepository`: Collection caching with invalidation support
 - **Components**:
-  - `PinnedResultsManagementComponentBase`: Includes language filter dropdown, collection ID display, and pagination support
+  - `PinnedResultsManagementComponentBase`: Includes content search autocomplete, language filter dropdown, collection ID display, and pagination support
 - **Pinned Results Features**:
+  - **Content Search Autocomplete**: Search for content items instead of manually entering GUIDs
+  - **TargetName Display**: Shows human-readable content names in the table instead of GUIDs
   - Language-specific pinning support with filter dropdown
   - Collection ID displayed in collections table for easy reference
   - Cascade delete for collections with associated pinned items
-  - Bidirectional sync with Optimizely Graph collections
+  - Bidirectional sync with Optimizely Graph collections (preserves TargetName values)
 
 ##### Architecture Improvements Applied
 - **SOLID Principles**: Services follow Single Responsibility, Interface Segregation, and Dependency Inversion
 - **DRY (Don't Repeat Yourself)**: Eliminated duplicate validation, error handling, and mapping code
 - **Clean Code**: Long methods extracted into focused helper methods with clear names
 - **Separation of Concerns**: Clear boundaries between CRUD, validation, synchronization, and UI logic
-- **Comprehensive Unit Testing**: 90+ unit tests covering all refactored services with 100% pass rate
+- **Comprehensive Unit Testing**: 145+ unit tests covering all refactored services with 100% pass rate
 
 #### API Controllers
 - `Features/Synonyms/SynonymsApiController.cs`: RESTful API for synonym management
@@ -180,6 +201,9 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - `Features/PinnedResults/PinnedResultsCollectionsApiController.cs`: RESTful API for collections management
   - Collection CRUD operations with Graph synchronization
   - Cascade delete support for collection and associated results
+- `Features/ContentSearch/ContentSearchApiController.cs`: RESTful API for content search
+  - `GET /api/optimizely-graphextensions/content-search`: Search content by text with optional filters
+  - `GET /api/optimizely-graphextensions/content-search/content-types`: Get available content types
 
 #### Optimizely Graph Integration
 - Synchronization functionality to keep local data in sync with Optimizely Graph
@@ -246,11 +270,12 @@ The project has undergone comprehensive clean code refactoring following SOLID p
 - `SynonymManagementComponentBase`: Reduced from 287 to 178 lines (38% reduction)
 - `PinnedResultsManagementComponentBase`: Reduced from 604 to 359 lines (41% reduction)
 - Created 15+ new focused service classes following SOLID principles
-- 90+ comprehensive unit tests with 100% pass rate covering:
+- 145+ comprehensive unit tests with 100% pass rate covering:
   - Repository operations (CRUD, caching, invalidation)
   - Service layer (validation, mapping, error handling)
   - API controllers (HTTP operations, status codes)
   - Graph synchronization (connection pooling, retry logic)
+  - Content search service and API controller
 - Eliminated 8+ instances of duplicate error handling code
 - Added intelligent caching layer with automatic invalidation
 - Implemented connection pooling for all HTTP operations via IHttpClientFactory
@@ -260,6 +285,7 @@ All new services are automatically registered via `OptiGraphExtensionsServiceExt
 - Common services (error handling, validation, request mapping, caching)
 - Decomposed CRUD services with connection pooling
 - Graph synchronization services with IHttpClientFactory
+- Content search service for autocomplete functionality
 - Component base classes
 - Cached repository decorators
 
