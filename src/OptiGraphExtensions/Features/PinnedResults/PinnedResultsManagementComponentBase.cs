@@ -29,6 +29,13 @@ namespace OptiGraphExtensions.Features.PinnedResults
         [Inject]
         protected IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest> PinnedResultRequestMapper { get; set; } = null!;
 
+        [Inject]
+        protected ILanguageService LanguageService { get; set; } = null!;
+
+        // Languages
+        protected IEnumerable<LanguageInfo> AvailableLanguages { get; set; } = Enumerable.Empty<LanguageInfo>();
+        protected string SelectedLanguageFilter { get; set; } = string.Empty;
+
         // Collections Management
         protected IList<PinnedResultsCollection> Collections { get; set; } = new List<PinnedResultsCollection>();
         protected PinnedResultsCollectionModel NewCollection { get; set; } = new();
@@ -36,6 +43,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         // Pinned Results Management
         protected PaginationResult<PinnedResult>? PaginationResult { get; set; }
         protected IList<PinnedResult> AllPinnedResults { get; set; } = new List<PinnedResult>();
+        protected IList<PinnedResult> FilteredPinnedResults { get; set; } = new List<PinnedResult>();
         protected PinnedResultModel NewPinnedResult { get; set; } = new();
         protected PinnedResultModel EditingPinnedResult { get; set; } = new();
         protected bool IsEditingPinnedResult { get; set; }
@@ -53,7 +61,50 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
         protected override async Task LoadDataAsync()
         {
+            LoadLanguages();
             await LoadCollections();
+        }
+
+        protected void LoadLanguages()
+        {
+            AvailableLanguages = LanguageService.GetEnabledLanguages();
+
+            // Set default language for new pinned result if we have languages available
+            if (AvailableLanguages.Any() && string.IsNullOrEmpty(NewPinnedResult.Language))
+            {
+                NewPinnedResult.Language = AvailableLanguages.First().LanguageCode;
+            }
+        }
+
+        protected string GetLanguageDisplayName(string? languageCode)
+        {
+            if (string.IsNullOrEmpty(languageCode))
+            {
+                return "Unknown";
+            }
+
+            return AvailableLanguages.FirstOrDefault(l => l.LanguageCode == languageCode)?.DisplayName ?? languageCode;
+        }
+
+        protected void ApplyLanguageFilter()
+        {
+            if (string.IsNullOrEmpty(SelectedLanguageFilter))
+            {
+                FilteredPinnedResults = AllPinnedResults;
+            }
+            else
+            {
+                FilteredPinnedResults = AllPinnedResults.Where(p => p.Language == SelectedLanguageFilter).ToList();
+            }
+
+            CurrentPage = 1;
+            UpdatePaginatedPinnedResults();
+        }
+
+        protected void OnLanguageFilterChanged(ChangeEventArgs e)
+        {
+            SelectedLanguageFilter = e.Value?.ToString() ?? string.Empty;
+            ApplyLanguageFilter();
         }
 
         #region Collections Management
@@ -123,7 +174,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 AllPinnedResults = await ApiService.GetPinnedResultsAsync(SelectedCollectionId.Value);
-                UpdatePaginatedPinnedResults();
+                ApplyLanguageFilter();
             }, "loading pinned results");
         }
 
@@ -187,6 +238,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
             {
                 SelectedCollectionId = null;
                 AllPinnedResults = new List<PinnedResult>();
+                FilteredPinnedResults = new List<PinnedResult>();
                 PaginationResult = null;
             }
         }
@@ -209,7 +261,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
         protected void UpdatePaginatedPinnedResults()
         {
-            PaginationResult = PaginationService.GetPage(AllPinnedResults, CurrentPage, PageSize);
+            PaginationResult = PaginationService.GetPage(FilteredPinnedResults, CurrentPage, PageSize);
             StateHasChanged();
         }
 

@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Components
 @using OptiGraphExtensions.Features.PinnedResults
+@using OptiGraphExtensions.Features.Common.Services
 @using OptiGraphExtensions.Entities
 @inherits PinnedResultsManagementComponentBase
 
@@ -129,7 +130,17 @@
             <div class="epi-header-actions">
                 @if (SelectedCollectionId.HasValue)
                 {
-                    <span class="epi-badge">@TotalItems total pinned results</span>
+                    <div class="epi-filter-group">
+                        <label for="languageFilter" class="epi-label-inline">Filter by Language:</label>
+                        <select id="languageFilter" @onchange="OnLanguageFilterChanged" class="epi-select epi-select--small">
+                            <option value="">All Languages</option>
+                            @foreach (var language in AvailableLanguages)
+                            {
+                                <option value="@language.LanguageCode" selected="@(SelectedLanguageFilter == language.LanguageCode)">@language.DisplayName</option>
+                            }
+                        </select>
+                    </div>
+                    <span class="epi-badge">@TotalItems @(string.IsNullOrEmpty(SelectedLanguageFilter) ? "total" : "filtered") pinned results</span>
                     <button @onclick="SyncPinnedResultsFromOptimizelyGraph" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)">
                         @if (IsSyncing)
                         {
@@ -170,13 +181,17 @@
                 
                 <div class="epi-form-row">
                     <div class="epi-form-field epi-form-field--third">
-                        <label for="newLanguage" class="epi-label">Language Code</label>
-                        <input id="newLanguage" @bind="NewPinnedResult.Language" 
-                               class="epi-textbox" placeholder="e.g., en, sv" maxlength="10" />
+                        <label for="newLanguage" class="epi-label">Language</label>
+                        <select id="newLanguage" @bind="NewPinnedResult.Language" class="epi-select">
+                            @foreach (var language in AvailableLanguages)
+                            {
+                                <option value="@language.LanguageCode">@language.DisplayName</option>
+                            }
+                        </select>
                     </div>
                     <div class="epi-form-field epi-form-field--third">
                         <label for="newPriority" class="epi-label">Priority</label>
-                        <input id="newPriority" type="number" @bind="NewPinnedResult.Priority" 
+                        <input id="newPriority" type="number" @bind="NewPinnedResult.Priority"
                                class="epi-textbox" min="1" max="999" />
                     </div>
                     <div class="epi-form-field epi-form-field--third">
@@ -209,10 +224,17 @@
                         <p>Loading pinned results...</p>
                     </div>
                 }
-                else if (!AllPinnedResults.Any())
+                else if (!FilteredPinnedResults.Any())
                 {
                     <div class="epi-empty-state">
-                        <p>No pinned results found for this collection. Create your first pinned result above.</p>
+                        @if (string.IsNullOrEmpty(SelectedLanguageFilter))
+                        {
+                            <p>No pinned results found for this collection. Create your first pinned result above.</p>
+                        }
+                        else
+                        {
+                            <p>No pinned results found for the selected language. Create a pinned result or select a different language filter.</p>
+                        }
                     </div>
                 }
                 else
@@ -258,11 +280,16 @@
                                         <td>
                                             @if (IsEditingPinnedResult && EditingPinnedResult.Id == pinnedResult.Id)
                                             {
-                                                <input @bind="EditingPinnedResult.Language" class="epi-textbox epi-textbox--small" maxlength="10" />
+                                                <select @bind="EditingPinnedResult.Language" class="epi-select epi-select--small">
+                                                    @foreach (var language in AvailableLanguages)
+                                                    {
+                                                        <option value="@language.LanguageCode">@language.DisplayName</option>
+                                                    }
+                                                </select>
                                             }
                                             else
                                             {
-                                                <span>@pinnedResult.Language</span>
+                                                <span class="epi-language-badge">@GetLanguageDisplayName(pinnedResult.Language)</span>
                                             }
                                         </td>
                                         <td>
@@ -395,12 +422,27 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
     }
 
     .epi-header-actions {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .epi-filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .epi-label-inline {
+        font-weight: 500;
+        color: #333;
+        white-space: nowrap;
     }
 
     .epi-content, .epi-form {
@@ -457,6 +499,22 @@
     .epi-select {
         background: white;
         cursor: pointer;
+    }
+
+    .epi-select--small {
+        padding: 4px 8px;
+        font-size: 13px;
+        width: auto;
+        min-width: 120px;
+    }
+
+    .epi-language-badge {
+        background: #17a2b8;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
     }
 
     .epi-checkbox-label {
@@ -692,15 +750,25 @@
             gap: 0;
         }
 
+        .epi-groupHeader {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .epi-header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
         .epi-pagination {
             flex-direction: column;
             gap: 12px;
         }
-        
+
         .epi-pagination-info {
             order: 2;
         }
-        
+
         .epi-pagination-controls {
             order: 1;
         }
