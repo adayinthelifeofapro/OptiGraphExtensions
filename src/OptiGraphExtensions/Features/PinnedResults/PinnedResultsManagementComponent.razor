@@ -84,6 +84,7 @@
                         <thead>
                             <tr>
                                 <th>Title</th>
+                                <th>Collection ID</th>
                                 <th>Status</th>
                                 <th>Created By</th>
                                 <th>Created Date</th>
@@ -96,6 +97,9 @@
                                 <tr>
                                     <td>
                                         <span>@collection.Title</span>
+                                    </td>
+                                    <td>
+                                        <small class="epi-id-text" title="@collection.Id">@collection.Id</small>
                                     </td>
                                     <td>
                                         <span class="epi-badge @(collection.IsActive ? "epi-badge--success" : "epi-badge--secondary")">
@@ -515,6 +519,15 @@
         border-radius: 4px;
         font-size: 12px;
         font-weight: 500;
+    }
+
+    .epi-id-text {
+        font-family: monospace;
+        font-size: 11px;
+        color: #666;
+        word-break: break-all;
+        max-width: 280px;
+        display: inline-block;
     }
 
     .epi-checkbox-label {
