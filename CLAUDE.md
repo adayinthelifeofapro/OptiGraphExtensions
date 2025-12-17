@@ -118,6 +118,7 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - **Synonym Slot Support**:
   - Synonyms can be assigned to Slot ONE or Slot TWO (maps to Optimizely Graph's `synonym_slot` API parameter)
   - UI dropdown for selecting slot when creating/editing synonyms
+  - Slot filter dropdown to view synonyms by specific slot
   - Graph synchronization groups synonyms by both language and slot
 
 ##### Stop Words Feature (SOLID Principles Applied)
@@ -152,14 +153,19 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `IPinnedResultsCollectionRepository` / `PinnedResultsCollectionRepository`: Collections data access
   - `CachedPinnedResultsCollectionRepository`: Collection caching with invalidation support
 - **Components**:
-  - `PinnedResultsManagementComponentBase`: Completely refactored from 604 to 359 lines (41% reduction)
+  - `PinnedResultsManagementComponentBase`: Includes language filter dropdown, collection ID display, and pagination support
+- **Pinned Results Features**:
+  - Language-specific pinning support with filter dropdown
+  - Collection ID displayed in collections table for easy reference
+  - Cascade delete for collections with associated pinned items
+  - Bidirectional sync with Optimizely Graph collections
 
 ##### Architecture Improvements Applied
 - **SOLID Principles**: Services follow Single Responsibility, Interface Segregation, and Dependency Inversion
 - **DRY (Don't Repeat Yourself)**: Eliminated duplicate validation, error handling, and mapping code
 - **Clean Code**: Long methods extracted into focused helper methods with clear names
 - **Separation of Concerns**: Clear boundaries between CRUD, validation, synchronization, and UI logic
-- **Comprehensive Unit Testing**: 29+ unit tests covering all refactored services with 100% pass rate
+- **Comprehensive Unit Testing**: 90+ unit tests covering all refactored services with 100% pass rate
 
 #### API Controllers
 - `Features/Synonyms/SynonymsApiController.cs`: RESTful API for synonym management
@@ -240,7 +246,7 @@ The project has undergone comprehensive clean code refactoring following SOLID p
 - `SynonymManagementComponentBase`: Reduced from 287 to 178 lines (38% reduction)
 - `PinnedResultsManagementComponentBase`: Reduced from 604 to 359 lines (41% reduction)
 - Created 15+ new focused service classes following SOLID principles
-- 35+ comprehensive unit tests with 100% pass rate covering:
+- 90+ comprehensive unit tests with 100% pass rate covering:
   - Repository operations (CRUD, caching, invalidation)
   - Service layer (validation, mapping, error handling)
   - API controllers (HTTP operations, status codes)

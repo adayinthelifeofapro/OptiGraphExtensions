@@ -12,6 +12,7 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, s
 - Create, update, and delete synonyms for enhanced search functionality
 - **Language Routing**: Support for multiple synonym groups with different languages
 - **Synonym Slots**: Assign synonyms to Slot ONE or TWO for different synonym sets
+- **Slot Filter**: Filter synonyms by slot using dropdown selector
 - Real-time synchronization with Optimizely Graph (grouped by language and slot)
 - Intelligent caching with automatic invalidation
 - Clean admin interface with language filter and slot selection dropdowns
@@ -28,8 +29,10 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, s
 - Create and manage pinned results collections
 - Associate specific content with search phrases
 - Priority-based result ordering
-- Language-specific pinning support
+- **Language Filter**: Filter pinned results by language with dropdown selector
+- **Collection ID Display**: View collection IDs in the collections table for easy reference
 - Bidirectional synchronization with Optimizely Graph
+- **Cascade Delete**: Delete collections with associated pinned items properly handled
 - Full CRUD operations including collection deletion from Graph
 
 ### 🎨 Administration Interface
@@ -240,7 +243,7 @@ The AddOn follows clean architecture and SOLID principles with clear separation 
 - Graceful fallback to local data when Graph is unavailable
 
 #### ✅ Comprehensive Testing
-- 29+ unit tests with 100% pass rate
+- 90+ unit tests with 100% pass rate
 - Service layer testing with Moq framework
 - Repository operation testing
 - Validation logic coverage
