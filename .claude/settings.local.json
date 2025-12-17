@@ -7,7 +7,10 @@
       "WebFetch(domain:docs.developers.optimizely.com)",
       "Bash(dotnet ef migrations:*)",
       "Bash(dotnet test:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(Remove-Item -Recurse -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Features\\StopWords\")",
+      "Bash(Remove-Item -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Entities\\StopWord.cs\")",
+      "Bash(Remove-Item -Recurse -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Views\\OptiGraphExtensions\\Administration\\StopWords\")"
     ],
     "deny": [],
     "ask": []

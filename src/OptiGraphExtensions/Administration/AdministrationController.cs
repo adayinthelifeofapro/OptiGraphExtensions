@@ -15,7 +15,7 @@ public sealed class AdministrationController : Controller
         var model = new AdministrationViewModel
         {
             Title = "Opti Graph Extensions - About",
-            Subtitle = "OptiGraphExtensions is a comprehensive add-on for Optimizely CMS 12 that provides seamless management of synonyms, stop words and pinned results within Optimizely Graph. This add-on enables content editors and administrators to enhance search experiences through intelligent synonym mapping, stop word management and strategic result pinning capabilities, all integrated directly into your Optimizely CMS administration interface."
+            Subtitle = "OptiGraphExtensions is a comprehensive add-on for Optimizely CMS 12 that provides seamless management of synonyms and pinned results within Optimizely Graph. This add-on enables content editors and administrators to enhance search experiences through intelligent synonym mapping and strategic result pinning capabilities, all integrated directly into your Optimizely CMS administration interface."
         };
 
         return View("~/Views/OptiGraphExtensions/Administration/About/Index.cshtml", model);
@@ -31,18 +31,6 @@ public sealed class AdministrationController : Controller
         };
 
         return View("~/Views/OptiGraphExtensions/Administration/Synonyms/Index.cshtml", model);
-    }
-
-    [HttpGet]
-    [Route("~/optimizely-graphextensions/administration/stop-words")]
-    public IActionResult StopWords()
-    {
-        var model = new AdministrationViewModel
-        {
-            Title = "Opti Graph Extensions - Stop Words",
-        };
-
-        return View("~/Views/OptiGraphExtensions/Administration/StopWords/Index.cshtml", model);
     }
 
     [HttpGet]

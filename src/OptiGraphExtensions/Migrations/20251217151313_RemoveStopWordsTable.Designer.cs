@@ -12,8 +12,8 @@ using OptiGraphExtensions.Entities;
 namespace OptiGraphExtensions.Migrations
 {
     [DbContext(typeof(OptiGraphExtensionsDataContext))]
-    [Migration("20251216201323_AddStopWordsTable")]
-    partial class AddStopWordsTable
+    [Migration("20251217151313_RemoveStopWordsTable")]
+    partial class RemoveStopWordsTable
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -57,6 +57,9 @@ namespace OptiGraphExtensions.Migrations
                     b.Property<string>("TargetKey")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("TargetName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CollectionId");
@@ -88,29 +91,6 @@ namespace OptiGraphExtensions.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResultsCollections");
-                });
-
-            modelBuilder.Entity("OptiGraphExtensions.Entities.StopWord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Language")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Word")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("tbl_OptiGraphExtensions_StopWords");
                 });
 
             modelBuilder.Entity("OptiGraphExtensions.Entities.Synonym", b =>

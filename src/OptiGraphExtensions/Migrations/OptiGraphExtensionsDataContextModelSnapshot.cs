@@ -91,29 +91,6 @@ namespace OptiGraphExtensions.Migrations
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResultsCollections");
                 });
 
-            modelBuilder.Entity("OptiGraphExtensions.Entities.StopWord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Language")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Word")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("tbl_OptiGraphExtensions_StopWords");
-                });
-
             modelBuilder.Entity("OptiGraphExtensions.Entities.Synonym", b =>
                 {
                     b.Property<Guid>("Id")

@@ -23,7 +23,5 @@ namespace OptiGraphExtensions.Entities
         public DbSet<PinnedResultsCollection> PinnedResultsCollections { get; set; }
 
         public DbSet<PinnedResult> PinnedResults { get; set; }
-
-        public DbSet<StopWord> StopWords { get; set; }
     }
 }
