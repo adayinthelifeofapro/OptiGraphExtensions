@@ -18,8 +18,8 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
     private readonly IAuthenticationService _authenticationService;
     private readonly IOptiGraphConfigurationService _configurationService;
     private readonly IGraphConfigurationValidator _graphConfigurationValidator;
-    private readonly IPinnedResultsCollectionCrudService _collectionCrudService;
-    private readonly IPinnedResultsCrudService _pinnedResultsCrudService;
+    private readonly IPinnedResultsCollectionService _collectionService;
+    private readonly IPinnedResultService _pinnedResultService;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public PinnedResultsGraphSyncService(
@@ -27,15 +27,15 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         IAuthenticationService authenticationService,
         IOptiGraphConfigurationService configurationService,
         IGraphConfigurationValidator graphConfigurationValidator,
-        IPinnedResultsCollectionCrudService collectionCrudService,
-        IPinnedResultsCrudService pinnedResultsCrudService)
+        IPinnedResultsCollectionService collectionService,
+        IPinnedResultService pinnedResultService)
     {
         _httpClient = httpClient;
         _authenticationService = authenticationService;
         _configurationService = configurationService;
         _graphConfigurationValidator = graphConfigurationValidator;
-        _collectionCrudService = collectionCrudService;
-        _pinnedResultsCrudService = pinnedResultsCrudService;
+        _collectionService = collectionService;
+        _pinnedResultService = pinnedResultService;
         _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
     }
 
@@ -65,7 +65,7 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
     public async Task<bool> SyncPinnedResultsToOptimizelyGraphAsync(Guid collectionId)
     {
-        var collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
+        var collection = await _collectionService.GetCollectionByIdAsync(collectionId);
         if (collection == null)
             throw new InvalidOperationException("Collection not found.");
 
@@ -74,7 +74,7 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         {
             await SyncCollectionToOptimizelyGraphAsync(collection);
             // Refresh collection to get the updated GraphCollectionId
-            collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
+            collection = await _collectionService.GetCollectionByIdAsync(collectionId);
             if (collection == null || string.IsNullOrEmpty(collection.GraphCollectionId))
                 throw new InvalidOperationException("Failed to sync collection to Optimizely Graph.");
         }
@@ -221,7 +221,7 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
     public async Task<bool> SyncPinnedResultsFromOptimizelyGraphAsync(Guid collectionId)
     {
-        var collection = await _collectionCrudService.GetCollectionByIdAsync(collectionId);
+        var collection = await _collectionService.GetCollectionByIdAsync(collectionId);
         if (collection == null || string.IsNullOrEmpty(collection.GraphCollectionId))
             throw new InvalidOperationException("Collection has no Graph collection ID. Please sync the collection to Graph first.");
 
@@ -244,13 +244,13 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         var graphPinnedResults = await DeserializeGraphPinnedResultsResponse(responseContent);
 
         // Preserve existing TargetName values before deletion (Graph doesn't store them)
-        var existingResults = await _pinnedResultsCrudService.GetPinnedResultsAsync(collectionId);
+        var existingResults = await _pinnedResultService.GetAllPinnedResultsAsync(collectionId);
         var targetNameLookup = existingResults
             .Where(r => !string.IsNullOrEmpty(r.TargetKey) && !string.IsNullOrEmpty(r.TargetName))
             .ToDictionary(r => r.TargetKey!, r => r.TargetName);
 
         // Clear existing pinned results for this collection
-        await _pinnedResultsCrudService.DeletePinnedResultsByCollectionIdAsync(collectionId);
+        await _pinnedResultService.DeletePinnedResultsByCollectionIdAsync(collectionId);
 
         // Create new pinned results from Graph data
         foreach (var graphItem in graphPinnedResults)
@@ -260,19 +260,17 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
                 ? name
                 : null;
 
-            var createRequest = new CreatePinnedResultRequest
-            {
-                CollectionId = collectionId,
-                Phrases = graphItem.Phrases ?? string.Empty,
-                TargetKey = graphItem.TargetKey ?? string.Empty,
-                TargetName = targetName,
-                Language = graphItem.Language ?? "en",
-                Priority = graphItem.Priority,
-                IsActive = graphItem.IsActive,
-                GraphId = graphItem.Id
-            };
-
-            await _pinnedResultsCrudService.CreatePinnedResultAsync(createRequest);
+            await _pinnedResultService.CreatePinnedResultAsync(
+                collectionId,
+                graphItem.Phrases ?? string.Empty,
+                graphItem.TargetKey ?? string.Empty,
+                targetName,
+                graphItem.Language ?? "en",
+                graphItem.Priority,
+                graphItem.IsActive,
+                null, // CreatedBy
+                graphItem.Id // GraphId
+            );
         }
 
         return true;
@@ -298,11 +296,11 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
     private async Task<IList<PinnedResult>> GetPinnedResultsForSync(Guid collectionId)
     {
-        var pinnedResults = await _pinnedResultsCrudService.GetPinnedResultsAsync(collectionId);
+        var pinnedResults = await _pinnedResultService.GetAllPinnedResultsAsync(collectionId);
         if (!pinnedResults.Any())
             throw new InvalidOperationException("No pinned results found to sync to Optimizely Graph.");
         
-        return pinnedResults;
+        return pinnedResults.ToList();
     }
 
     private static object CreateGraphCollectionRequest(PinnedResultsCollection collection)
@@ -342,7 +340,7 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
             var graphCollection = JsonSerializer.Deserialize<GraphCollectionResponse>(responseContent, _jsonOptions);
             if (!string.IsNullOrEmpty(graphCollection?.Id))
             {
-                await _collectionCrudService.UpdateCollectionGraphIdAsync(collection.Id, graphCollection.Id);
+                await _collectionService.UpdateGraphCollectionIdAsync(collection.Id, graphCollection.Id);
             }
         }
         catch (JsonException)

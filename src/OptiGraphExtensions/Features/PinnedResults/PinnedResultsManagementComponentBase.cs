@@ -14,22 +14,19 @@ namespace OptiGraphExtensions.Features.PinnedResults
     public class PinnedResultsManagementComponentBase : ManagementComponentBase<PinnedResult, PinnedResultModel>, IDisposable
     {
         [Inject]
-        protected IPinnedResultsApiService ApiService { get; set; } = null!;
+        protected IPinnedResultService PinnedResultService { get; set; } = null!;
 
         [Inject]
         protected IPinnedResultsCollectionService CollectionService { get; set; } = null!;
+
+        [Inject]
+        protected IPinnedResultsGraphSyncService GraphSyncService { get; set; } = null!;
 
         [Inject]
         protected IPaginationService<PinnedResult> PaginationService { get; set; } = null!;
 
         [Inject]
         protected IPinnedResultsValidationService ValidationService { get; set; } = null!;
-
-        [Inject]
-        protected IRequestMapper<PinnedResultsCollectionModel, CreatePinnedResultsCollectionRequest, UpdatePinnedResultsCollectionRequest> CollectionRequestMapper { get; set; } = null!;
-
-        [Inject]
-        protected IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest> PinnedResultRequestMapper { get; set; } = null!;
 
         [Inject]
         protected ILanguageService LanguageService { get; set; } = null!;
@@ -338,7 +335,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                Collections = await LoadCollectionsWithFallback();
+                Collections = (await CollectionService.GetAllCollectionsAsync()).ToList();
             }, "loading collections");
         }
 
@@ -347,8 +344,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 await ValidateCollectionModel(NewCollection);
-                var request = CollectionRequestMapper.MapToCreateRequest(NewCollection);
-                var createdCollection = await ApiService.CreateCollectionAsync(request);
+                var createdCollection = await CollectionService.CreateCollectionAsync(NewCollection.Title, NewCollection.IsActive);
                 await HandleCollectionSync(createdCollection);
                 NewCollection = new();
                 SetSuccessMessage("Collection created successfully.");
@@ -361,7 +357,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                await ApiService.DeleteCollectionAsync(id);
+                await CollectionService.DeleteCollectionAsync(id);
                 SetSuccessMessage("Collection deleted successfully.");
                 await LoadCollections();
             }, "deleting collection", showLoading: false);
@@ -398,7 +394,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                AllPinnedResults = await ApiService.GetPinnedResultsAsync(SelectedCollectionId.Value);
+                AllPinnedResults = (await PinnedResultService.GetAllPinnedResultsAsync(SelectedCollectionId.Value)).ToList();
                 ApplyLanguageFilter();
             }, "loading pinned results");
         }
@@ -409,8 +405,17 @@ namespace OptiGraphExtensions.Features.PinnedResults
             {
                 NewPinnedResult.CollectionId = SelectedCollectionId ?? Guid.Empty;
                 await ValidatePinnedResultModel(NewPinnedResult);
-                var request = PinnedResultRequestMapper.MapToCreateRequest(NewPinnedResult);
-                await ApiService.CreatePinnedResultAsync(request);
+                
+                await PinnedResultService.CreatePinnedResultAsync(
+                    NewPinnedResult.CollectionId,
+                    NewPinnedResult.Phrases,
+                    NewPinnedResult.TargetKey,
+                    NewPinnedResult.TargetName,
+                    NewPinnedResult.Language,
+                    NewPinnedResult.Priority,
+                    NewPinnedResult.IsActive
+                );
+
                 NewPinnedResult = new();
                 // Reset content search state
                 ClearContentSelection();
@@ -424,8 +429,17 @@ namespace OptiGraphExtensions.Features.PinnedResults
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 await ValidatePinnedResultModel(EditingPinnedResult);
-                var request = PinnedResultRequestMapper.MapToUpdateRequest(EditingPinnedResult);
-                await ApiService.UpdatePinnedResultAsync(EditingPinnedResult.Id, request);
+                
+                await PinnedResultService.UpdatePinnedResultAsync(
+                    EditingPinnedResult.Id,
+                    EditingPinnedResult.Phrases,
+                    EditingPinnedResult.TargetKey,
+                    EditingPinnedResult.TargetName,
+                    EditingPinnedResult.Language,
+                    EditingPinnedResult.Priority,
+                    EditingPinnedResult.IsActive
+                );
+
                 SetSuccessMessage("Pinned result updated successfully.");
                 CancelEditPinnedResult();
                 await LoadPinnedResults();
@@ -436,7 +450,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                await ApiService.DeletePinnedResultAsync(id);
+                await PinnedResultService.DeletePinnedResultAsync(id);
                 SetSuccessMessage("Pinned result deleted successfully.");
                 await LoadPinnedResults();
             }, "deleting pinned result", showLoading: false);
@@ -483,7 +497,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
             await ExecuteWithSyncHandlingAsync(async () =>
             {
-                await ApiService.SyncPinnedResultsFromOptimizelyGraphAsync(SelectedCollectionId.Value);
+                await GraphSyncService.SyncPinnedResultsFromOptimizelyGraphAsync(SelectedCollectionId.Value);
                 SetSuccessMessage("Successfully synced pinned results from Optimizely Graph.");
                 await LoadPinnedResults();
             }, "syncing pinned results from Optimizely Graph");
@@ -545,31 +559,11 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
         #region Helper Methods
 
-        private async Task<IList<PinnedResultsCollection>> LoadCollectionsWithFallback()
-        {
-            try
-            {
-                return await ApiService.GetCollectionsAsync();
-            }
-            catch
-            {
-                // Fallback to collection service if API service fails
-                try
-                {
-                    return (await CollectionService.GetAllCollectionsAsync()).ToList();
-                }
-                catch
-                {
-                    return new List<PinnedResultsCollection>();
-                }
-            }
-        }
-
         private async Task HandleCollectionSync(PinnedResultsCollection collection)
         {
             try
             {
-                await ApiService.SyncCollectionToOptimizelyGraphAsync(collection);
+                await GraphSyncService.SyncCollectionToOptimizelyGraphAsync(collection);
             }
             catch
             {
@@ -596,16 +590,6 @@ namespace OptiGraphExtensions.Features.PinnedResults
                 throw new ArgumentException(validationResult.ErrorMessage);
             }
             return Task.CompletedTask;
-        }
-
-        private static PinnedResultsCollectionModel MapToCollectionModel(PinnedResultsCollection collection)
-        {
-            return new PinnedResultsCollectionModel
-            {
-                Id = collection.Id,
-                Title = collection.Title,
-                IsActive = collection.IsActive
-            };
         }
 
         private static PinnedResultModel MapToPinnedResultModel(PinnedResult pinnedResult)

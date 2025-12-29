@@ -8,18 +8,15 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
     {
         private readonly IPinnedResultsCollectionRepository _collectionRepository;
         private readonly IPinnedResultRepository _pinnedResultRepository;
-        private readonly IPinnedResultsApiService _apiService;
         private readonly IPinnedResultsGraphSyncService _graphSyncService;
 
         public PinnedResultsCollectionService(
             IPinnedResultsCollectionRepository collectionRepository,
             IPinnedResultRepository pinnedResultRepository,
-            IPinnedResultsApiService apiService,
             IPinnedResultsGraphSyncService graphSyncService)
         {
             _collectionRepository = collectionRepository;
             _pinnedResultRepository = pinnedResultRepository;
-            _apiService = apiService;
             _graphSyncService = graphSyncService;
         }
 
@@ -106,7 +103,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             try
             {
                 // Fetch collections from Optimizely Graph
-                var graphCollections = await _apiService.SyncCollectionsFromOptimizelyGraphAsync();
+                var graphCollections = await _graphSyncService.SyncCollectionsFromOptimizelyGraphAsync();
                 var syncedCollections = new List<PinnedResultsCollection>();
 
                 foreach (var graphCollection in graphCollections)
