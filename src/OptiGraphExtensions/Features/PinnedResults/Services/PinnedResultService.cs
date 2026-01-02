@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.PinnedResults.Repositories;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
@@ -8,17 +9,20 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
     {
         private readonly IPinnedResultRepository _pinnedResultRepository;
         private readonly IPinnedResultsCollectionRepository _collectionRepository;
-        private readonly IPinnedResultsGraphSyncService _graphSyncService;
+        private readonly IServiceProvider _serviceProvider;
 
         public PinnedResultService(
             IPinnedResultRepository pinnedResultRepository,
             IPinnedResultsCollectionRepository collectionRepository,
-            IPinnedResultsGraphSyncService graphSyncService)
+            IServiceProvider serviceProvider)
         {
             _pinnedResultRepository = pinnedResultRepository;
             _collectionRepository = collectionRepository;
-            _graphSyncService = graphSyncService;
+            _serviceProvider = serviceProvider;
         }
+
+        private IPinnedResultsGraphSyncService GraphSyncService => 
+            _serviceProvider.GetRequiredService<IPinnedResultsGraphSyncService>();
 
         public async Task<IEnumerable<PinnedResult>> GetAllPinnedResultsAsync(Guid? collectionId = null)
         {
@@ -61,7 +65,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
                     {
                         try
                         {
-                            await _graphSyncService.SyncCollectionToOptimizelyGraphAsync(collection);
+                            await GraphSyncService.SyncCollectionToOptimizelyGraphAsync(collection);
                             // Refresh collection to get the updated GraphCollectionId
                             collection = await _collectionRepository.GetByIdAsync(collectionId);
                         }
@@ -77,7 +81,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
                     {
                         try
                         {
-                            var returnedGraphId = await _graphSyncService.SyncSinglePinnedResultToOptimizelyGraphAsync(createdPinnedResult, collection.GraphCollectionId);
+                            var returnedGraphId = await GraphSyncService.SyncSinglePinnedResultToOptimizelyGraphAsync(createdPinnedResult, collection.GraphCollectionId);
                             
                             if (!string.IsNullOrEmpty(returnedGraphId))
                             {
@@ -131,7 +135,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
                 {
                     try
                     {
-                        await _graphSyncService.DeletePinnedResultFromOptimizelyGraphAsync(collection.GraphCollectionId, pinnedResult.GraphId);
+                        await GraphSyncService.DeletePinnedResultFromOptimizelyGraphAsync(collection.GraphCollectionId, pinnedResult.GraphId);
                     }
                     catch
                     {

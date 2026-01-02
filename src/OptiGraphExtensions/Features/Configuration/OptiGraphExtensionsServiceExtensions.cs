@@ -172,6 +172,7 @@ public static class OptiGraphExtensionsServiceExtensions
         });
 
         services.AddScoped<IPinnedResultService, PinnedResultService>();
+        services.AddScoped<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
         services.AddScoped<IPinnedResultsCollectionService, PinnedResultsCollectionService>();
 
         services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
