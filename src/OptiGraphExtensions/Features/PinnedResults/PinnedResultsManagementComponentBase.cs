@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.Common.Components;
 using OptiGraphExtensions.Features.Common.Services;
@@ -8,6 +10,7 @@ using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 using OptiGraphExtensions.Features.ContentSearch.Models;
 using OptiGraphExtensions.Features.ContentSearch.Services.Abstractions;
+using EPiServer.Cms.Shell.UI.Notifications.Internal;
 
 namespace OptiGraphExtensions.Features.PinnedResults
 {
@@ -33,6 +36,11 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
         [Inject]
         protected IContentSearchService ContentSearchService { get; set; } = null!;
+
+        [Inject]
+        protected AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+        protected ClaimsPrincipal User { get; set; } = new(new ClaimsIdentity());
 
         // Languages
         protected IEnumerable<LanguageInfo> AvailableLanguages { get; set; } = Enumerable.Empty<LanguageInfo>();
@@ -85,6 +93,9 @@ namespace OptiGraphExtensions.Features.PinnedResults
 
         protected override async Task LoadDataAsync()
         {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            User = authState.User;
+
             LoadLanguages();
             await LoadCollections();
             await LoadContentTypesAsync();
@@ -344,7 +355,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 await ValidateCollectionModel(NewCollection);
-                var createdCollection = await CollectionService.CreateCollectionAsync(NewCollection.Title, NewCollection.IsActive);
+                var createdCollection = await CollectionService.CreateCollectionAsync(NewCollection.Title, NewCollection.IsActive, User.Identity?.Name);
                 await HandleCollectionSync(createdCollection);
                 NewCollection = new();
                 SetSuccessMessage("Collection created successfully.");
@@ -413,7 +424,8 @@ namespace OptiGraphExtensions.Features.PinnedResults
                     NewPinnedResult.TargetName,
                     NewPinnedResult.Language,
                     NewPinnedResult.Priority,
-                    NewPinnedResult.IsActive
+                    NewPinnedResult.IsActive,
+                    User.Identity?.Name
                 );
 
                 NewPinnedResult = new();

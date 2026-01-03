@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
 
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.Common.Components;
@@ -25,6 +27,11 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         [Inject]
         protected ILanguageService LanguageService { get; set; } = null!;
+
+        [Inject]
+        protected AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+        protected ClaimsPrincipal User { get; set; } = new(new ClaimsIdentity());
 
         protected PaginationResult<Synonym>? PaginationResult { get; set; }
         protected IList<Synonym> AllSynonyms { get; set; } = new List<Synonym>();
@@ -55,6 +62,9 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected override async Task LoadDataAsync()
         {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            User = authState.User;
+
             LoadLanguages();
             await LoadSynonyms();
         }
@@ -129,7 +139,8 @@ namespace OptiGraphExtensions.Features.Synonyms
                 await SynonymService.CreateSynonymAsync(
                     NewSynonym.Synonym!, 
                     NewSynonym.Language!, 
-                    NewSynonym.Slot
+                    NewSynonym.Slot,
+                    User.Identity?.Name
                 );
 
                 var selectedLanguage = NewSynonym.Language;
