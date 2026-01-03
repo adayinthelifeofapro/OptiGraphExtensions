@@ -138,11 +138,6 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IValidationService<CreatePinnedResultsCollectionRequest>, AttributeValidationService<CreatePinnedResultsCollectionRequest>>();
         services.AddScoped<IValidationService<UpdatePinnedResultsCollectionRequest>, AttributeValidationService<UpdatePinnedResultsCollectionRequest>>();
 
-        // Register request mappers
-        services.AddScoped<IRequestMapper<SynonymModel, CreateSynonymRequest, UpdateSynonymRequest>, SynonymRequestMapper>();
-        services.AddScoped<IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest>, PinnedResultRequestMapper>();
-        services.AddScoped<IRequestMapper<PinnedResultsCollectionModel, CreatePinnedResultsCollectionRequest, UpdatePinnedResultsCollectionRequest>, PinnedResultsCollectionRequestMapper>();
-        
         // Register synonym services with caching decorators
         services.AddScoped<SynonymRepository>();
         services.AddScoped<ISynonymRepository>(provider =>
