@@ -13,7 +13,7 @@
     <RepositoryUrl>https://github.com/adayinthelifeofapro/OptiGraphExtensions</RepositoryUrl>
     <PackageProjectUrl>https://github.com/adayinthelifeofapro/OptiGraphExtensions</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Copyright>Graham Carr 2025</Copyright>
+    <Copyright>Graham Carr 2026</Copyright>
     <Description>An Optimizely CMS package that allows the management of synonyms and pinned results within Graph</Description>
     <AssemblyVersion>3.0.0.0</AssemblyVersion>
     <FileVersion>3.0.0.0</FileVersion>
