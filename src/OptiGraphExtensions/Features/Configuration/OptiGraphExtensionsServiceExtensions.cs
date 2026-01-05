@@ -68,13 +68,7 @@ public static class OptiGraphExtensionsServiceExtensions
         // HttpClient for API calls with cookie forwarding for local API requests
         services.AddHttpContextAccessor();
         services.TryAddTransient<CookieForwardingHandler>();
-        services.AddHttpClient<ISynonymCrudService, SynonymCrudService>()
-            .AddHttpMessageHandler<CookieForwardingHandler>();
-        services.AddHttpClient<IPinnedResultsCrudService, PinnedResultsCrudService>()
-            .AddHttpMessageHandler<CookieForwardingHandler>();
-        services.AddHttpClient<IPinnedResultsCollectionCrudService, PinnedResultsCollectionCrudService>()
-            .AddHttpMessageHandler<CookieForwardingHandler>();
-        // HttpClient for Graph API calls (uses Basic Auth, no cookie forwarding needed)
+
         services.AddHttpClient<ISynonymGraphSyncService, SynonymGraphSyncService>();
         services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
         services.AddHttpClient<IContentSearchService, ContentSearchService>();
@@ -144,11 +138,6 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IValidationService<CreatePinnedResultsCollectionRequest>, AttributeValidationService<CreatePinnedResultsCollectionRequest>>();
         services.AddScoped<IValidationService<UpdatePinnedResultsCollectionRequest>, AttributeValidationService<UpdatePinnedResultsCollectionRequest>>();
 
-        // Register request mappers
-        services.AddScoped<IRequestMapper<SynonymModel, CreateSynonymRequest, UpdateSynonymRequest>, SynonymRequestMapper>();
-        services.AddScoped<IRequestMapper<PinnedResultModel, CreatePinnedResultRequest, UpdatePinnedResultRequest>, PinnedResultRequestMapper>();
-        services.AddScoped<IRequestMapper<PinnedResultsCollectionModel, CreatePinnedResultsCollectionRequest, UpdatePinnedResultsCollectionRequest>, PinnedResultsCollectionRequestMapper>();
-        
         // Register synonym services with caching decorators
         services.AddScoped<SynonymRepository>();
         services.AddScoped<ISynonymRepository>(provider =>
@@ -158,9 +147,7 @@ public static class OptiGraphExtensionsServiceExtensions
             return new CachedSynonymRepository(baseRepository, cacheService);
         });
         services.AddScoped<ISynonymService, SynonymService>();
-        // ISynonymCrudService and ISynonymGraphSyncService are registered via AddHttpClient above
-        services.AddScoped<ISynonymApiService, SynonymApiService>();
-        services.AddScoped<ISynonymValidationService, SynonymValidationService>();
+        services.AddScoped<ISynonymGraphSyncService, SynonymGraphSyncService>();
         
         // Register pinned results repositories and services with caching decorators
         services.AddScoped<PinnedResultRepository>();
@@ -180,10 +167,10 @@ public static class OptiGraphExtensionsServiceExtensions
         });
 
         services.AddScoped<IPinnedResultService, PinnedResultService>();
+        services.AddScoped<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
         services.AddScoped<IPinnedResultsCollectionService, PinnedResultsCollectionService>();
-        // IPinnedResultsCrudService, IPinnedResultsCollectionCrudService, and IPinnedResultsGraphSyncService
-        // are registered via AddHttpClient above
-        services.AddScoped<IPinnedResultsApiService, PinnedResultsApiService>();
+
         services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
+        services.AddScoped<ISynonymValidationService, SynonymValidationService>();
     }
 }

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
 
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.Common.Components;
@@ -12,7 +14,10 @@ namespace OptiGraphExtensions.Features.Synonyms
     public class SynonymManagementComponentBase : ManagementComponentBase<Synonym, SynonymModel>
     {
         [Inject]
-        protected ISynonymApiService SynonymApiService { get; set; } = null!;
+        protected ISynonymService SynonymService { get; set; } = null!;
+
+        [Inject]
+        protected ISynonymGraphSyncService GraphSyncService { get; set; } = null!;
 
         [Inject]
         protected IPaginationService<Synonym> PaginationService { get; set; } = null!;
@@ -21,10 +26,12 @@ namespace OptiGraphExtensions.Features.Synonyms
         protected ISynonymValidationService ValidationService { get; set; } = null!;
 
         [Inject]
-        protected IRequestMapper<SynonymModel, CreateSynonymRequest, UpdateSynonymRequest> RequestMapper { get; set; } = null!;
+        protected ILanguageService LanguageService { get; set; } = null!;
 
         [Inject]
-        protected ILanguageService LanguageService { get; set; } = null!;
+        protected AuthenticationStateProvider AuthenticationStateProvider { get; set; } = null!;
+
+        protected ClaimsPrincipal User { get; set; } = new(new ClaimsIdentity());
 
         protected PaginationResult<Synonym>? PaginationResult { get; set; }
         protected IList<Synonym> AllSynonyms { get; set; } = new List<Synonym>();
@@ -55,6 +62,9 @@ namespace OptiGraphExtensions.Features.Synonyms
 
         protected override async Task LoadDataAsync()
         {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            User = authState.User;
+
             LoadLanguages();
             await LoadSynonyms();
         }
@@ -74,7 +84,7 @@ namespace OptiGraphExtensions.Features.Synonyms
         {
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                AllSynonyms = await SynonymApiService.GetSynonymsAsync();
+                AllSynonyms = (await SynonymService.GetAllSynonymsAsync()).ToList();
                 ApplyFilters();
             }, "loading synonyms");
         }
@@ -125,8 +135,14 @@ namespace OptiGraphExtensions.Features.Synonyms
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 await ValidateModel(NewSynonym);
-                var request = RequestMapper.MapToCreateRequest(NewSynonym);
-                await SynonymApiService.CreateSynonymAsync(request);
+                
+                await SynonymService.CreateSynonymAsync(
+                    NewSynonym.Synonym!, 
+                    NewSynonym.Language!, 
+                    NewSynonym.Slot,
+                    User.Identity?.Name
+                );
+
                 var selectedLanguage = NewSynonym.Language;
                 NewSynonym = new SynonymModel { Language = selectedLanguage };
                 SetSuccessMessage("Synonym created successfully.");
@@ -151,8 +167,14 @@ namespace OptiGraphExtensions.Features.Synonyms
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
                 await ValidateModel(EditingSynonym);
-                var request = RequestMapper.MapToUpdateRequest(EditingSynonym);
-                await SynonymApiService.UpdateSynonymAsync(EditingSynonym.Id, request);
+                
+                await SynonymService.UpdateSynonymAsync(
+                    EditingSynonym.Id,
+                    EditingSynonym.Synonym!,
+                    EditingSynonym.Language!,
+                    EditingSynonym.Slot
+                );
+
                 SetSuccessMessage("Synonym updated successfully.");
                 CancelEdit();
                 await LoadSynonyms();
@@ -169,7 +191,7 @@ namespace OptiGraphExtensions.Features.Synonyms
         {
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                await SynonymApiService.DeleteSynonymAsync(id);
+                await SynonymService.DeleteSynonymAsync(id);
                 SetSuccessMessage("Synonym deleted successfully.");
                 await LoadSynonyms();
             }, "deleting synonym", showLoading: false);
@@ -186,7 +208,7 @@ namespace OptiGraphExtensions.Features.Synonyms
         {
             await ExecuteWithSyncHandlingAsync(async () =>
             {
-                await SynonymApiService.SyncSynonymsToOptimizelyGraphAsync();
+                await GraphSyncService.SyncSynonymsToOptimizelyGraphAsync();
                 SetSuccessMessage("Successfully synced all synonyms to Optimizely Graph (grouped by language).");
             }, "syncing synonyms to Optimizely Graph");
         }
@@ -201,7 +223,7 @@ namespace OptiGraphExtensions.Features.Synonyms
 
             await ExecuteWithSyncHandlingAsync(async () =>
             {
-                await SynonymApiService.SyncSynonymsForLanguageAsync(SelectedLanguageFilter);
+                await GraphSyncService.SyncSynonymsForLanguageAsync(SelectedLanguageFilter);
                 var languageName = AvailableLanguages.FirstOrDefault(l => l.LanguageCode == SelectedLanguageFilter)?.DisplayName ?? SelectedLanguageFilter;
                 SetSuccessMessage($"Successfully synced synonyms for '{languageName}' to Optimizely Graph.");
             }, "syncing synonyms for language to Optimizely Graph");

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.PinnedResults.Repositories;
 using OptiGraphExtensions.Features.PinnedResults.Services.Abstractions;
@@ -8,20 +9,20 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
     {
         private readonly IPinnedResultsCollectionRepository _collectionRepository;
         private readonly IPinnedResultRepository _pinnedResultRepository;
-        private readonly IPinnedResultsApiService _apiService;
-        private readonly IPinnedResultsGraphSyncService _graphSyncService;
+        private readonly IServiceProvider _serviceProvider;
 
         public PinnedResultsCollectionService(
             IPinnedResultsCollectionRepository collectionRepository,
             IPinnedResultRepository pinnedResultRepository,
-            IPinnedResultsApiService apiService,
-            IPinnedResultsGraphSyncService graphSyncService)
+            IServiceProvider serviceProvider)
         {
             _collectionRepository = collectionRepository;
             _pinnedResultRepository = pinnedResultRepository;
-            _apiService = apiService;
-            _graphSyncService = graphSyncService;
+            _serviceProvider = serviceProvider;
         }
+
+        private IPinnedResultsGraphSyncService GraphSyncService => 
+            _serviceProvider.GetRequiredService<IPinnedResultsGraphSyncService>();
 
         public async Task<IEnumerable<PinnedResultsCollection>> GetAllCollectionsAsync()
         {
@@ -75,7 +76,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             {
                 try
                 {
-                    await _graphSyncService.DeleteCollectionFromOptimizelyGraphAsync(collection.GraphCollectionId);
+                    await GraphSyncService.DeleteCollectionFromOptimizelyGraphAsync(collection.GraphCollectionId);
                 }
                 catch (Exception)
                 {
@@ -106,7 +107,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
             try
             {
                 // Fetch collections from Optimizely Graph
-                var graphCollections = await _apiService.SyncCollectionsFromOptimizelyGraphAsync();
+                var graphCollections = await GraphSyncService.SyncCollectionsFromOptimizelyGraphAsync();
                 var syncedCollections = new List<PinnedResultsCollection>();
 
                 foreach (var graphCollection in graphCollections)

@@ -14,20 +14,20 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
     private readonly IAuthenticationService _authenticationService;
     private readonly IOptiGraphConfigurationService _configurationService;
     private readonly IGraphConfigurationValidator _graphConfigurationValidator;
-    private readonly ISynonymCrudService _synonymCrudService;
+    private readonly ISynonymService _synonymService;
 
     public SynonymGraphSyncService(
         HttpClient httpClient,
         IAuthenticationService authenticationService,
         IOptiGraphConfigurationService configurationService,
         IGraphConfigurationValidator graphConfigurationValidator,
-        ISynonymCrudService synonymCrudService)
+        ISynonymService synonymService)
     {
         _httpClient = httpClient;
         _authenticationService = authenticationService;
         _configurationService = configurationService;
         _graphConfigurationValidator = graphConfigurationValidator;
-        _synonymCrudService = synonymCrudService;
+        _synonymService = synonymService;
     }
 
     public async Task<bool> SyncSynonymsToOptimizelyGraphAsync()
@@ -73,7 +73,7 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
     {
         EnsureUserAuthenticated();
 
-        var allSynonyms = await _synonymCrudService.GetSynonymsAsync();
+        var allSynonyms = await _synonymService.GetAllSynonymsAsync();
         var synonymsForLanguage = allSynonyms.Where(s => s.Language == language).ToList();
 
         if (!synonymsForLanguage.Any())
@@ -154,11 +154,11 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
 
     private async Task<IList<Synonym>> GetSynonymsForSync()
     {
-        var synonyms = await _synonymCrudService.GetSynonymsAsync();
+        var synonyms = await _synonymService.GetAllSynonymsAsync();
         if (!synonyms.Any())
             throw new InvalidOperationException("No synonyms found to sync to Optimizely Graph");
 
-        return synonyms;
+        return synonyms.ToList();
     }
 
     private (string gatewayUrl, string hmacKey, string hmacSecret) GetAndValidateGraphConfiguration()
