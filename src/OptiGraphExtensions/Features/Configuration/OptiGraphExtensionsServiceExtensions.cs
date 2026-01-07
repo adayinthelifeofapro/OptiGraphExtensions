@@ -123,7 +123,6 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
 
         // Register common services
-        services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IGraphConfigurationValidator, GraphConfigurationValidator>();
         services.AddScoped<IOptiGraphConfigurationService, OptiGraphConfigurationService>();
         services.AddScoped<IComponentErrorHandler, ComponentErrorHandler>();

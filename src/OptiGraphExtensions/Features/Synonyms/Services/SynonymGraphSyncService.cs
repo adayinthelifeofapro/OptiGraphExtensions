@@ -11,20 +11,17 @@ namespace OptiGraphExtensions.Features.Synonyms.Services;
 public class SynonymGraphSyncService : ISynonymGraphSyncService
 {
     private readonly HttpClient _httpClient;
-    private readonly IAuthenticationService _authenticationService;
     private readonly IOptiGraphConfigurationService _configurationService;
     private readonly IGraphConfigurationValidator _graphConfigurationValidator;
     private readonly ISynonymService _synonymService;
 
     public SynonymGraphSyncService(
         HttpClient httpClient,
-        IAuthenticationService authenticationService,
         IOptiGraphConfigurationService configurationService,
         IGraphConfigurationValidator graphConfigurationValidator,
         ISynonymService synonymService)
     {
         _httpClient = httpClient;
-        _authenticationService = authenticationService;
         _configurationService = configurationService;
         _graphConfigurationValidator = graphConfigurationValidator;
         _synonymService = synonymService;
@@ -32,8 +29,6 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
 
     public async Task<bool> SyncSynonymsToOptimizelyGraphAsync()
     {
-        EnsureUserAuthenticated();
-
         var synonyms = await GetSynonymsForSync();
         var (gatewayUrl, hmacKey, hmacSecret) = GetAndValidateGraphConfiguration();
         var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
@@ -71,8 +66,6 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
 
     public async Task<bool> SyncSynonymsForLanguageAsync(string language)
     {
-        EnsureUserAuthenticated();
-
         var allSynonyms = await _synonymService.GetAllSynonymsAsync();
         var synonymsForLanguage = allSynonyms.Where(s => s.Language == language).ToList();
 
@@ -144,12 +137,6 @@ public class SynonymGraphSyncService : ISynonymGraphSyncService
         queryParams.Add($"synonym_slot={slot.ToString().ToUpperInvariant()}");
 
         return $"{baseUrl}?{string.Join("&", queryParams)}";
-    }
-
-    private void EnsureUserAuthenticated()
-    {
-        if (!_authenticationService.IsUserAuthenticated())
-            throw new UnauthorizedAccessException("User is not authenticated");
     }
 
     private async Task<IList<Synonym>> GetSynonymsForSync()
