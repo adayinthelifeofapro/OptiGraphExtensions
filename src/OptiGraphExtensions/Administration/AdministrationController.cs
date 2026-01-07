@@ -46,6 +46,18 @@ public sealed class AdministrationController : Controller
     }
 
     [HttpGet]
+    [Route("~/optimizely-graphextensions/administration/webhooks")]
+    public IActionResult Webhooks()
+    {
+        var model = new AdministrationViewModel
+        {
+            Title = "Opti Graph Extensions - Webhooks",
+        };
+
+        return View("~/Views/OptiGraphExtensions/Administration/Webhooks/Index.cshtml", model);
+    }
+
+    [HttpGet]
     [Route("~/optimizely-addon/administration/public/list")]
     [AllowAnonymous]
     public IActionResult PublicList()

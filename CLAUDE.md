@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is an Optimizely CMS 12 AddOn package called OptiGraphExtensions that provides management of synonyms and pinned results within Optimizely Graph. The project consists of the main library and a sample CMS implementation.
+This is an Optimizely CMS 12 AddOn package called OptiGraphExtensions that provides management of synonyms, pinned results, and webhooks within Optimizely Graph. The project consists of the main library and a sample CMS implementation.
 
 ## Development Commands
 
@@ -71,6 +71,7 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `/about` - About page
   - `/synonyms` - Synonym management
   - `/pinned-results` - Pinned results management
+  - `/webhooks` - Webhook management
 - Protected by authorization policy requiring CmsAdmins, Administrator, or WebAdmins roles
 
 #### UI Components
@@ -78,6 +79,7 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - Blazor components for interactive UI:
   - `Features/Synonyms/SynonymManagementComponentBase.cs`: Synonym management component
   - `Features/PinnedResults/PinnedResultsManagementComponentBase.cs`: Pinned results management component
+  - `Features/Webhooks/WebhookManagementComponentBase.cs`: Webhook management component
 - Layout: `Views/Shared/Layouts/_LayoutBlazorAdminPage.cshtml`
 
 #### Module Integration
@@ -160,6 +162,30 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - Cascade delete for collections with associated pinned items
   - Bidirectional sync with Optimizely Graph collections (preserves TargetName values)
 
+##### Webhooks Feature (Optimizely Graph API Integration)
+- **Services**:
+  - `IWebhookService` / `WebhookService`: Full CRUD operations against Optimizely Graph Webhook API
+  - `IWebhookValidationService` / `WebhookValidationService`: URL and HTTP method validation
+- **Models**:
+  - `WebhookModel`: Main webhook model with URL, method, topics, filters, and disabled status
+  - `WebhookFilter`: Filter model with field, operator, and value
+  - `CreateWebhookRequest` / `UpdateWebhookRequest`: Request DTOs for webhook operations
+  - `WebhookResponse` / `WebhookRequest`: API response models for JSON deserialization
+- **Components**:
+  - `WebhookManagementComponentBase`: Includes topic selection, filter configuration, status filtering, and help tooltips
+  - `WebhookManagementComponent.razor`: Blazor UI with create/edit forms, webhook table, and pagination
+- **Webhook Features**:
+  - **Topic Selection**: Subscribe to specific events (doc.created, doc.updated, doc.deleted, bulk.*, etc.)
+  - **Wildcard Support**: Use `*.*` for all events, `doc.*` for all document events, etc.
+  - **Filter Configuration**: Add field/operator/value filters (e.g., Status eq Published)
+  - **Help Tooltips**: Detailed topic descriptions and filter examples
+  - **Status Filter**: Filter webhook list by active/disabled status
+  - **HTTP Method Selection**: POST, GET, PUT, PATCH, DELETE
+- **API Limitation Workaround**:
+  - The Optimizely Graph PUT endpoint doesn't reliably update topics/filters
+  - Updates are implemented via delete-and-recreate pattern
+  - Webhook IDs change after editing (new webhook created)
+
 ##### Architecture Improvements Applied
 - **SOLID Principles**: Services follow Single Responsibility, Interface Segregation, and Dependency Inversion
 - **DRY (Don't Repeat Yourself)**: Eliminated duplicate validation, error handling, and mapping code
@@ -191,6 +217,12 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `language_routing`: Groups synonyms by language for localized search experiences
   - `synonym_slot`: Assigns synonyms to Slot ONE or TWO for different synonym sets
   - API URL format: `{gatewayUrl}/resources/synonyms?language_routing={language}&synonym_slot={ONE|TWO}`
+- **Webhook API Integration**:
+  - Full CRUD operations against Optimizely Graph Webhook API
+  - API URL format: `{gatewayUrl}/api/webhooks` (GET, POST) and `{gatewayUrl}/api/webhooks/{id}` (DELETE)
+  - Basic authentication with Base64 encoded AppKey:Secret
+  - Topic subscription for content events (doc.*, bulk.*, etc.)
+  - Filter support for conditional webhook triggering
 
 ### Dependencies
 - .NET 8.0 target framework
@@ -257,6 +289,7 @@ All new services are automatically registered via `OptiGraphExtensionsServiceExt
 - Decomposed CRUD services with connection pooling
 - Graph synchronization services with IHttpClientFactory
 - Content search service for autocomplete functionality
+- Webhook services for Optimizely Graph webhook management
 - Component base classes
 - Cached repository decorators
 

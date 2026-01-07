@@ -1,0 +1,1213 @@
+@using Microsoft.AspNetCore.Components
+@using OptiGraphExtensions.Features.Webhooks
+@using OptiGraphExtensions.Features.Common.Services
+@using OptiGraphExtensions.Features.Webhooks.Models
+@inherits WebhookManagementComponentBase
+
+<div class="epi-contentArea">
+    <div class="epi-contentAreaHeader">
+        <h1 class="epi-h1">Webhook Management</h1>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--danger">
+            <div class="epi-notificationbar-text">@ErrorMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">x</button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--success">
+            <div class="epi-notificationbar-text">@SuccessMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">x</button>
+        </div>
+    }
+
+    @if (IsCreating)
+    {
+        <div class="epi-contentGroup">
+            <div class="epi-groupHeader">
+                <h2 class="epi-h2">Create New Webhook</h2>
+            </div>
+            <div class="epi-form">
+                <div class="epi-form-row">
+                    <div class="epi-form-field epi-form-field--url">
+                        <label for="webhookUrl" class="epi-label">Webhook URL *</label>
+                        <input id="webhookUrl" @bind="NewWebhook.Url"
+                               class="epi-textbox" placeholder="https://your-endpoint.com/webhook" />
+                    </div>
+                    <div class="epi-form-field epi-form-field--method">
+                        <label for="webhookMethod" class="epi-label">HTTP Method</label>
+                        <select id="webhookMethod" @bind="NewWebhook.Method" class="epi-select">
+                            @foreach (var method in AvailableHttpMethods)
+                            {
+                                <option value="@method">@method</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="epi-form-field epi-form-field--status">
+                        <label class="epi-label">Status</label>
+                        <div class="epi-checkbox-wrapper">
+                            <input type="checkbox" id="webhookDisabled" @bind="NewWebhook.Disabled" />
+                            <label for="webhookDisabled">Disabled</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="epi-form-section">
+                    <div class="epi-section-header">
+                        <h3 class="epi-h3">Event Topics</h3>
+                        <button type="button" class="epi-help-toggle" @onclick="ToggleTopicHelp" title="Show topic descriptions">
+                            <span class="epi-help-icon">?</span>
+                        </button>
+                    </div>
+                    <p class="epi-help-text">Select which events should trigger this webhook. Leave empty for all events.</p>
+
+                    @if (ShowTopicHelp)
+                    {
+                        <div class="epi-topic-help">
+                            <div class="epi-topic-help-header">
+                                <strong>Topic Pattern Reference</strong>
+                                <button type="button" @onclick="ToggleTopicHelp" class="epi-help-close">x</button>
+                            </div>
+                            <div class="epi-topic-help-content">
+                                <p class="epi-topic-help-intro">Topics use the pattern <code>{subject}.{action}</code> where:</p>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Subjects</h4>
+                                    <ul>
+                                        <li><code>doc</code> - Single content item operations</li>
+                                        <li><code>bulk</code> - Batch/multiple content operations</li>
+                                        <li><code>*</code> - Wildcard matching both doc and bulk</li>
+                                    </ul>
+                                </div>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Actions</h4>
+                                    <ul>
+                                        <li><code>created</code> - Content was created/indexed for the first time</li>
+                                        <li><code>updated</code> - Existing content was modified</li>
+                                        <li><code>deleted</code> - Content was removed from the index</li>
+                                        <li><code>completed</code> - Bulk operation finished (bulk only)</li>
+                                        <li><code>*</code> - Wildcard matching all actions</li>
+                                    </ul>
+                                </div>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Common Examples</h4>
+                                    <ul>
+                                        <li><code>doc.updated</code> - Single content updates only</li>
+                                        <li><code>bulk.completed</code> - When bulk sync finishes</li>
+                                        <li><code>*.deleted</code> - All deletion events</li>
+                                        <li><code>*.*</code> - All events (same as leaving empty)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="epi-topics-container">
+                        <div class="epi-topic-selector">
+                            <select id="topicSelect" class="epi-select" @onchange="@((e) => AddTopic(e.Value?.ToString() ?? string.Empty))">
+                                <option value="">Select a topic...</option>
+                                @foreach (var topic in AvailableTopics.Where(t => !NewWebhook.Topics.Contains(t)))
+                                {
+                                    <option value="@topic" title="@GetTopicDescription(topic)">@topic</option>
+                                }
+                            </select>
+                        </div>
+                        @if (NewWebhook.Topics.Any())
+                        {
+                            <div class="epi-selected-topics">
+                                @foreach (var topic in NewWebhook.Topics)
+                                {
+                                    <span class="epi-topic-badge" title="@GetTopicDescription(topic)">
+                                        @topic
+                                        <button type="button" @onclick="() => RemoveTopic(topic)" class="epi-topic-remove">x</button>
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="epi-form-section">
+                    <div class="epi-section-header">
+                        <h3 class="epi-h3">Filters (Optional)</h3>
+                        <button type="button" class="epi-help-toggle" @onclick="ToggleFilterHelp" title="Show filter examples">
+                            <span class="epi-help-icon">?</span>
+                        </button>
+                    </div>
+                    <p class="epi-help-text">Add filters to control when notifications are sent based on content properties.</p>
+
+                    @if (ShowFilterHelp)
+                    {
+                        <div class="epi-topic-help">
+                            <div class="epi-topic-help-header">
+                                <strong>Filter Reference</strong>
+                                <button type="button" @onclick="ToggleFilterHelp" class="epi-help-close">x</button>
+                            </div>
+                            <div class="epi-topic-help-content">
+                                <p class="epi-topic-help-intro">Filters allow you to receive notifications only for content matching specific criteria. Multiple filters are combined with AND logic.</p>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Common Fields</h4>
+                                    <ul>
+                                        <li><code>Status</code> - Content status (e.g., Published, Draft, Expired)</li>
+                                        <li><code>ContentType</code> - The content type name</li>
+                                        <li><code>Language</code> - Content language code (e.g., en, sv)</li>
+                                        <li><code>Name</code> - Content item name</li>
+                                        <li><code>Changed</code> - Last modified date</li>
+                                        <li><code>_id</code> - Specific document ID</li>
+                                    </ul>
+                                </div>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Operators</h4>
+                                    <ul>
+                                        <li><code>eq</code> - Equals (exact match)</li>
+                                        <li><code>ne</code> - Not equals (exclude matches)</li>
+                                        <li><code>contains</code> - Contains substring</li>
+                                    </ul>
+                                </div>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Example Filters</h4>
+                                    <table class="epi-filter-examples-table">
+                                        <tr>
+                                            <td><code>Status</code> <code>eq</code> <code>Published</code></td>
+                                            <td>Only published content</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>ContentType</code> <code>eq</code> <code>ArticlePage</code></td>
+                                            <td>Only ArticlePage content type</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>Language</code> <code>eq</code> <code>en</code></td>
+                                            <td>Only English content</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>Name</code> <code>contains</code> <code>News</code></td>
+                                            <td>Content with "News" in name</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>Status</code> <code>ne</code> <code>Draft</code></td>
+                                            <td>Exclude draft content</td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <div class="epi-topic-help-note">
+                                    <strong>Note:</strong> Field names are case-sensitive. Check your Optimizely Graph schema for available fields.
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (NewWebhook.Filters.Any())
+                    {
+                        <div class="epi-filters-list">
+                            @foreach (var filter in NewWebhook.Filters)
+                            {
+                                <div class="epi-filter-row">
+                                    <input type="text" @bind="filter.Field" class="epi-textbox epi-textbox--small" placeholder="Field (e.g., Status)" title="The content property to filter on" />
+                                    <select @bind="filter.Operator" class="epi-select epi-select--small" title="Comparison operator">
+                                        <option value="eq">equals</option>
+                                        <option value="ne">not equals</option>
+                                        <option value="contains">contains</option>
+                                    </select>
+                                    <input type="text" @bind="filter.Value" class="epi-textbox epi-textbox--small" placeholder="Value (e.g., Published)" title="The value to compare against" />
+                                    <button type="button" @onclick="() => RemoveFilter(filter)" class="epi-button epi-button--danger epi-button--small">Remove</button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    <button type="button" @onclick="AddFilter" class="epi-button epi-button--secondary epi-button--small">Add Filter</button>
+                </div>
+
+                <div class="epi-form-actions">
+                    <button @onclick="CreateWebhook" class="epi-button epi-button--primary" disabled="@IsLoading">
+                        @if (IsLoading)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        Create Webhook
+                    </button>
+                    <button @onclick="CancelCreate" class="epi-button epi-button--secondary" disabled="@IsLoading">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else if (IsEditing)
+    {
+        <div class="epi-contentGroup">
+            <div class="epi-groupHeader">
+                <h2 class="epi-h2">Edit Webhook</h2>
+            </div>
+            <div class="epi-form">
+                <div class="epi-form-row">
+                    <div class="epi-form-field epi-form-field--url">
+                        <label for="editWebhookUrl" class="epi-label">Webhook URL *</label>
+                        <input id="editWebhookUrl" @bind="EditingWebhook.Url"
+                               class="epi-textbox" placeholder="https://your-endpoint.com/webhook" />
+                    </div>
+                    <div class="epi-form-field epi-form-field--method">
+                        <label for="editWebhookMethod" class="epi-label">HTTP Method</label>
+                        <select id="editWebhookMethod" @bind="EditingWebhook.Method" class="epi-select">
+                            @foreach (var method in AvailableHttpMethods)
+                            {
+                                <option value="@method">@method</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="epi-form-field epi-form-field--status">
+                        <label class="epi-label">Status</label>
+                        <div class="epi-checkbox-wrapper">
+                            <input type="checkbox" id="editWebhookDisabled" @bind="EditingWebhook.Disabled" />
+                            <label for="editWebhookDisabled">Disabled</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="epi-form-section">
+                    <div class="epi-section-header">
+                        <h3 class="epi-h3">Event Topics</h3>
+                        <button type="button" class="epi-help-toggle" @onclick="ToggleEditTopicHelp" title="Show topic descriptions">
+                            <span class="epi-help-icon">?</span>
+                        </button>
+                    </div>
+                    <p class="epi-help-text">Select which events should trigger this webhook. Leave empty for all events.</p>
+
+                    @if (ShowEditTopicHelp)
+                    {
+                        <div class="epi-topic-help">
+                            <div class="epi-topic-help-header">
+                                <strong>Topic Pattern Reference</strong>
+                                <button type="button" @onclick="ToggleEditTopicHelp" class="epi-help-close">x</button>
+                            </div>
+                            <div class="epi-topic-help-content">
+                                <p class="epi-topic-help-intro">Topics use the pattern <code>{subject}.{action}</code> where:</p>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Subjects</h4>
+                                    <ul>
+                                        <li><code>doc</code> - Single content item operations</li>
+                                        <li><code>bulk</code> - Batch/multiple content operations</li>
+                                        <li><code>*</code> - Wildcard matching both doc and bulk</li>
+                                    </ul>
+                                </div>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Actions</h4>
+                                    <ul>
+                                        <li><code>created</code> - Content was created/indexed for the first time</li>
+                                        <li><code>updated</code> - Existing content was modified</li>
+                                        <li><code>deleted</code> - Content was removed from the index</li>
+                                        <li><code>completed</code> - Bulk operation finished (bulk only)</li>
+                                        <li><code>*</code> - Wildcard matching all actions</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="epi-topics-container">
+                        <div class="epi-topic-selector">
+                            <select id="editTopicSelect" class="epi-select" @onchange="@((e) => AddEditTopic(e.Value?.ToString() ?? string.Empty))">
+                                <option value="">Select a topic...</option>
+                                @foreach (var topic in AvailableTopics.Where(t => !EditingWebhook.Topics.Contains(t)))
+                                {
+                                    <option value="@topic" title="@GetTopicDescription(topic)">@topic</option>
+                                }
+                            </select>
+                        </div>
+                        @if (EditingWebhook.Topics.Any())
+                        {
+                            <div class="epi-selected-topics">
+                                @foreach (var topic in EditingWebhook.Topics)
+                                {
+                                    <span class="epi-topic-badge" title="@GetTopicDescription(topic)">
+                                        @topic
+                                        <button type="button" @onclick="() => RemoveEditTopic(topic)" class="epi-topic-remove">x</button>
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="epi-form-section">
+                    <div class="epi-section-header">
+                        <h3 class="epi-h3">Filters (Optional)</h3>
+                        <button type="button" class="epi-help-toggle" @onclick="ToggleEditFilterHelp" title="Show filter examples">
+                            <span class="epi-help-icon">?</span>
+                        </button>
+                    </div>
+                    <p class="epi-help-text">Add filters to control when notifications are sent based on content properties.</p>
+
+                    @if (ShowEditFilterHelp)
+                    {
+                        <div class="epi-topic-help">
+                            <div class="epi-topic-help-header">
+                                <strong>Filter Reference</strong>
+                                <button type="button" @onclick="ToggleEditFilterHelp" class="epi-help-close">x</button>
+                            </div>
+                            <div class="epi-topic-help-content">
+                                <p class="epi-topic-help-intro">Filters allow you to receive notifications only for content matching specific criteria.</p>
+
+                                <div class="epi-topic-help-group">
+                                    <h4>Common Fields</h4>
+                                    <ul>
+                                        <li><code>Status</code> - Content status (e.g., Published, Draft)</li>
+                                        <li><code>ContentType</code> - The content type name</li>
+                                        <li><code>Language</code> - Content language code</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (EditingWebhook.Filters.Any())
+                    {
+                        <div class="epi-filters-list">
+                            @foreach (var filter in EditingWebhook.Filters)
+                            {
+                                <div class="epi-filter-row">
+                                    <input type="text" @bind="filter.Field" class="epi-textbox epi-textbox--small" placeholder="Field (e.g., Status)" title="The content property to filter on" />
+                                    <select @bind="filter.Operator" class="epi-select epi-select--small" title="Comparison operator">
+                                        <option value="eq">equals</option>
+                                        <option value="ne">not equals</option>
+                                        <option value="contains">contains</option>
+                                    </select>
+                                    <input type="text" @bind="filter.Value" class="epi-textbox epi-textbox--small" placeholder="Value (e.g., Published)" title="The value to compare against" />
+                                    <button type="button" @onclick="() => RemoveEditFilter(filter)" class="epi-button epi-button--danger epi-button--small">Remove</button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    <button type="button" @onclick="AddEditFilter" class="epi-button epi-button--secondary epi-button--small">Add Filter</button>
+                </div>
+
+                <div class="epi-form-actions">
+                    <button @onclick="UpdateWebhook" class="epi-button epi-button--primary" disabled="@IsLoading">
+                        @if (IsLoading)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        Save Changes
+                    </button>
+                    <button @onclick="CancelEdit" class="epi-button epi-button--secondary" disabled="@IsLoading">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="epi-contentGroup">
+            <div class="epi-groupHeader">
+                <h2 class="epi-h2">Registered Webhooks</h2>
+                <div class="epi-header-actions">
+                    <div class="epi-filter-group">
+                        <label for="statusFilter" class="epi-label-inline">Status:</label>
+                        <select id="statusFilter" @onchange="OnStatusFilterChanged" class="epi-select epi-select--small">
+                            <option value="">All</option>
+                            <option value="active" selected="@(SelectedStatusFilter == "active")">Active</option>
+                            <option value="disabled" selected="@(SelectedStatusFilter == "disabled")">Disabled</option>
+                        </select>
+                    </div>
+                    <span class="epi-badge">@TotalItems @(HasActiveFilters ? "filtered" : "total") webhooks</span>
+                    <button @onclick="ShowCreateForm" class="epi-button epi-button--primary epi-button--small" disabled="@IsLoading">
+                        Register New Webhook
+                    </button>
+                </div>
+            </div>
+            <div class="epi-content">
+                @if (IsLoading)
+                {
+                    <div class="epi-loading">
+                        <div class="epi-loader"></div>
+                        <p>Loading webhooks from Optimizely Graph...</p>
+                    </div>
+                }
+                else if (!FilteredWebhooks.Any())
+                {
+                    <div class="epi-empty-state">
+                        @if (!HasActiveFilters)
+                        {
+                            <p>No webhooks registered. Click "Register New Webhook" to create your first webhook.</p>
+                        }
+                        else
+                        {
+                            <p>No webhooks found for the selected filter. Adjust your filter settings or register a new webhook.</p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="epi-table-container">
+                        <table class="epi-table">
+                            <thead>
+                                <tr>
+                                    <th>URL</th>
+                                    <th>Method</th>
+                                    <th>Status</th>
+                                    <th>Topics</th>
+                                    <th>Filters</th>
+                                    <th class="epi-align-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var webhook in Webhooks)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="epi-url-text" title="@webhook.Url">@TruncateUrl(webhook.Url)</span>
+                                        </td>
+                                        <td>
+                                            <span class="epi-method-badge epi-method-badge--@webhook.Method?.ToLowerInvariant()">@webhook.Method</span>
+                                        </td>
+                                        <td>
+                                            <span class="epi-status-badge @GetStatusBadgeClass(webhook.Disabled)">@GetStatusText(webhook.Disabled)</span>
+                                        </td>
+                                        <td>
+                                            <span class="epi-topics-text" title="@FormatTopics(webhook.Topics)">@FormatTopics(webhook.Topics)</span>
+                                        </td>
+                                        <td>
+                                            <span class="epi-filters-text" title="@FormatFilters(webhook.Filters)">@FormatFilters(webhook.Filters)</span>
+                                        </td>
+                                        <td class="epi-align-right">
+                                            <div class="epi-button-group">
+                                                <button @onclick="() => StartEdit(webhook)"
+                                                        class="epi-button epi-button--secondary epi-button--small"
+                                                        title="Edit webhook">
+                                                    Edit
+                                                </button>
+                                                <button @onclick="@(async () => { if (await ConfirmDelete()) await DeleteWebhook(webhook.Id); })"
+                                                        class="epi-button epi-button--danger epi-button--small"
+                                                        title="Delete webhook">
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (TotalPages > 1)
+                    {
+                        <div class="epi-pagination">
+                            <div class="epi-pagination-info">
+                                Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, TotalItems) of @TotalItems webhooks
+                            </div>
+                            <div class="epi-pagination-controls">
+                                <button @onclick="GoToPreviousPage"
+                                        class="epi-button epi-button--secondary epi-button--small"
+                                        disabled="@(CurrentPage == 1)">
+                                    Previous
+                                </button>
+
+                                @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
+                                {
+                                    var pageNumber = i;
+                                    <button @onclick="() => GoToPage(pageNumber)"
+                                            class="epi-button epi-button--small @(CurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
+                                        @pageNumber
+                                    </button>
+                                }
+
+                                <button @onclick="GoToNextPage"
+                                        class="epi-button epi-button--secondary epi-button--small"
+                                        disabled="@(CurrentPage == TotalPages)">
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static string TruncateUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return "N/A";
+        return url.Length > 50 ? url.Substring(0, 47) + "..." : url;
+    }
+}
+
+<style>
+    /* Basic Optimizely admin styles */
+    .epi-contentArea {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .epi-contentAreaHeader {
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+    }
+
+    .epi-h1 {
+        font-size: 28px;
+        font-weight: 300;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-h2 {
+        font-size: 20px;
+        font-weight: 500;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-h3 {
+        font-size: 16px;
+        font-weight: 500;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .epi-help-toggle {
+        background: #17a2b8;
+        border: none;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        transition: background-color 0.2s;
+    }
+
+    .epi-help-toggle:hover {
+        background: #138496;
+    }
+
+    .epi-help-icon {
+        color: #fff;
+        font-size: 12px;
+        font-weight: bold;
+        line-height: 1;
+    }
+
+    .epi-topic-help {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin-bottom: 16px;
+        overflow: hidden;
+    }
+
+    .epi-topic-help-header {
+        background: #e9ecef;
+        padding: 10px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .epi-help-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #6c757d;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .epi-help-close:hover {
+        color: #333;
+    }
+
+    .epi-topic-help-content {
+        padding: 15px;
+    }
+
+    .epi-topic-help-intro {
+        margin: 0 0 12px 0;
+        font-size: 13px;
+    }
+
+    .epi-topic-help-content code {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        color: #d63384;
+    }
+
+    .epi-topic-help-group {
+        margin-bottom: 12px;
+    }
+
+    .epi-topic-help-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .epi-topic-help-group h4 {
+        font-size: 13px;
+        font-weight: 600;
+        margin: 0 0 6px 0;
+        color: #495057;
+    }
+
+    .epi-topic-help-group ul {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 13px;
+    }
+
+    .epi-topic-help-group li {
+        margin-bottom: 4px;
+        line-height: 1.4;
+    }
+
+    .epi-topic-help-group li:last-child {
+        margin-bottom: 0;
+    }
+
+    .epi-filter-examples-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 8px;
+    }
+
+    .epi-filter-examples-table tr {
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .epi-filter-examples-table tr:last-child {
+        border-bottom: none;
+    }
+
+    .epi-filter-examples-table td {
+        padding: 6px 8px;
+        vertical-align: middle;
+    }
+
+    .epi-filter-examples-table td:first-child {
+        white-space: nowrap;
+        width: 60%;
+    }
+
+    .epi-filter-examples-table td:last-child {
+        color: #6c757d;
+        font-style: italic;
+    }
+
+    .epi-topic-help-note {
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #856404;
+    }
+
+    .epi-help-text {
+        font-size: 13px;
+        color: #6c757d;
+        margin: 0 0 12px 0;
+    }
+
+    .epi-contentGroup {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .epi-groupHeader {
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .epi-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .epi-filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .epi-label-inline {
+        font-weight: 500;
+        color: #333;
+        white-space: nowrap;
+    }
+
+    .epi-content, .epi-form {
+        padding: 20px;
+    }
+
+    .epi-form-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+
+    .epi-form-section {
+        margin-bottom: 24px;
+        padding-top: 16px;
+        border-top: 1px solid #eee;
+    }
+
+    .epi-form-field {
+        margin-bottom: 15px;
+    }
+
+    .epi-form-field--url {
+        flex: 1;
+        min-width: 300px;
+    }
+
+    .epi-form-field--method {
+        flex: 0 0 150px;
+    }
+
+    .epi-form-field--status {
+        flex: 0 0 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+
+    .epi-checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+    }
+
+    .epi-checkbox-wrapper input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+    }
+
+    .epi-label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-textbox {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .epi-textbox--small {
+        padding: 4px 8px;
+        font-size: 13px;
+    }
+
+    .epi-select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: #fff;
+        cursor: pointer;
+    }
+
+    .epi-select--small {
+        padding: 4px 8px;
+        font-size: 13px;
+        width: auto;
+        min-width: 150px;
+    }
+
+    .epi-button {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #0066cc;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .epi-button:hover:not(:disabled) {
+        background: #0052a3;
+    }
+
+    .epi-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .epi-button--primary {
+        background: #0066cc;
+    }
+
+    .epi-button--danger {
+        background: #d9534f;
+    }
+
+    .epi-button--danger:hover:not(:disabled) {
+        background: #c9302c;
+    }
+
+    .epi-button--secondary {
+        background: #6c757d;
+    }
+
+    .epi-button--secondary:hover:not(:disabled) {
+        background: #5a6268;
+    }
+
+    .epi-button--small {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .epi-button-group {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .epi-form-actions {
+        margin-top: 20px;
+        display: flex;
+        gap: 8px;
+    }
+
+    .epi-topics-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .epi-topic-selector {
+        max-width: 300px;
+    }
+
+    .epi-selected-topics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .epi-topic-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #17a2b8;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+
+    .epi-topic-remove {
+        background: none;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        padding: 0;
+        font-size: 14px;
+        line-height: 1;
+        opacity: 0.8;
+    }
+
+    .epi-topic-remove:hover {
+        opacity: 1;
+    }
+
+    .epi-filters-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .epi-filter-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .epi-filter-row .epi-textbox--small {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .epi-filter-row .epi-select--small {
+        min-width: 120px;
+    }
+
+    .epi-table-container {
+        overflow-x: auto;
+    }
+
+    .epi-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0;
+    }
+
+    .epi-table th,
+    .epi-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .epi-table th {
+        background: #f5f5f5;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .epi-align-right {
+        text-align: right;
+    }
+
+    .epi-badge {
+        background: #6c757d;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .epi-status-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .epi-status-badge--active {
+        background: #28a745;
+        color: #fff;
+    }
+
+    .epi-status-badge--disabled {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    .epi-method-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .epi-method-badge--post {
+        background: #28a745;
+        color: #fff;
+    }
+
+    .epi-method-badge--get {
+        background: #17a2b8;
+        color: #fff;
+    }
+
+    .epi-method-badge--put {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .epi-method-badge--patch {
+        background: #fd7e14;
+        color: #fff;
+    }
+
+    .epi-method-badge--delete {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    .epi-url-text {
+        font-family: monospace;
+        font-size: 13px;
+        word-break: break-all;
+    }
+
+    .epi-topics-text,
+    .epi-filters-text {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .epi-notificationbar {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .epi-notificationbar--success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .epi-notificationbar--danger {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .epi-notificationbar-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 12px;
+        opacity: 0.7;
+    }
+
+    .epi-notificationbar-close:hover {
+        opacity: 1;
+    }
+
+    .epi-loading {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .epi-loader {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0066cc;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px;
+    }
+
+    .epi-loader-small {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 8px;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .epi-empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .epi-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        margin-top: 16px;
+        border-top: 1px solid #ddd;
+    }
+
+    .epi-pagination-info {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .epi-pagination-controls {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    @@media (max-width: 768px) {
+        .epi-form-row {
+            flex-direction: column;
+        }
+
+        .epi-form-field--url,
+        .epi-form-field--method,
+        .epi-form-field--status {
+            flex: 1;
+        }
+
+        .epi-groupHeader {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .epi-pagination {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .epi-pagination-info {
+            order: 2;
+        }
+
+        .epi-pagination-controls {
+            order: 1;
+        }
+
+        .epi-filter-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>

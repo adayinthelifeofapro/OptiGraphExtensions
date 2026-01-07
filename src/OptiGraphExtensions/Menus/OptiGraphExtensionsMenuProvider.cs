@@ -14,6 +14,7 @@ public sealed class OptiGraphExtensionsMenuProvider : IMenuProvider
         yield return CreateMenuItem("About", "/global/cms/optigraphextensions/about", "/optimizely-graphextensions/administration/about/", SortIndex.Last + 31);
         yield return CreateMenuItem("Synonyms", "/global/cms/optigraphextensions/synonyms", "/optimizely-graphextensions/administration/synonyms/", SortIndex.Last + 32);
         yield return CreateMenuItem("Pinned Results", "/global/cms/optigraphextensions/pinned.results", "/optimizely-graphextensions/administration/pinned-results/", SortIndex.Last + 33);
+        yield return CreateMenuItem("Webhooks", "/global/cms/optigraphextensions/webhooks", "/optimizely-graphextensions/administration/webhooks/", SortIndex.Last + 34);
     }
 
     private static UrlMenuItem CreateMenuItem(string name, string path, string url, int index)
