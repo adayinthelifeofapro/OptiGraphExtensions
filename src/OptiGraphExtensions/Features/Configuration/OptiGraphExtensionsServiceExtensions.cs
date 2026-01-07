@@ -22,6 +22,8 @@ using OptiGraphExtensions.Features.Common.Validation;
 using OptiGraphExtensions.Features.Common.Caching;
 using OptiGraphExtensions.Features.Synonyms.Models;
 using OptiGraphExtensions.Features.PinnedResults.Models;
+using OptiGraphExtensions.Features.Webhooks.Services;
+using OptiGraphExtensions.Features.Webhooks.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -72,6 +74,7 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddHttpClient<ISynonymGraphSyncService, SynonymGraphSyncService>();
         services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
         services.AddHttpClient<IContentSearchService, ContentSearchService>();
+        services.AddHttpClient<IWebhookService, WebhookService>();
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
@@ -171,5 +174,8 @@ public static class OptiGraphExtensionsServiceExtensions
 
         services.AddScoped<IPinnedResultsValidationService, PinnedResultsValidationService>();
         services.AddScoped<ISynonymValidationService, SynonymValidationService>();
+
+        // Register webhook services
+        services.AddScoped<IWebhookValidationService, WebhookValidationService>();
     }
 }

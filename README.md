@@ -1,6 +1,6 @@
 # OptiGraphExtensions
 
-An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms and pinned results within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping and result pinning capabilities.
+An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, and webhooks within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, and webhook event management.
 
 [![NuGet Version](https://img.shields.io/nuget/v/OptiGraphExtensions.svg)](https://www.nuget.org/packages/OptiGraphExtensions/)
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
@@ -28,6 +28,17 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms an
 - Bidirectional synchronization with Optimizely Graph (preserves content names during sync)
 - **Cascade Delete**: Delete collections with associated pinned items properly handled
 - Full CRUD operations including collection deletion from Graph
+
+### 🔔 Webhook Management
+- Create, edit, and delete webhooks registered with Optimizely Graph
+- **Topic Selection**: Subscribe to specific events (doc.created, doc.updated, doc.deleted, bulk.*, etc.)
+- **Wildcard Support**: Use patterns like `*.*` for all events or `doc.*` for all document events
+- **Filter Configuration**: Add filters to narrow webhook triggers (e.g., status equals Published)
+- **Status Control**: Enable/disable webhooks without deleting them
+- **HTTP Method Selection**: Configure webhook HTTP method (POST, GET, PUT, PATCH, DELETE)
+- **Help Tooltips**: Detailed descriptions for topics and filter examples
+- Real-time synchronization with Optimizely Graph API
+- **Status Filter**: Filter webhook list by active/disabled status
 
 ### 🎨 Administration Interface
 - Clean, intuitive admin interface integrated with Optimizely CMS
@@ -155,9 +166,12 @@ src/
 │   │   │   ├── Services/           # CRUD, sync, validation services
 │   │   │   ├── Repositories/       # Data access with caching
 │   │   │   └── Models/             # Request/response models
-│   │   └── PinnedResults/          # Pinned results management feature
-│   │       ├── Services/           # CRUD, sync, validation services
-│   │       ├── Repositories/       # Data access with caching
+│   │   ├── PinnedResults/          # Pinned results management feature
+│   │   │   ├── Services/           # CRUD, sync, validation services
+│   │   │   ├── Repositories/       # Data access with caching
+│   │   │   └── Models/             # Request/response models
+│   │   └── Webhooks/               # Webhook management feature
+│   │       ├── Services/           # CRUD and validation services
 │   │       └── Models/             # Request/response models
 │   ├── Menus/                      # CMS menu integration
 │   └── Views/                      # Razor views and layouts
@@ -293,6 +307,19 @@ When syncing synonyms to Optimizely Graph, the following parameters are used:
 Synonyms are grouped by both language and slot when syncing, allowing for:
 - Language-specific synonym sets for multilingual sites
 - Multiple synonym configurations per language using different slots
+
+### Webhook Management
+
+Webhooks allow you to receive notifications when content changes occur in Optimizely Graph. The AddOn provides full webhook management capabilities:
+
+| Feature | Description |
+|---------|-------------|
+| Topics | Subscribe to specific events: `doc.created`, `doc.updated`, `doc.deleted`, `bulk.*`, `*.*` |
+| Filters | Narrow triggers using field/operator/value filters (e.g., `status eq Published`) |
+| HTTP Methods | Configure webhook method: POST, GET, PUT, PATCH, DELETE |
+| Status | Enable/disable webhooks without deletion |
+
+**Note:** Due to a limitation in the Optimizely Graph PUT endpoint (which doesn't reliably update topics/filters), the AddOn implements updates by deleting and recreating webhooks. This means webhook IDs will change after editing.
 
 ## Authorization
 
