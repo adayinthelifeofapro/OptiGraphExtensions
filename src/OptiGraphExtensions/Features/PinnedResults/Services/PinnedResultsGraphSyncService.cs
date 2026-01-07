@@ -15,7 +15,6 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services;
 public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 {
     private readonly HttpClient _httpClient;
-    private readonly IAuthenticationService _authenticationService;
     private readonly IOptiGraphConfigurationService _configurationService;
     private readonly IGraphConfigurationValidator _graphConfigurationValidator;
     private readonly IPinnedResultsCollectionService _collectionService;
@@ -24,14 +23,12 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
     public PinnedResultsGraphSyncService(
         HttpClient httpClient,
-        IAuthenticationService authenticationService,
         IOptiGraphConfigurationService configurationService,
         IGraphConfigurationValidator graphConfigurationValidator,
         IPinnedResultsCollectionService collectionService,
         IPinnedResultService pinnedResultService)
     {
         _httpClient = httpClient;
-        _authenticationService = authenticationService;
         _configurationService = configurationService;
         _graphConfigurationValidator = graphConfigurationValidator;
         _collectionService = collectionService;
@@ -140,6 +137,9 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
 
         if (!response.IsSuccessStatusCode)
         {
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return true; //never mind, already removed, contine as removed. 
+
             var errorContent = await response.Content.ReadAsStringAsync();
             throw new GraphSyncException($"Error deleting all items from collection in Optimizely Graph: {response.StatusCode} - {errorContent}");
         }
@@ -274,12 +274,6 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         }
 
         return true;
-    }
-
-    private void EnsureUserAuthenticated()
-    {
-        if (!_authenticationService.IsUserAuthenticated())
-            throw new UnauthorizedAccessException("User is not authenticated");
     }
 
     private (string gatewayUrl, string hmacKey, string hmacSecret) GetAndValidateGraphConfiguration()
