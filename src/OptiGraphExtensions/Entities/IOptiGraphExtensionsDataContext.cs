@@ -10,6 +10,8 @@ namespace OptiGraphExtensions.Entities
 
         DbSet<PinnedResult> PinnedResults { get; set; }
 
+        DbSet<SavedQuery> SavedQueries { get; set; }
+
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

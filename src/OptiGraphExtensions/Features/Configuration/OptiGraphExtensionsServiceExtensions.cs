@@ -24,6 +24,9 @@ using OptiGraphExtensions.Features.Synonyms.Models;
 using OptiGraphExtensions.Features.PinnedResults.Models;
 using OptiGraphExtensions.Features.Webhooks.Services;
 using OptiGraphExtensions.Features.Webhooks.Services.Abstractions;
+using OptiGraphExtensions.Features.QueryLibrary.Repositories;
+using OptiGraphExtensions.Features.QueryLibrary.Services;
+using OptiGraphExtensions.Features.QueryLibrary.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -75,6 +78,8 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
         services.AddHttpClient<IContentSearchService, ContentSearchService>();
         services.AddHttpClient<IWebhookService, WebhookService>();
+        services.AddHttpClient<ISchemaDiscoveryService, SchemaDiscoveryService>();
+        services.AddHttpClient<IQueryExecutionService, QueryExecutionService>();
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
@@ -177,5 +182,18 @@ public static class OptiGraphExtensionsServiceExtensions
 
         // Register webhook services
         services.AddScoped<IWebhookValidationService, WebhookValidationService>();
+
+        // Register Query Library services
+        services.AddScoped<SavedQueryRepository>();
+        services.AddScoped<ISavedQueryRepository>(provider =>
+        {
+            var baseRepository = provider.GetRequiredService<SavedQueryRepository>();
+            var cacheService = provider.GetRequiredService<ICacheService>();
+            return new CachedSavedQueryRepository(baseRepository, cacheService);
+        });
+        services.AddScoped<IQueryBuilderService, QueryBuilderService>();
+        services.AddScoped<IRawQueryService, RawQueryService>();
+        services.AddScoped<ICsvExportService, CsvExportService>();
+        services.AddScoped<ISavedQueryService, SavedQueryService>();
     }
 }
