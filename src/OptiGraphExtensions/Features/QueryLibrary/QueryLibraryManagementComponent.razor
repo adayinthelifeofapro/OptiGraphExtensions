@@ -1,0 +1,833 @@
+@inherits QueryLibraryManagementComponentBase
+
+@if (IsLoading)
+{
+    <div class="epi-loading">
+        <div class="epi-loader"></div>
+        <p>Loading...</p>
+    </div>
+}
+else
+{
+    <div class="epi-query-library">
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="epi-notificationbar epi-notificationbar--danger">
+                <div class="epi-notificationbar-text">@ErrorMessage</div>
+                <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="epi-notificationbar epi-notificationbar--success">
+                <div class="epi-notificationbar-text">@SuccessMessage</div>
+                <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+            </div>
+        }
+
+        @if (CurrentMode == "list")
+        {
+            @* List Mode - Show saved queries *@
+            <div class="epi-section">
+                <div class="epi-header">
+                    <h2>Saved Queries</h2>
+                    <div class="epi-header-actions">
+                        <button class="epi-button epi-button--primary" @onclick="ShowCreateForm" disabled="@IsLoading">
+                            <span class="epi-icon-plus"></span> Visual Query
+                        </button>
+                        <button class="epi-button epi-button--secondary" @onclick="ShowRawQueryForm" disabled="@IsLoading">
+                            <span class="epi-icon-code"></span> Raw GraphQL
+                        </button>
+                    </div>
+                </div>
+
+                @if (!Queries.Any())
+                {
+                    <div class="epi-empty-state">
+                        <p>No saved queries yet. Create a new query to get started.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="epi-table-container">
+                        <table class="epi-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Content Type</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var query in Queries)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@query.Name</strong>
+                                            @if (!string.IsNullOrEmpty(query.Description))
+                                            {
+                                                <br /><small class="epi-text-muted">@query.Description</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="epi-badge @GetQueryTypeBadgeClass(query.QueryType)">
+                                                @GetQueryTypeText(query.QueryType)
+                                            </span>
+                                        </td>
+                                        <td>@(query.ContentType ?? "-")</td>
+                                        <td>
+                                            @FormatDate(query.CreatedAt)
+                                            @if (!string.IsNullOrEmpty(query.CreatedBy))
+                                            {
+                                                <br /><small class="epi-text-muted">by @query.CreatedBy</small>
+                                            }
+                                        </td>
+                                        <td class="epi-actions">
+                                            <button class="epi-button epi-button--small epi-button--primary"
+                                                    @onclick="() => RunQuery(query)"
+                                                    disabled="@IsLoading"
+                                                    title="Run query">
+                                                Run
+                                            </button>
+                                            <button class="epi-button epi-button--small epi-button--secondary"
+                                                    @onclick="() => EditQuery(query)"
+                                                    disabled="@IsLoading"
+                                                    title="Edit query">
+                                                Edit
+                                            </button>
+                                            <button class="epi-button epi-button--small epi-button--danger"
+                                                    @onclick="() => DeleteQuery(query.Id)"
+                                                    disabled="@IsLoading"
+                                                    title="Delete query">
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (TotalPages > 1)
+                    {
+                        <div class="epi-pagination">
+                            <span class="epi-pagination-info">
+                                Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, TotalItems) of @TotalItems queries
+                            </span>
+                            <div class="epi-pagination-buttons">
+                                <button class="epi-button epi-button--small" @onclick="GoToPreviousPage" disabled="@(CurrentPage <= 1)">Previous</button>
+                                @for (int i = 1; i <= TotalPages; i++)
+                                {
+                                    var pageNum = i;
+                                    <button class="epi-button epi-button--small @(pageNum == CurrentPage ? "epi-button--primary" : "")"
+                                            @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                                }
+                                <button class="epi-button epi-button--small" @onclick="GoToNextPage" disabled="@(CurrentPage >= TotalPages)">Next</button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+        else if (CurrentMode == "build")
+        {
+            @* Build Mode - Query builder *@
+            <div class="epi-section">
+                <div class="epi-header">
+                    <h2>@(CurrentQuery.Id == Guid.Empty ? "Create Query" : "Edit Query")</h2>
+                    <button class="epi-button epi-button--secondary" @onclick="BackToList">
+                        Back to List
+                    </button>
+                </div>
+
+                @* Tab Toggle *@
+                <div class="epi-tabs">
+                    <button class="epi-tab @(QueryInputMode == "visual" ? "epi-tab--active" : "")"
+                            @onclick="@(async () => await SwitchToVisualMode())">
+                        Visual Builder
+                    </button>
+                    <button class="epi-tab @(QueryInputMode == "raw" ? "epi-tab--active" : "")"
+                            @onclick="SwitchToRawMode">
+                        Raw GraphQL
+                    </button>
+                </div>
+
+                @* Sync indicator *@
+                @if (QueryInputMode == "raw" && !string.IsNullOrEmpty(CurrentQuery.ContentType))
+                {
+                    <div class="epi-info-box epi-info-box--sync">
+                        <small>Query generated from visual settings. Edit the query directly or switch to Visual Builder to modify settings.</small>
+                    </div>
+                }
+
+                @* Query Name & Description *@
+                <div class="epi-form-group">
+                    <label class="epi-label">Query Name *</label>
+                    <input type="text" class="epi-textbox" @bind="CurrentQuery.Name" placeholder="Enter query name" />
+                </div>
+
+                <div class="epi-form-group">
+                    <label class="epi-label">Description</label>
+                    <textarea class="epi-textbox epi-textarea" @bind="CurrentQuery.Description" placeholder="Optional description"></textarea>
+                </div>
+
+                @if (QueryInputMode == "visual")
+                {
+                    @* Visual Query Builder *@
+                    <div class="epi-form-group">
+                        <label class="epi-label">Content Type *</label>
+                        @if (IsLoadingContentTypes)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        else
+                        {
+                            <select class="epi-select" @onchange="OnContentTypeChanged" value="@CurrentQuery.ContentType">
+                                <option value="">-- Select Content Type --</option>
+                                @foreach (var contentType in AvailableContentTypes)
+                                {
+                                    <option value="@contentType">@contentType</option>
+                                }
+                            </select>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(CurrentQuery.ContentType))
+                    {
+                        <div class="epi-form-group">
+                            <label class="epi-label">Select Fields</label>
+                            @if (IsLoadingFields)
+                            {
+                                <span class="epi-loader-small"></span>
+                            }
+                            else if (AvailableFields.Any())
+                            {
+                                <div class="epi-field-list">
+                                    @foreach (var field in AvailableFields)
+                                    {
+                                        <div class="epi-field-item">
+                                            <label class="epi-checkbox-label">
+                                                <input type="checkbox"
+                                                       checked="@IsFieldSelected(field.Path)"
+                                                       @onchange="(e) => ToggleField(field.Path, (bool)e.Value!)" />
+                                                <span>@field.Name</span>
+                                                <small class="epi-text-muted">(@field.Type)</small>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="epi-text-muted">No fields available for this content type.</p>
+                            }
+                        </div>
+
+                        <div class="epi-form-group">
+                            <label class="epi-label">Filters</label>
+                            @foreach (var filter in CurrentQuery.Filters)
+                            {
+                                var currentFilter = filter;
+                                <div class="epi-filter-row">
+                                    <input type="text" class="epi-textbox epi-textbox--small"
+                                           value="@currentFilter.Field"
+                                           @onchange="@(e => { currentFilter.Field = e.Value?.ToString() ?? ""; OnFilterChanged(); })"
+                                           placeholder="Field name" />
+                                    <select class="epi-select epi-select--small"
+                                            value="@currentFilter.Operator"
+                                            @onchange="@(e => { currentFilter.Operator = e.Value?.ToString() ?? "eq"; OnFilterChanged(); })">
+                                        @foreach (var op in AvailableOperators)
+                                        {
+                                            <option value="@op">@GetOperatorDisplayName(op)</option>
+                                        }
+                                    </select>
+                                    <input type="text" class="epi-textbox epi-textbox--small"
+                                           value="@currentFilter.Value"
+                                           @onchange="@(e => { currentFilter.Value = e.Value?.ToString() ?? ""; OnFilterChanged(); })"
+                                           placeholder="Value" />
+                                    <button class="epi-button epi-button--small epi-button--danger"
+                                            @onclick="() => RemoveFilter(currentFilter)">×</button>
+                                </div>
+                            }
+                            <button class="epi-button epi-button--small epi-button--secondary" @onclick="AddFilter">
+                                + Add Filter
+                            </button>
+                        </div>
+
+                        <div class="epi-form-row">
+                            <div class="epi-form-group epi-form-group--half">
+                                <label class="epi-label">Sort By</label>
+                                <input type="text" class="epi-textbox"
+                                       value="@CurrentQuery.SortField"
+                                       @onchange="@(e => { CurrentQuery.SortField = e.Value?.ToString(); OnSortChanged(); })"
+                                       placeholder="Field name" />
+                            </div>
+                            <div class="epi-form-group epi-form-group--half">
+                                <label class="epi-label">Sort Direction</label>
+                                <select class="epi-select"
+                                        value="@CurrentQuery.SortDescending"
+                                        @onchange="@(e => { CurrentQuery.SortDescending = e.Value?.ToString() == "True"; OnSortChanged(); })">
+                                    <option value="False">Ascending</option>
+                                    <option value="True">Descending</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="epi-form-group">
+                            <label class="epi-label">Language</label>
+                            <input type="text" class="epi-textbox"
+                                   value="@CurrentQuery.Language"
+                                   @onchange="@(e => { CurrentQuery.Language = e.Value?.ToString(); OnLanguageChanged(); })"
+                                   placeholder="e.g., en, sv" />
+                        </div>
+                    }
+                }
+                else
+                {
+                    @* Raw GraphQL Editor *@
+                    <div class="epi-form-group">
+                        <label class="epi-label">GraphQL Query *</label>
+                        <textarea class="epi-textbox epi-textarea epi-textarea--code"
+                                  rows="15"
+                                  @bind="CurrentQuery.RawGraphQuery"
+                                  placeholder="Enter your GraphQL query..."></textarea>
+                    </div>
+
+                    <div class="epi-form-group">
+                        <label class="epi-label">Variables (JSON)</label>
+                        <textarea class="epi-textbox epi-textarea epi-textarea--code"
+                                  rows="5"
+                                  @bind="CurrentQuery.QueryVariablesJson"
+                                  placeholder='{"limit": 100}'></textarea>
+                    </div>
+
+                    <div class="epi-info-box">
+                        <strong>Tip:</strong> For auto-pagination during export, include <code>$limit: Int!</code> and <code>$cursor: String</code>
+                        variables, and request <code>cursor</code> and <code>total</code> fields in your response.
+                    </div>
+
+                    @if (RawQueryValidation != null && RawQueryValidation.Messages.Any())
+                    {
+                        <div class="epi-validation-messages">
+                            @foreach (var message in RawQueryValidation.Messages)
+                            {
+                                <div class="epi-validation-message @(RawQueryValidation.IsValid ? "epi-validation--warning" : "epi-validation--error")">
+                                    @message
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+
+                <div class="epi-form-actions">
+                    <button class="epi-button epi-button--primary"
+                            @onclick="ExecutePreview"
+                            disabled="@IsExecuting">
+                        @if (IsExecuting)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        Preview
+                    </button>
+                    <button class="epi-button epi-button--secondary"
+                            @onclick="SaveQuery"
+                            disabled="@IsLoading">
+                        Save Query
+                    </button>
+                </div>
+            </div>
+        }
+        else if (CurrentMode == "preview")
+        {
+            @* Preview Mode - Show results *@
+            <div class="epi-section">
+                <div class="epi-header">
+                    <h2>Query Results: @CurrentQuery.Name</h2>
+                    <div class="epi-header-actions">
+                        <button class="epi-button epi-button--secondary" @onclick="BackToBuilder">
+                            Edit Query
+                        </button>
+                        <button class="epi-button epi-button--primary"
+                                @onclick="ExportToCsv"
+                                disabled="@IsExporting">
+                            @if (IsExporting)
+                            {
+                                <span class="epi-loader-small"></span>
+                                <span>Exporting... @ExportProgress%</span>
+                            }
+                            else
+                            {
+                                <span>Export CSV</span>
+                            }
+                        </button>
+                        <button class="epi-button epi-button--secondary" @onclick="BackToList">
+                            Back to List
+                        </button>
+                    </div>
+                </div>
+
+                @if (PreviewResult != null)
+                {
+                    <div class="epi-result-info">
+                        <span>Total: @PreviewResult.TotalCount rows</span>
+                        @if (PreviewResult.HasMore)
+                        {
+                            <span class="epi-text-muted">(showing first @PreviewResult.Rows.Count)</span>
+                        }
+                    </div>
+
+                    @if (PreviewResult.Columns.Any() && PreviewResult.Rows.Any())
+                    {
+                        <div class="epi-table-container epi-table-container--scrollable">
+                            <table class="epi-table epi-table--results">
+                                <thead>
+                                    <tr>
+                                        @foreach (var column in PreviewResult.Columns)
+                                        {
+                                            <th>@column</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in PreviewResult.Rows)
+                                    {
+                                        <tr>
+                                            @foreach (var column in PreviewResult.Columns)
+                                            {
+                                                <td>@(row.TryGetValue(column, out var value) ? value?.ToString() ?? "" : "")</td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="epi-empty-state">
+                            <p>No results found for this query.</p>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+}
+
+<style>
+    .epi-query-library {
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    }
+
+    .epi-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+    }
+
+    .epi-loader {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e0e0e0;
+        border-top-color: #0066cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .epi-loader-small {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #e0e0e0;
+        border-top-color: #0066cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 5px;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .epi-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .epi-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .epi-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .epi-header-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .epi-notificationbar {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .epi-notificationbar--danger {
+        background: #fee;
+        border: 1px solid #fcc;
+        color: #c33;
+    }
+
+    .epi-notificationbar--success {
+        background: #efe;
+        border: 1px solid #cfc;
+        color: #363;
+    }
+
+    .epi-notificationbar-close {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        cursor: pointer;
+        opacity: 0.7;
+    }
+
+    .epi-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 8px 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #f5f5f5;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .epi-button:hover:not(:disabled) {
+        background: #e8e8e8;
+    }
+
+    .epi-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .epi-button--primary {
+        background: #0066cc;
+        border-color: #0066cc;
+        color: #fff;
+    }
+
+    .epi-button--primary:hover:not(:disabled) {
+        background: #0052a3;
+    }
+
+    .epi-button--secondary {
+        background: #fff;
+        border-color: #0066cc;
+        color: #0066cc;
+    }
+
+    .epi-button--danger {
+        background: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+    }
+
+    .epi-button--danger:hover:not(:disabled) {
+        background: #c82333;
+    }
+
+    .epi-button--small {
+        padding: 4px 10px;
+        font-size: 0.8rem;
+    }
+
+    .epi-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #eee;
+    }
+
+    .epi-tab {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: #666;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+
+    .epi-tab:hover {
+        color: #0066cc;
+    }
+
+    .epi-tab--active {
+        color: #0066cc;
+        border-bottom-color: #0066cc;
+        font-weight: 600;
+    }
+
+    .epi-form-group {
+        margin-bottom: 16px;
+    }
+
+    .epi-form-group--half {
+        flex: 1;
+    }
+
+    .epi-form-row {
+        display: flex;
+        gap: 16px;
+    }
+
+    .epi-label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-textbox, .epi-select, .epi-textarea {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+    }
+
+    .epi-textbox:focus, .epi-select:focus, .epi-textarea:focus {
+        outline: none;
+        border-color: #0066cc;
+        box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+    }
+
+    .epi-textbox--small, .epi-select--small {
+        padding: 4px 8px;
+        font-size: 0.85rem;
+    }
+
+    .epi-textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .epi-textarea--code {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.85rem;
+    }
+
+    .epi-field-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        padding: 10px;
+    }
+
+    .epi-field-item {
+        padding: 4px 0;
+    }
+
+    .epi-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .epi-filter-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        align-items: center;
+    }
+
+    .epi-filter-row .epi-textbox {
+        flex: 1;
+    }
+
+    .epi-filter-row .epi-select {
+        width: 140px;
+    }
+
+    .epi-info-box {
+        background: #f0f7ff;
+        border: 1px solid #cce5ff;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 16px;
+        font-size: 0.875rem;
+    }
+
+    .epi-info-box code {
+        background: #e8f4ff;
+        padding: 2px 4px;
+        border-radius: 2px;
+    }
+
+    .epi-validation-messages {
+        margin-bottom: 16px;
+    }
+
+    .epi-validation-message {
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        font-size: 0.875rem;
+    }
+
+    .epi-validation--warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        color: #856404;
+    }
+
+    .epi-validation--error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .epi-form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+
+    .epi-table-container {
+        overflow-x: auto;
+    }
+
+    .epi-table-container--scrollable {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .epi-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .epi-table th, .epi-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .epi-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+    }
+
+    .epi-table tbody tr:hover {
+        background: #f5f5f5;
+    }
+
+    .epi-table--results td {
+        font-size: 0.85rem;
+        white-space: nowrap;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .epi-actions {
+        white-space: nowrap;
+        display: flex;
+        gap: 5px;
+    }
+
+    .epi-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .epi-badge--primary {
+        background: #e6f0ff;
+        color: #0066cc;
+    }
+
+    .epi-badge--secondary {
+        background: #f0f0f0;
+        color: #666;
+    }
+
+    .epi-text-muted {
+        color: #888;
+    }
+
+    .epi-empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+    }
+
+    .epi-result-info {
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+    }
+
+    .epi-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #eee;
+    }
+
+    .epi-pagination-info {
+        font-size: 0.875rem;
+        color: #666;
+    }
+
+    .epi-pagination-buttons {
+        display: flex;
+        gap: 4px;
+    }
+
+    .epi-info-box--sync {
+        background: #f0f8ff;
+        border-color: #b8daff;
+        margin-bottom: 16px;
+    }
+
+    .epi-info-box--sync small {
+        color: #004085;
+    }
+</style>

@@ -39,5 +39,16 @@
 
     </div>
     <script src="_framework/blazor.server.js"></script>
+    <script>
+        // CSV download function for Query Library
+        window.downloadCsv = function(filename, base64Content) {
+            const link = document.createElement('a');
+            link.href = 'data:text/csv;base64,' + base64Content;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
 </body>
 </html>

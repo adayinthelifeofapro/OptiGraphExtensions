@@ -58,6 +58,18 @@ public sealed class AdministrationController : Controller
     }
 
     [HttpGet]
+    [Route("~/optimizely-graphextensions/administration/query-library")]
+    public IActionResult QueryLibrary()
+    {
+        var model = new AdministrationViewModel
+        {
+            Title = "Opti Graph Extensions - Query Library",
+        };
+
+        return View("~/Views/OptiGraphExtensions/Administration/QueryLibrary/Index.cshtml", model);
+    }
+
+    [HttpGet]
     [Route("~/optimizely-addon/administration/public/list")]
     [AllowAnonymous]
     public IActionResult PublicList()

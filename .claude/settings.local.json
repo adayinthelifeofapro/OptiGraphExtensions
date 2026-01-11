@@ -10,7 +10,8 @@
       "WebSearch",
       "Bash(Remove-Item -Recurse -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Features\\StopWords\")",
       "Bash(Remove-Item -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Entities\\StopWord.cs\")",
-      "Bash(Remove-Item -Recurse -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Views\\OptiGraphExtensions\\Administration\\StopWords\")"
+      "Bash(Remove-Item -Recurse -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Views\\OptiGraphExtensions\\Administration\\StopWords\")",
+      "Bash(dotnet restore:*)"
     ],
     "deny": [],
     "ask": []
