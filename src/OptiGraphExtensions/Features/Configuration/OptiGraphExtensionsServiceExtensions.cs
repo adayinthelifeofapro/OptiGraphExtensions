@@ -27,6 +27,8 @@ using OptiGraphExtensions.Features.Webhooks.Services.Abstractions;
 using OptiGraphExtensions.Features.QueryLibrary.Repositories;
 using OptiGraphExtensions.Features.QueryLibrary.Services;
 using OptiGraphExtensions.Features.QueryLibrary.Services.Abstractions;
+using OptiGraphExtensions.Features.RequestLogs.Services;
+using OptiGraphExtensions.Features.RequestLogs.Services.Abstractions;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -80,6 +82,7 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddHttpClient<IWebhookService, WebhookService>();
         services.AddHttpClient<ISchemaDiscoveryService, SchemaDiscoveryService>();
         services.AddHttpClient<IQueryExecutionService, QueryExecutionService>();
+        services.AddHttpClient<IRequestLogService, RequestLogService>();
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
@@ -182,6 +185,9 @@ public static class OptiGraphExtensionsServiceExtensions
 
         // Register webhook services
         services.AddScoped<IWebhookValidationService, WebhookValidationService>();
+
+        // Register request log services
+        services.AddScoped<IRequestLogExportService, RequestLogExportService>();
 
         // Register Query Library services
         services.AddScoped<SavedQueryRepository>();
