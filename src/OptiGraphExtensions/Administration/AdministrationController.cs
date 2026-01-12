@@ -70,6 +70,18 @@ public sealed class AdministrationController : Controller
     }
 
     [HttpGet]
+    [Route("~/optimizely-graphextensions/administration/request-logs")]
+    public IActionResult RequestLogs()
+    {
+        var model = new AdministrationViewModel
+        {
+            Title = "Opti Graph Extensions - Request Logs",
+        };
+
+        return View("~/Views/OptiGraphExtensions/Administration/RequestLogs/Index.cshtml", model);
+    }
+
+    [HttpGet]
     [Route("~/optimizely-addon/administration/public/list")]
     [AllowAnonymous]
     public IActionResult PublicList()

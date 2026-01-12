@@ -1,6 +1,6 @@
 # OptiGraphExtensions
 
-An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, and webhooks within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, and webhook event management.
+An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, webhooks, saved queries, and request logs within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, webhook event management, GraphQL query building, and API monitoring.
 
 [![NuGet Version](https://img.shields.io/nuget/v/OptiGraphExtensions.svg)](https://www.nuget.org/packages/OptiGraphExtensions/)
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
@@ -39,6 +39,48 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, p
 - **Help Tooltips**: Detailed descriptions for topics and filter examples
 - Real-time synchronization with Optimizely Graph API
 - **Status Filter**: Filter webhook list by active/disabled status
+
+### 📊 Query Library
+- Build, save, and execute GraphQL queries directly against Optimizely Graph
+- **Visual Query Builder**: Intuitive interface for building queries without writing GraphQL
+  - Content type selection from your Graph schema
+  - Field picker with checkbox interface
+  - Filter configuration with multiple operators (equals, contains, starts with, greater than, etc.)
+  - Sort options and language filtering
+- **Raw GraphQL Mode**: Full-featured editor for advanced users
+  - Direct GraphQL query editing
+  - Query variables support in JSON format
+  - Syntax validation before execution
+- **Query Management**: Save and organize frequently-used queries
+  - Name and describe queries for easy reference
+  - Edit and refine saved queries over time
+  - Run saved queries with a single click
+- **CSV Export**: Export query results for further analysis
+  - Export current preview results instantly
+  - Full pagination support for large datasets
+  - Progress indicator for long-running exports
+- **Mode Switching**: Seamlessly switch between visual and raw modes with automatic query conversion
+
+### 📋 Request Logs
+- Monitor and analyze API requests between your CMS and Optimizely Graph
+- **Comprehensive Log Viewing**: Detailed information for every Graph API request
+  - Request details: HTTP method, path, host, timestamps
+  - Response data: Status codes, success/failure indicators, duration
+  - Operation context: GraphQL operation names and user information
+  - Full payloads: Complete request and response bodies for debugging
+- **Server-side Filtering**: Query the Graph API with specific parameters
+  - Filter by request ID for tracing specific operations
+  - Filter by host or path
+  - Filter by success/failure status
+- **Client-side Filtering**: Additional filtering after data retrieval
+  - Date range selection
+  - HTTP method filter (GET, POST, PUT, DELETE, etc.)
+  - Free-text search across paths, operations, messages, and users
+- **Export Capabilities**: Share or analyze logs offline
+  - CSV export for spreadsheet analysis
+  - JSON export for programmatic processing
+  - Exports respect current filter selections
+- **Detail View**: Click any log entry for complete information
 
 ### 🎨 Administration Interface
 - Clean, intuitive admin interface integrated with Optimizely CMS
@@ -170,9 +212,16 @@ src/
 │   │   │   ├── Services/           # CRUD, sync, validation services
 │   │   │   ├── Repositories/       # Data access with caching
 │   │   │   └── Models/             # Request/response models
-│   │   └── Webhooks/               # Webhook management feature
-│   │       ├── Services/           # CRUD and validation services
-│   │       └── Models/             # Request/response models
+│   │   ├── Webhooks/               # Webhook management feature
+│   │   │   ├── Services/           # CRUD and validation services
+│   │   │   └── Models/             # Request/response models
+│   │   ├── QueryLibrary/           # Query library feature
+│   │   │   ├── Services/           # Query execution, CSV export, schema discovery
+│   │   │   ├── Repositories/       # Saved query data access with caching
+│   │   │   └── Models/             # Query models and execution results
+│   │   └── RequestLogs/            # Request logs feature
+│   │       ├── Services/           # Log retrieval and export services
+│   │       └── Models/             # Log models and filter options
 │   ├── Menus/                      # CMS menu integration
 │   └── Views/                      # Razor views and layouts
 ├── OptiGraphExtensions.Tests/       # NUnit test project
@@ -321,6 +370,44 @@ Webhooks allow you to receive notifications when content changes occur in Optimi
 
 **Note:** Due to a limitation in the Optimizely Graph PUT endpoint (which doesn't reliably update topics/filters), the AddOn implements updates by deleting and recreating webhooks. This means webhook IDs will change after editing.
 
+### Query Library
+
+The Query Library allows you to build and execute GraphQL queries directly against Optimizely Graph:
+
+| Feature | Description |
+|---------|-------------|
+| Visual Builder | Build queries using dropdowns and checkboxes without writing GraphQL |
+| Raw Mode | Write GraphQL queries directly with variable support |
+| Schema Discovery | Automatically discovers content types and fields from your Graph schema |
+| Saved Queries | Save, name, and organize frequently-used queries |
+| CSV Export | Export query results with full pagination support |
+
+**Supported Filter Operators:**
+- `eq` (equals), `neq` (not equals)
+- `contains`, `startsWith`
+- `gt` (greater than), `lt` (less than)
+- `gte` (greater or equal), `lte` (less or equal)
+
+### Request Logs
+
+The Request Logs feature provides visibility into API communications with Optimizely Graph:
+
+| Feature | Description |
+|---------|-------------|
+| Log Retrieval | Fetches request/response logs from the Graph API |
+| Filtering | Server-side and client-side filtering options |
+| Export | Export to CSV or JSON formats |
+| Detail View | Full request/response payloads for debugging |
+
+**API Query Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `requestId` | Filter by specific request ID |
+| `host` | Filter by host |
+| `path` | Filter by request path |
+| `success` | Filter by success status (true/false) |
+| `page` | Pagination page number |
+
 ## Authorization
 
 The admin interface requires users to be members of one of the following roles:
@@ -338,6 +425,8 @@ The project includes comprehensive NUnit tests covering:
 - CRUD operations for all entities
 - Graph synchronization services
 - Content search service and API controller
+- Query library services (execution, export, schema discovery)
+- Request log services and export functionality
 - Request mapping and DTOs
 
 ## Contributing

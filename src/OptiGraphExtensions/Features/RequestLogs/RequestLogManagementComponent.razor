@@ -1,0 +1,685 @@
+@inherits RequestLogManagementComponentBase
+
+<div class="epi-request-logs-container">
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--danger">
+            <div class="epi-notificationbar-text">@ErrorMessage</div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--success">
+            <div class="epi-notificationbar-text">@SuccessMessage</div>
+        </div>
+    }
+
+    @* API Query Parameters (Server-side Filtering) *@
+    <div class="epi-filter-panel epi-filter-panel--api">
+        <div class="epi-filter-section-header">
+            <span class="epi-filter-section-title">API Filters</span>
+            <span class="epi-filter-section-hint">Server-side filtering - requires clicking "Apply & Fetch"</span>
+        </div>
+        <div class="epi-filter-row">
+            <div class="epi-filter-group">
+                <label class="epi-label">Page</label>
+                <input type="number" class="epi-textbox epi-textbox--small" min="1" placeholder="Page #" value="@ApiPage" @onchange="e => ApiPage = int.TryParse(e.Value?.ToString(), out var p) && p > 0 ? p : null" />
+            </div>
+            <div class="epi-filter-group">
+                <label class="epi-label">Request ID</label>
+                <input type="text" class="epi-textbox" placeholder="Filter by request ID" @bind="ApiRequestId" />
+            </div>
+            <div class="epi-filter-group">
+                <label class="epi-label">Host</label>
+                <input type="text" class="epi-textbox" placeholder="Filter by host" @bind="ApiHost" />
+            </div>
+            <div class="epi-filter-group">
+                <label class="epi-label">Path</label>
+                <input type="text" class="epi-textbox" placeholder="Filter by path" @bind="ApiPath" />
+            </div>
+            <div class="epi-filter-group">
+                <label class="epi-label">Success</label>
+                <select class="epi-select" @bind="ApiSuccess">
+                    <option value="">All</option>
+                    <option value="true">Success</option>
+                    <option value="false">Failed</option>
+                </select>
+            </div>
+            <div class="epi-filter-actions">
+                <button class="epi-button" @onclick="LoadLogs" disabled="@IsLoading">
+                    @if (IsLoading)
+                    {
+                        <span>Loading...</span>
+                    }
+                    else
+                    {
+                        <span>Apply & Fetch</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @* Client-side Filters *@
+    <div class="epi-filter-panel">
+        <div class="epi-filter-section-header">
+            <span class="epi-filter-section-title">Local Filters</span>
+            <span class="epi-filter-section-hint">Client-side filtering - filters results in memory</span>
+        </div>
+        <div class="epi-filter-row">
+            <div class="epi-filter-group">
+                <label class="epi-label">Start Date</label>
+                <input type="date" class="epi-textbox" value="@StartDate?.ToString("yyyy-MM-dd")" @onchange="OnStartDateChanged" />
+            </div>
+            <div class="epi-filter-group">
+                <label class="epi-label">End Date</label>
+                <input type="date" class="epi-textbox" value="@EndDate?.ToString("yyyy-MM-dd")" @onchange="OnEndDateChanged" />
+            </div>
+            <div class="epi-filter-group">
+                <label class="epi-label">Method</label>
+                <select class="epi-select" value="@SelectedMethod" @onchange="OnMethodFilterChanged">
+                    <option value="">All Methods</option>
+                    @foreach (var method in AvailableHttpMethods)
+                    {
+                        <option value="@method">@method</option>
+                    }
+                </select>
+            </div>
+            <div class="epi-filter-group">
+                <label class="epi-label">Status</label>
+                <select class="epi-select" value="@SelectedStatus" @onchange="OnStatusFilterChanged">
+                    <option value="">All</option>
+                    <option value="success">Success</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </div>
+        </div>
+        <div class="epi-filter-row">
+            <div class="epi-filter-group epi-filter-group--search">
+                <label class="epi-label">Search</label>
+                <input type="text" class="epi-textbox" placeholder="Search path, operation, message, user..." value="@SearchText" @onchange="OnSearchTextChanged" />
+            </div>
+            <div class="epi-filter-actions">
+                @if (HasActiveFilters)
+                {
+                    <button class="epi-button epi-button--secondary" @onclick="ClearAllFilters" disabled="@IsLoading">Clear All Filters</button>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* Export Buttons *@
+    <div class="epi-export-panel">
+        <span class="epi-result-count">@TotalItems logs found</span>
+        <div class="epi-export-buttons">
+            <button class="epi-button epi-button--secondary" @onclick="ExportToCsv" disabled="@(IsLoading || TotalItems == 0)">Export CSV</button>
+            <button class="epi-button epi-button--secondary" @onclick="ExportToJson" disabled="@(IsLoading || TotalItems == 0)">Export JSON</button>
+        </div>
+    </div>
+
+    @* Logs Table *@
+    @if (IsLoading)
+    {
+        <div class="epi-loading">
+            <div class="epi-spinner"></div>
+            <span>Loading request logs...</span>
+        </div>
+    }
+    else if (Logs.Count == 0)
+    {
+        <div class="epi-empty-state">
+            <p>No request logs found.</p>
+            @if (HasActiveFilters)
+            {
+                <p>Try adjusting your filters.</p>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="epi-table-container">
+            <table class="epi-table">
+                <thead>
+                    <tr>
+                        <th>Created At</th>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Operation</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>User</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in Logs)
+                    {
+                        <tr>
+                            <td>@FormatDateTime(log.CreatedAt)</td>
+                            <td><span class="epi-method-badge epi-method-badge--@log.Method?.ToLowerInvariant()">@log.Method</span></td>
+                            <td class="epi-path-cell" title="@log.Path">@TruncatePath(log.Path)</td>
+                            <td>@log.OperationName</td>
+                            <td><span class="epi-status-badge @GetStatusBadgeClass(log.Success)">@GetStatusText(log.Success)</span></td>
+                            <td>@FormatDuration(log.Duration)</td>
+                            <td>@log.User</td>
+                            <td>
+                                <button class="epi-button epi-button--small" @onclick="() => ShowLogDetails(log)">View</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @* Pagination *@
+        @if (TotalPages > 1)
+        {
+            <div class="epi-pagination">
+                <button class="epi-pagination-btn" @onclick="GoToPreviousPage" disabled="@(CurrentPage == 1)">Previous</button>
+                @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
+                {
+                    var pageNum = i;
+                    <button class="epi-pagination-btn @(pageNum == CurrentPage ? "epi-pagination-btn--active" : "")" @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                }
+                <button class="epi-pagination-btn" @onclick="GoToNextPage" disabled="@(CurrentPage == TotalPages)">Next</button>
+                <span class="epi-pagination-info">Page @CurrentPage of @TotalPages</span>
+            </div>
+        }
+    }
+
+    @* Details Modal *@
+    @if (ShowDetails && SelectedLog != null)
+    {
+        <div class="epi-modal-overlay" @onclick="CloseDetails">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h3>Request Log Details</h3>
+                    <button class="epi-modal-close" @onclick="CloseDetails">&times;</button>
+                </div>
+                <div class="epi-modal-body">
+                    <div class="epi-detail-grid">
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">ID:</span>
+                            <span class="epi-detail-value">@SelectedLog.Id</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Created At:</span>
+                            <span class="epi-detail-value">@FormatDateTime(SelectedLog.CreatedAt)</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Instance ID:</span>
+                            <span class="epi-detail-value">@SelectedLog.InstanceId</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Method:</span>
+                            <span class="epi-detail-value"><span class="epi-method-badge epi-method-badge--@SelectedLog.Method?.ToLowerInvariant()">@SelectedLog.Method</span></span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Host:</span>
+                            <span class="epi-detail-value">@SelectedLog.Host</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Path:</span>
+                            <span class="epi-detail-value epi-detail-value--wrap">@SelectedLog.Path</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Operation Type:</span>
+                            <span class="epi-detail-value">@SelectedLog.OperationType</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Operation Name:</span>
+                            <span class="epi-detail-value">@SelectedLog.OperationName</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Status:</span>
+                            <span class="epi-detail-value">@SelectedLog.Status</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Success:</span>
+                            <span class="epi-detail-value"><span class="epi-status-badge @GetStatusBadgeClass(SelectedLog.Success)">@GetStatusText(SelectedLog.Success)</span></span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Duration:</span>
+                            <span class="epi-detail-value">@FormatDuration(SelectedLog.Duration)</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">User:</span>
+                            <span class="epi-detail-value">@SelectedLog.User</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(SelectedLog.Message))
+                        {
+                            <div class="epi-detail-row epi-detail-row--full">
+                                <span class="epi-detail-label">Message:</span>
+                                <pre class="epi-detail-message">@SelectedLog.Message</pre>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="epi-modal-footer">
+                    <button class="epi-button" @onclick="CloseDetails">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static string TruncatePath(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return string.Empty;
+        return path.Length > 50 ? path.Substring(0, 47) + "..." : path;
+    }
+}
+
+<style>
+    .epi-request-logs-container {
+        padding: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    }
+
+    .epi-notificationbar {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+    }
+
+    .epi-notificationbar--danger {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+    }
+
+    .epi-notificationbar--success {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #16a34a;
+    }
+
+    .epi-filter-panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .epi-filter-panel--api {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
+    .epi-filter-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .epi-filter-panel--api .epi-filter-section-header {
+        border-bottom-color: #bfdbfe;
+    }
+
+    .epi-filter-section-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1e293b;
+    }
+
+    .epi-filter-section-hint {
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .epi-filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-end;
+        margin-bottom: 12px;
+    }
+
+    .epi-filter-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .epi-filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .epi-filter-group--search {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .epi-filter-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+    }
+
+    .epi-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: #64748b;
+    }
+
+    .epi-textbox, .epi-select {
+        padding: 8px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        font-size: 14px;
+        min-width: 150px;
+    }
+
+    .epi-textbox--small {
+        min-width: 80px;
+        width: 80px;
+    }
+
+    .epi-textbox:focus, .epi-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .epi-export-panel {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .epi-result-count {
+        font-size: 14px;
+        color: #64748b;
+    }
+
+    .epi-export-buttons {
+        display: flex;
+        gap: 8px;
+    }
+
+    .epi-button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        background: #3b82f6;
+        color: white;
+        transition: background 0.2s;
+    }
+
+    .epi-button:hover:not(:disabled) {
+        background: #2563eb;
+    }
+
+    .epi-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .epi-button--secondary {
+        background: #e2e8f0;
+        color: #475569;
+    }
+
+    .epi-button--secondary:hover:not(:disabled) {
+        background: #cbd5e1;
+    }
+
+    .epi-button--small {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .epi-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 40px;
+        color: #64748b;
+    }
+
+    .epi-spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .epi-empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #64748b;
+    }
+
+    .epi-table-container {
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .epi-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .epi-table th, .epi-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .epi-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .epi-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .epi-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .epi-path-cell {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .epi-method-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .epi-method-badge--get { background: #dbeafe; color: #1d4ed8; }
+    .epi-method-badge--post { background: #dcfce7; color: #15803d; }
+    .epi-method-badge--put { background: #fef3c7; color: #b45309; }
+    .epi-method-badge--patch { background: #fef3c7; color: #b45309; }
+    .epi-method-badge--delete { background: #fee2e2; color: #dc2626; }
+    .epi-method-badge--options { background: #f3e8ff; color: #7c3aed; }
+    .epi-method-badge--head { background: #e0e7ff; color: #4338ca; }
+
+    .epi-status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .epi-status-badge--success { background: #dcfce7; color: #15803d; }
+    .epi-status-badge--error { background: #fee2e2; color: #dc2626; }
+
+    .epi-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 16px;
+    }
+
+    .epi-pagination-btn {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        background: white;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .epi-pagination-btn:hover:not(:disabled) {
+        background: #f8fafc;
+    }
+
+    .epi-pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .epi-pagination-btn--active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    .epi-pagination-info {
+        margin-left: 16px;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    /* Modal styles */
+    .epi-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .epi-modal {
+        background: white;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 90vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .epi-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .epi-modal-header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #1e293b;
+    }
+
+    .epi-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .epi-modal-close:hover {
+        color: #1e293b;
+    }
+
+    .epi-modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .epi-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .epi-detail-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .epi-detail-row {
+        display: flex;
+        gap: 12px;
+    }
+
+    .epi-detail-row--full {
+        flex-direction: column;
+    }
+
+    .epi-detail-label {
+        font-weight: 600;
+        color: #64748b;
+        min-width: 120px;
+        font-size: 13px;
+    }
+
+    .epi-detail-value {
+        color: #1e293b;
+        font-size: 14px;
+    }
+
+    .epi-detail-value--wrap {
+        word-break: break-all;
+    }
+
+    .epi-detail-message {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 12px;
+        margin-top: 8px;
+        font-family: monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-x: auto;
+    }
+</style>
