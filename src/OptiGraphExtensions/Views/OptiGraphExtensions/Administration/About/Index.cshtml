@@ -1,19 +1,10 @@
-@using EPiServer.Shell.Navigation
 @model OptiGraphExtensions.Administration.AdministrationViewModel
 
 @{
     Layout = "/Views/Shared/Layouts/_LayoutBlazorAdminPage.cshtml";
 }
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>@Model.Title</title>
-</head>
-<body>
-    @Html.CreatePlatformNavigationMenu()
-    <div @Html.ApplyPlatformNavigation()>
-        <div class="epi-contentArea">
+<div class="epi-contentArea">
             <div class="epi-contentAreaHeader">
                 <h1>@Model.Title</h1>
                 <p class="subtitle">@Model.Subtitle</p>
@@ -138,9 +129,8 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <style>
+<style>
         .epi-contentArea {
             padding: 20px;
             max-width: 1200px;
@@ -279,6 +269,4 @@
             font-size: 14px;
             color: #666;
         }
-    </style>
-</body>
-</html>
+</style>
