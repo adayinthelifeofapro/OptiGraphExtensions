@@ -14,7 +14,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
 
         public async Task<IEnumerable<PinnedResultsCollection>> GetAllAsync()
         {
-            return await _dataContext.PinnedResultsCollections.ToListAsync();
+            return await _dataContext.PinnedResultsCollections.AsNoTracking().ToListAsync();
         }
 
         public async Task<PinnedResultsCollection?> GetByIdAsync(Guid id)
@@ -70,6 +70,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
         public async Task<PinnedResultsCollection?> GetByGraphCollectionIdAsync(string graphCollectionId)
         {
             return await _dataContext.PinnedResultsCollections
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.GraphCollectionId == graphCollectionId);
         }
 

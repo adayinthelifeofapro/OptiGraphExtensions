@@ -15,12 +15,13 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
 
         public async Task<IEnumerable<Synonym>> GetAllAsync()
         {
-            return await _dataContext.Synonyms.ToListAsync();
+            return await _dataContext.Synonyms.AsNoTracking().ToListAsync();
         }
 
         public async Task<IEnumerable<Synonym>> GetByLanguageAsync(string language)
         {
             return await _dataContext.Synonyms
+                .AsNoTracking()
                 .Where(s => s.Language == language)
                 .ToListAsync();
         }

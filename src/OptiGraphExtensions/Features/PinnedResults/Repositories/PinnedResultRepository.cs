@@ -14,19 +14,26 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
 
         public async Task<IEnumerable<PinnedResult>> GetAllAsync(Guid? collectionId = null)
         {
-            var query = _dataContext.PinnedResults.AsQueryable();
-            
+            var query = _dataContext.PinnedResults.AsNoTracking();
+
             if (collectionId.HasValue)
             {
                 query = query.Where(pr => pr.CollectionId == collectionId.Value);
             }
-            
+
             return await query.OrderBy(pr => pr.Priority).ToListAsync();
         }
 
         public async Task<PinnedResult?> GetByIdAsync(Guid id)
         {
             return await _dataContext.PinnedResults.FindAsync(id);
+        }
+
+        public async Task<PinnedResult?> GetByIdWithCollectionAsync(Guid id)
+        {
+            return await _dataContext.PinnedResults
+                .Include(pr => pr.Collection)
+                .FirstOrDefaultAsync(pr => pr.Id == id);
         }
 
         public async Task<PinnedResult> CreateAsync(PinnedResult pinnedResult)
@@ -69,6 +76,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
         public async Task<IEnumerable<PinnedResult>> GetByCollectionIdAsync(Guid collectionId)
         {
             return await _dataContext.PinnedResults
+                .AsNoTracking()
                 .Where(pr => pr.CollectionId == collectionId)
                 .OrderBy(pr => pr.Priority)
                 .ToListAsync();

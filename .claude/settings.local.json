@@ -12,7 +12,8 @@
       "Bash(Remove-Item -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Entities\\StopWord.cs\")",
       "Bash(Remove-Item -Recurse -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Views\\OptiGraphExtensions\\Administration\\StopWords\")",
       "Bash(dotnet restore:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

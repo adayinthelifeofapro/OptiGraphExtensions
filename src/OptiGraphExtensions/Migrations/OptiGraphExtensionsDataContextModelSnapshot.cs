@@ -44,7 +44,8 @@ namespace OptiGraphExtensions.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("Language")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("Phrases")
                         .HasColumnType("nvarchar(max)");
@@ -61,6 +62,12 @@ namespace OptiGraphExtensions.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CollectionId");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_PinnedResults_IsActive");
+
+                    b.HasIndex("Language")
+                        .HasDatabaseName("IX_PinnedResults_Language");
 
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResults");
                 });
@@ -87,6 +94,9 @@ namespace OptiGraphExtensions.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_PinnedResultsCollections_IsActive");
 
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResultsCollections");
                 });
@@ -158,6 +168,13 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_SavedQueries_IsActive");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SavedQueries_Name");
+
                     b.ToTable("tbl_OptiGraphExtensions_SavedQueries");
                 });
 
@@ -174,7 +191,8 @@ namespace OptiGraphExtensions.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Language")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<int>("Slot")
                         .HasColumnType("int");
@@ -183,6 +201,15 @@ namespace OptiGraphExtensions.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Language")
+                        .HasDatabaseName("IX_Synonyms_Language");
+
+                    b.HasIndex("Slot")
+                        .HasDatabaseName("IX_Synonyms_Slot");
+
+                    b.HasIndex("Language", "Slot")
+                        .HasDatabaseName("IX_Synonyms_Language_Slot");
 
                     b.ToTable("tbl_OptiGraphExtensions_Synonyms");
                 });

@@ -51,6 +51,12 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
             return result;
         }
 
+        public async Task<PinnedResult?> GetByIdWithCollectionAsync(Guid id)
+        {
+            // Don't cache results with navigation properties to avoid serialization issues
+            return await _repository.GetByIdWithCollectionAsync(id);
+        }
+
         public async Task<PinnedResult> CreateAsync(PinnedResult pinnedResult)
         {
             var result = await _repository.CreateAsync(pinnedResult);

@@ -46,7 +46,7 @@ namespace OptiGraphExtensions.Features.QueryLibrary
         protected int PageSize { get; set; } = 10;
         protected int TotalPages => PaginationResult?.TotalPages ?? 0;
         protected int TotalItems => PaginationResult?.TotalItems ?? 0;
-        protected List<SavedQueryModel> Queries => PaginationResult?.Items?.ToList() ?? new List<SavedQueryModel>();
+        protected IList<SavedQueryModel> Queries => PaginationResult?.Items ?? Array.Empty<SavedQueryModel>();
 
         // Query Builder State
         protected SavedQueryModel CurrentQuery { get; set; } = new();

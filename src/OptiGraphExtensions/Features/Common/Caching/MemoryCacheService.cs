@@ -4,13 +4,14 @@ using System.Text.RegularExpressions;
 
 namespace OptiGraphExtensions.Features.Common.Caching
 {
-    public class MemoryCacheService : ICacheService
+    public class MemoryCacheService : ICacheService, IDisposable
     {
         private readonly IMemoryCache _memoryCache;
         private readonly ILogger<MemoryCacheService> _logger;
         private readonly HashSet<string> _cacheKeys = new();
-        private readonly SemaphoreSlim _semaphore = new(1, 1);
-        private readonly TimeSpan _defaultExpiration = TimeSpan.FromMinutes(30);
+        private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
+        private readonly TimeSpan _defaultExpiration = TimeSpan.FromMinutes(15); // Reduced from 30 for fresher data
+        private bool _disposed;
 
         public MemoryCacheService(IMemoryCache memoryCache, ILogger<MemoryCacheService> logger)
         {
@@ -18,29 +19,29 @@ namespace OptiGraphExtensions.Features.Common.Caching
             _logger = logger;
         }
 
-        public async Task<T?> GetAsync<T>(string key)
+        public Task<T?> GetAsync<T>(string key)
         {
-            await _semaphore.WaitAsync();
+            _lock.EnterReadLock();
             try
             {
                 if (_memoryCache.TryGetValue(key, out T? value))
                 {
                     _logger.LogDebug("Cache hit for key: {Key}", key);
-                    return value;
+                    return Task.FromResult<T?>(value);
                 }
 
                 _logger.LogDebug("Cache miss for key: {Key}", key);
-                return default(T);
+                return Task.FromResult<T?>(default);
             }
             finally
             {
-                _semaphore.Release();
+                _lock.ExitReadLock();
             }
         }
 
-        public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
+        public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
         {
-            await _semaphore.WaitAsync();
+            _lock.EnterWriteLock();
             try
             {
                 var options = new MemoryCacheEntryOptions
@@ -54,8 +55,19 @@ namespace OptiGraphExtensions.Features.Common.Caching
                 {
                     EvictionCallback = (k, v, r, s) =>
                     {
-                        _cacheKeys.Remove(key);
-                        _logger.LogDebug("Cache entry evicted: {Key}, Reason: {Reason}", key, r);
+                        // Use write lock for eviction callback to safely remove from HashSet
+                        if (_lock.TryEnterWriteLock(TimeSpan.FromMilliseconds(100)))
+                        {
+                            try
+                            {
+                                _cacheKeys.Remove(key);
+                                _logger.LogDebug("Cache entry evicted: {Key}, Reason: {Reason}", key, r);
+                            }
+                            finally
+                            {
+                                _lock.ExitWriteLock();
+                            }
+                        }
                     }
                 });
 
@@ -66,13 +78,15 @@ namespace OptiGraphExtensions.Features.Common.Caching
             }
             finally
             {
-                _semaphore.Release();
+                _lock.ExitWriteLock();
             }
+
+            return Task.CompletedTask;
         }
 
-        public async Task RemoveAsync(string key)
+        public Task RemoveAsync(string key)
         {
-            await _semaphore.WaitAsync();
+            _lock.EnterWriteLock();
             try
             {
                 _memoryCache.Remove(key);
@@ -81,13 +95,15 @@ namespace OptiGraphExtensions.Features.Common.Caching
             }
             finally
             {
-                _semaphore.Release();
+                _lock.ExitWriteLock();
             }
+
+            return Task.CompletedTask;
         }
 
-        public async Task RemoveByPatternAsync(string pattern)
+        public Task RemoveByPatternAsync(string pattern)
         {
-            await _semaphore.WaitAsync();
+            _lock.EnterWriteLock();
             try
             {
                 var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -103,13 +119,15 @@ namespace OptiGraphExtensions.Features.Common.Caching
             }
             finally
             {
-                _semaphore.Release();
+                _lock.ExitWriteLock();
             }
+
+            return Task.CompletedTask;
         }
 
-        public async Task ClearAsync()
+        public Task ClearAsync()
         {
-            await _semaphore.WaitAsync();
+            _lock.EnterWriteLock();
             try
             {
                 var keysToRemove = _cacheKeys.ToList();
@@ -123,13 +141,41 @@ namespace OptiGraphExtensions.Features.Common.Caching
             }
             finally
             {
-                _semaphore.Release();
+                _lock.ExitWriteLock();
             }
+
+            return Task.CompletedTask;
         }
 
         public bool Exists(string key)
         {
-            return _memoryCache.TryGetValue(key, out _);
+            _lock.EnterReadLock();
+            try
+            {
+                return _memoryCache.TryGetValue(key, out _);
+            }
+            finally
+            {
+                _lock.ExitReadLock();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+
+            if (disposing)
+            {
+                _lock.Dispose();
+            }
+
+            _disposed = true;
         }
     }
 }

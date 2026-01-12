@@ -76,13 +76,24 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddHttpContextAccessor();
         services.TryAddTransient<CookieForwardingHandler>();
 
-        services.AddHttpClient<ISynonymGraphSyncService, SynonymGraphSyncService>();
-        services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>();
-        services.AddHttpClient<IContentSearchService, ContentSearchService>();
-        services.AddHttpClient<IWebhookService, WebhookService>();
-        services.AddHttpClient<ISchemaDiscoveryService, SchemaDiscoveryService>();
-        services.AddHttpClient<IQueryExecutionService, QueryExecutionService>();
-        services.AddHttpClient<IRequestLogService, RequestLogService>();
+        // Configure HTTP clients with appropriate timeouts
+        var defaultTimeout = TimeSpan.FromSeconds(30);
+        var longRunningTimeout = TimeSpan.FromSeconds(60);
+
+        services.AddHttpClient<ISynonymGraphSyncService, SynonymGraphSyncService>()
+            .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
+        services.AddHttpClient<IPinnedResultsGraphSyncService, PinnedResultsGraphSyncService>()
+            .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
+        services.AddHttpClient<IContentSearchService, ContentSearchService>()
+            .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
+        services.AddHttpClient<IWebhookService, WebhookService>()
+            .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
+        services.AddHttpClient<ISchemaDiscoveryService, SchemaDiscoveryService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<IQueryExecutionService, QueryExecutionService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<IRequestLogService, RequestLogService>()
+            .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OptiGraphExtensions.Entities
 {
@@ -9,6 +10,7 @@ namespace OptiGraphExtensions.Entities
 
         public string? SynonymItem { get; set; }
 
+        [StringLength(10)]
         public string? Language { get; set; }
 
         public SynonymSlot Slot { get; set; } = SynonymSlot.ONE;

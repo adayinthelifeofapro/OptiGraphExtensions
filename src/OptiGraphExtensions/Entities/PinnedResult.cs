@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -16,6 +17,7 @@ namespace OptiGraphExtensions.Entities
 
         public string? TargetName { get; set; } // Display name of the content item
 
+        [StringLength(10)]
         public string? Language { get; set; } // Language code (e.g., "en", "sv")
 
         public int Priority { get; set; } // Numeric ordering value

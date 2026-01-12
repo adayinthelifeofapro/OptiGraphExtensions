@@ -43,7 +43,7 @@ namespace OptiGraphExtensions.Features.Webhooks
         protected int PageSize { get; set; } = 10;
         protected int TotalPages => PaginationResult?.TotalPages ?? 0;
         protected int TotalItems => PaginationResult?.TotalItems ?? 0;
-        protected List<WebhookModel> Webhooks => PaginationResult?.Items?.ToList() ?? new List<WebhookModel>();
+        protected IList<WebhookModel> Webhooks => PaginationResult?.Items ?? Array.Empty<WebhookModel>();
 
         protected static IEnumerable<string> AvailableHttpMethods => new[] { "POST", "GET", "PUT", "PATCH", "DELETE" };
 

@@ -83,25 +83,40 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         var authenticationHeader = (hmacKey + ":" + hmacSecret).Base64Encode();
         var graphApiUrl = $"{gatewayUrl}/api/pinned/collections/{collection.GraphCollectionId}/items";
 
-        // Send each pinned result item individually
-        foreach (var pinnedResult in pinnedResults.Where(pr => pr.IsActive))
+        // Send pinned results in parallel batches for improved performance
+        var activePinnedResults = pinnedResults.Where(pr => pr.IsActive).ToList();
+        const int batchSize = 5; // Limit concurrent requests to avoid overwhelming the API
+
+        var batches = activePinnedResults
+            .Select((item, index) => new { item, index })
+            .GroupBy(x => x.index / batchSize)
+            .Select(g => g.Select(x => x.item).ToList())
+            .ToList();
+
+        foreach (var batch in batches)
         {
-            var graphItem = CreateGraphPinnedResultItem(pinnedResult);
-            var jsonString = JsonSerializer.Serialize(graphItem, _jsonOptions);
-
-            using var request = CreateAuthenticatedRequest(HttpMethod.Post, graphApiUrl, authenticationHeader);
-            request.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.SendAsync(request);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new GraphSyncException($"Error syncing pinned result to Optimizely Graph: {response.StatusCode} - {errorContent}");
-            }
+            var tasks = batch.Select(pinnedResult => SyncSinglePinnedResultAsync(pinnedResult, graphApiUrl, authenticationHeader));
+            await Task.WhenAll(tasks);
         }
 
         return true;
+    }
+
+    private async Task SyncSinglePinnedResultAsync(PinnedResult pinnedResult, string graphApiUrl, string authenticationHeader)
+    {
+        var graphItem = CreateGraphPinnedResultItem(pinnedResult);
+        var jsonString = JsonSerializer.Serialize(graphItem, _jsonOptions);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Post, graphApiUrl, authenticationHeader);
+        request.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new GraphSyncException($"Error syncing pinned result to Optimizely Graph: {response.StatusCode} - {errorContent}");
+        }
     }
 
     public async Task<bool> DeletePinnedResultFromOptimizelyGraphAsync(string graphCollectionId, string graphId)
@@ -188,7 +203,7 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         }
 
         var responseContent = await response.Content.ReadAsStringAsync();
-        return await DeserializeGraphCollectionsResponse(responseContent);
+        return DeserializeGraphCollectionsResponse(responseContent);
     }
 
     public async Task<string> SyncSinglePinnedResultToOptimizelyGraphAsync(PinnedResult pinnedResult, string graphCollectionId)
@@ -241,7 +256,7 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         }
 
         var responseContent = await response.Content.ReadAsStringAsync();
-        var graphPinnedResults = await DeserializeGraphPinnedResultsResponse(responseContent);
+        var graphPinnedResults = DeserializeGraphPinnedResultsResponse(responseContent);
 
         // Preserve existing TargetName values before deletion (Graph doesn't store them)
         var existingResults = await _pinnedResultService.GetAllPinnedResultsAsync(collectionId);
@@ -343,12 +358,12 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         }
     }
 
-    private Task<IList<GraphCollectionResponse>> DeserializeGraphCollectionsResponse(string responseContent)
+    private IList<GraphCollectionResponse> DeserializeGraphCollectionsResponse(string responseContent)
     {
         try
         {
             var graphCollections = JsonSerializer.Deserialize<List<GraphCollectionResponse>>(responseContent, _jsonOptions);
-            return Task.FromResult<IList<GraphCollectionResponse>>(graphCollections?.OrderBy(c => c.Title).ToList() ?? new List<GraphCollectionResponse>());
+            return graphCollections?.OrderBy(c => c.Title).ToList() ?? new List<GraphCollectionResponse>();
         }
         catch (JsonException)
         {
@@ -356,12 +371,12 @@ public class PinnedResultsGraphSyncService : IPinnedResultsGraphSyncService
         }
     }
 
-    private Task<IList<GraphPinnedResultResponse>> DeserializeGraphPinnedResultsResponse(string responseContent)
+    private IList<GraphPinnedResultResponse> DeserializeGraphPinnedResultsResponse(string responseContent)
     {
         try
         {
             var graphPinnedResults = JsonSerializer.Deserialize<List<GraphPinnedResultResponse>>(responseContent, _jsonOptions);
-            return Task.FromResult<IList<GraphPinnedResultResponse>>(graphPinnedResults ?? new List<GraphPinnedResultResponse>());
+            return graphPinnedResults ?? new List<GraphPinnedResultResponse>();
         }
         catch (JsonException)
         {

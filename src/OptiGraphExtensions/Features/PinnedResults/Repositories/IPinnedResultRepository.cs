@@ -6,6 +6,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Repositories
     {
         Task<IEnumerable<PinnedResult>> GetAllAsync(Guid? collectionId = null);
         Task<PinnedResult?> GetByIdAsync(Guid id);
+        Task<PinnedResult?> GetByIdWithCollectionAsync(Guid id);
         Task<PinnedResult> CreateAsync(PinnedResult pinnedResult);
         Task<PinnedResult> UpdateAsync(PinnedResult pinnedResult);
         Task<bool> DeleteAsync(Guid id);

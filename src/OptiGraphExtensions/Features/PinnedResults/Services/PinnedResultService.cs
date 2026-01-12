@@ -121,16 +121,16 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
 
         public async Task<bool> DeletePinnedResultAsync(Guid id)
         {
-            // Get the pinned result to check if it has a Graph ID
-            var pinnedResult = await _pinnedResultRepository.GetByIdAsync(id);
+            // Get the pinned result with its collection in a single query (eager loading)
+            var pinnedResult = await _pinnedResultRepository.GetByIdWithCollectionAsync(id);
             if (pinnedResult == null)
                 return false;
 
             // If the pinned result has a Graph ID, delete it from Graph first
             if (!string.IsNullOrEmpty(pinnedResult.GraphId))
             {
-                // Get the collection to get the Graph Collection ID
-                var collection = await _collectionRepository.GetByIdAsync(pinnedResult.CollectionId);
+                // Collection is already loaded via Include - no additional DB call needed
+                var collection = pinnedResult.Collection;
                 if (collection != null && !string.IsNullOrEmpty(collection.GraphCollectionId))
                 {
                     try
@@ -151,10 +151,7 @@ namespace OptiGraphExtensions.Features.PinnedResults.Services
 
         public async Task<bool> DeletePinnedResultsByCollectionIdAsync(Guid collectionId)
         {
-            // Get all pinned results for this collection
-            var pinnedResults = await _pinnedResultRepository.GetByCollectionIdAsync(collectionId);
-            
-            // Delete locally
+            // Delete locally - no need to fetch first since DeleteByCollectionIdAsync handles the deletion
             return await _pinnedResultRepository.DeleteByCollectionIdAsync(collectionId);
         }
 

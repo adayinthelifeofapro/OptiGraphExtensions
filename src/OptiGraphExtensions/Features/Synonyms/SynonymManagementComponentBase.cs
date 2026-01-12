@@ -58,7 +58,7 @@ namespace OptiGraphExtensions.Features.Synonyms
         protected int PageSize { get; set; } = 10;
         protected int TotalPages => PaginationResult?.TotalPages ?? 0;
         protected int TotalItems => PaginationResult?.TotalItems ?? 0;
-        protected List<Synonym> Synonyms => PaginationResult?.Items?.ToList() ?? new List<Synonym>();
+        protected IList<Synonym> Synonyms => PaginationResult?.Items ?? Array.Empty<Synonym>();
 
         protected override async Task LoadDataAsync()
         {

@@ -89,7 +89,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
         protected int PageSize { get; set; } = 10;
         protected int TotalPages => PaginationResult?.TotalPages ?? 0;
         protected int TotalItems => PaginationResult?.TotalItems ?? 0;
-        protected List<PinnedResult> PinnedResults => PaginationResult?.Items?.ToList() ?? new List<PinnedResult>();
+        protected IList<PinnedResult> PinnedResults => PaginationResult?.Items ?? Array.Empty<PinnedResult>();
 
         protected override async Task LoadDataAsync()
         {
@@ -162,9 +162,14 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             ContentSearchText = e.Value?.ToString() ?? string.Empty;
 
-            // Clear selection if user is typing
-            SelectedContent = null;
-            NewPinnedResult.TargetKey = string.Empty;
+            // Only clear selection if user is typing something different from current selection
+            // This prevents accidental clearing when user clicks back into the field
+            if (SelectedContent != null && ContentSearchText != SelectedContent.DisplayText)
+            {
+                SelectedContent = null;
+                NewPinnedResult.TargetKey = string.Empty;
+                NewPinnedResult.TargetName = null;
+            }
 
             // Cancel previous timer
             _searchDebounceTimer?.Stop();
@@ -193,8 +198,13 @@ namespace OptiGraphExtensions.Features.PinnedResults
         {
             EditingContentSearchText = e.Value?.ToString() ?? string.Empty;
 
-            EditingSelectedContent = null;
-            EditingPinnedResult.TargetKey = string.Empty;
+            // Only clear selection if user is typing something different from current selection
+            if (EditingSelectedContent != null && EditingContentSearchText != EditingSelectedContent.DisplayText)
+            {
+                EditingSelectedContent = null;
+                EditingPinnedResult.TargetKey = string.Empty;
+                EditingPinnedResult.TargetName = null;
+            }
 
             _editingSearchDebounceTimer?.Stop();
             _editingSearchDebounceTimer?.Dispose();
@@ -302,7 +312,7 @@ namespace OptiGraphExtensions.Features.PinnedResults
             // Re-search if we have text
             if (!string.IsNullOrWhiteSpace(ContentSearchText) && ContentSearchText.Length >= 2)
             {
-                _ = PerformContentSearchAsync();
+                _ = InvokeAsync(PerformContentSearchAsync);
             }
         }
 

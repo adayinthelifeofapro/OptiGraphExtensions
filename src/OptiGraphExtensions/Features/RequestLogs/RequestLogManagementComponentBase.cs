@@ -60,7 +60,7 @@ public class RequestLogManagementComponentBase : ManagementComponentBase<Request
     protected int PageSize { get; set; } = 25;
     protected int TotalPages => PaginationResult?.TotalPages ?? 0;
     protected int TotalItems => PaginationResult?.TotalItems ?? 0;
-    protected List<RequestLogModel> Logs => PaginationResult?.Items?.ToList() ?? new List<RequestLogModel>();
+    protected IList<RequestLogModel> Logs => PaginationResult?.Items ?? Array.Empty<RequestLogModel>();
 
     protected static IEnumerable<string> AvailableHttpMethods => new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD" };
 

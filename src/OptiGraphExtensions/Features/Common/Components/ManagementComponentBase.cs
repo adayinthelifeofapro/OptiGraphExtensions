@@ -109,9 +109,28 @@ public abstract class ManagementComponentBase<TEntity, TModel> : ComponentBase
     protected virtual void NavigateToPage(int page, int currentPage, int totalPages, Action<int> setCurrentPage, Func<Task> loadData)
     {
         if (page < 1 || page > totalPages || page == currentPage) return;
-        
+
         setCurrentPage(page);
-        _ = Task.Run(loadData); // Fire and forget to avoid blocking UI
+        _ = ExecuteBackgroundTaskAsync(loadData);
+    }
+
+    /// <summary>
+    /// Executes a background task with proper error handling to avoid unobserved exceptions.
+    /// </summary>
+    private async Task ExecuteBackgroundTaskAsync(Func<Task> task)
+    {
+        try
+        {
+            await task();
+        }
+        catch (Exception ex)
+        {
+            await InvokeAsync(() =>
+            {
+                SetErrorMessage($"Background operation failed: {ex.Message}");
+                StateHasChanged();
+            });
+        }
     }
 
     protected virtual void NavigateToFirstPage(int currentPage, Action<int> setCurrentPage, Func<Task> loadData)

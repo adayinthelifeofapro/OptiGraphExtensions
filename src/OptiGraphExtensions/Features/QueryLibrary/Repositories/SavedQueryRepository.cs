@@ -15,6 +15,7 @@ namespace OptiGraphExtensions.Features.QueryLibrary.Repositories
         public async Task<IEnumerable<SavedQuery>> GetAllAsync()
         {
             return await _dataContext.SavedQueries
+                .AsNoTracking()
                 .OrderByDescending(q => q.CreatedAt)
                 .ToListAsync();
         }
@@ -22,6 +23,7 @@ namespace OptiGraphExtensions.Features.QueryLibrary.Repositories
         public async Task<IEnumerable<SavedQuery>> GetActiveAsync()
         {
             return await _dataContext.SavedQueries
+                .AsNoTracking()
                 .Where(q => q.IsActive)
                 .OrderByDescending(q => q.CreatedAt)
                 .ToListAsync();
