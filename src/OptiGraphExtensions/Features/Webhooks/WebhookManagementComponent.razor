@@ -483,6 +483,11 @@
                                         </td>
                                         <td class="epi-align-right">
                                             <div class="epi-button-group">
+                                                <button @onclick="() => ShowWebhookDetails(webhook)"
+                                                        class="epi-button epi-button--info epi-button--small"
+                                                        title="View webhook details">
+                                                    View
+                                                </button>
                                                 <button @onclick="() => StartEdit(webhook)"
                                                         class="epi-button epi-button--secondary epi-button--small"
                                                         title="Edit webhook">
@@ -532,6 +537,93 @@
                         </div>
                     }
                 }
+            </div>
+        </div>
+    }
+
+    @if (ShowDetails && SelectedWebhook != null)
+    {
+        <div class="epi-modal-overlay" @onclick="CloseDetails">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Webhook Details</h2>
+                    <button type="button" @onclick="CloseDetails" class="epi-modal-close" aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <div class="epi-detail-section">
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">ID:</span>
+                            <span class="epi-detail-value epi-detail-value--mono">@(SelectedWebhook.Id ?? "N/A")</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">Status:</span>
+                            <span class="epi-status-badge @GetStatusBadgeClass(SelectedWebhook.Disabled)">@GetStatusText(SelectedWebhook.Disabled)</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">HTTP Method:</span>
+                            <span class="epi-method-badge epi-method-badge--@SelectedWebhook.Method?.ToLowerInvariant()">@SelectedWebhook.Method</span>
+                        </div>
+                        <div class="epi-detail-row">
+                            <span class="epi-detail-label">URL:</span>
+                            <span class="epi-detail-value epi-detail-value--mono epi-detail-value--wrap">@(SelectedWebhook.Url ?? "N/A")</span>
+                        </div>
+                    </div>
+
+                    <div class="epi-detail-section">
+                        <h3 class="epi-h3">Event Topics</h3>
+                        @if (SelectedWebhook.Topics.Any() && !(SelectedWebhook.Topics.Count == 1 && SelectedWebhook.Topics[0] == "*.*"))
+                        {
+                            <div class="epi-detail-topics">
+                                @foreach (var topic in SelectedWebhook.Topics)
+                                {
+                                    <div class="epi-detail-topic">
+                                        <span class="epi-topic-badge">@topic</span>
+                                        <span class="epi-topic-description">@GetTopicDescription(topic)</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="epi-detail-empty">All events (*.*)</p>
+                        }
+                    </div>
+
+                    <div class="epi-detail-section">
+                        <h3 class="epi-h3">Filters</h3>
+                        @if (SelectedWebhook.Filters.Any())
+                        {
+                            <div class="epi-detail-filters">
+                                @foreach (var filter in SelectedWebhook.Filters)
+                                {
+                                    <div class="epi-detail-filter">
+                                        <code>@filter.Field</code>
+                                        <span class="epi-filter-operator">@filter.Operator</span>
+                                        <code>@filter.Value</code>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="epi-detail-empty">No filters configured</p>
+                        }
+                    </div>
+
+                    <div class="epi-detail-section">
+                        <h3 class="epi-h3">JSON Body</h3>
+                        <p class="epi-help-text">The webhook configuration as sent to/from the Optimizely Graph API.</p>
+                        <pre class="epi-json-body">@FormatWebhookAsJson(SelectedWebhook)</pre>
+                    </div>
+                </div>
+                <div class="epi-modal-footer">
+                    <button @onclick="() => { CloseDetails(); StartEdit(SelectedWebhook); }" class="epi-button epi-button--secondary">
+                        Edit
+                    </button>
+                    <button @onclick="CloseDetails" class="epi-button epi-button--primary">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     }
@@ -901,6 +993,14 @@
         background: #5a6268;
     }
 
+    .epi-button--info {
+        background: #17a2b8;
+    }
+
+    .epi-button--info:hover:not(:disabled) {
+        background: #138496;
+    }
+
     .epi-button--small {
         padding: 4px 8px;
         font-size: 12px;
@@ -1209,5 +1309,197 @@
             flex-direction: column;
             align-items: stretch;
         }
+    }
+
+    /* Modal styles */
+    .epi-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .epi-modal {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        max-width: 700px;
+        width: 90%;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .epi-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #ddd;
+        background: #f5f5f5;
+    }
+
+    .epi-modal-header .epi-h2 {
+        margin: 0;
+    }
+
+    .epi-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        line-height: 1;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+
+    .epi-modal-close:hover {
+        background: #e0e0e0;
+        color: #333;
+    }
+
+    .epi-modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .epi-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #ddd;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        background: #f9f9f9;
+    }
+
+    .epi-detail-section {
+        margin-bottom: 24px;
+    }
+
+    .epi-detail-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .epi-detail-section .epi-h3 {
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .epi-detail-row {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        gap: 12px;
+    }
+
+    .epi-detail-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .epi-detail-label {
+        font-weight: 600;
+        color: #555;
+        min-width: 100px;
+        flex-shrink: 0;
+    }
+
+    .epi-detail-value {
+        color: #333;
+        flex: 1;
+    }
+
+    .epi-detail-value--mono {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 13px;
+        background: #f5f5f5;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+
+    .epi-detail-value--wrap {
+        word-break: break-all;
+    }
+
+    .epi-detail-topics {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .epi-detail-topic {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .epi-topic-description {
+        color: #666;
+        font-size: 13px;
+    }
+
+    .epi-detail-filters {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .epi-detail-filter {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .epi-detail-filter code {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        color: #d63384;
+    }
+
+    .epi-filter-operator {
+        color: #666;
+        font-size: 13px;
+        font-style: italic;
+    }
+
+    .epi-detail-empty {
+        color: #6c757d;
+        font-style: italic;
+        margin: 0;
+    }
+
+    .epi-json-body {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 16px;
+        border-radius: 6px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        overflow-x: auto;
+        white-space: pre;
+        margin: 8px 0 0 0;
+        max-height: 300px;
+        overflow-y: auto;
     }
 </style>

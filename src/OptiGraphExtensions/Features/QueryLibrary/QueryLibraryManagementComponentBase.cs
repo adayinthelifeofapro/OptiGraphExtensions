@@ -612,18 +612,8 @@ namespace OptiGraphExtensions.Features.QueryLibrary
             {
                 await InvokeAsync(StateHasChanged);
 
-                // If we have preview results, export those first (single page)
-                // For full export with pagination, we'll fetch all pages
-                if (PreviewResult != null && PreviewResult.IsSuccess && PreviewResult.Rows.Any())
-                {
-                    // Quick export of current preview
-                    await ExportPreviewDataAsync();
-                }
-                else
-                {
-                    // Full export with pagination
-                    await ExportAllPagesAsync();
-                }
+                // Always fetch all pages for export to ensure complete data
+                await ExportAllPagesAsync();
             }
             catch (Exception ex)
             {
@@ -635,31 +625,6 @@ namespace OptiGraphExtensions.Features.QueryLibrary
                 ExportProgress = 0;
                 await InvokeAsync(StateHasChanged);
             }
-        }
-
-        private async Task ExportPreviewDataAsync()
-        {
-            if (PreviewResult == null || !PreviewResult.Rows.Any())
-            {
-                SetErrorMessage("No preview data to export.");
-                return;
-            }
-
-            ExportProgress = 50;
-            await InvokeAsync(StateHasChanged);
-
-            var csvContent = CsvExportService.GenerateCsvPreview(PreviewResult, int.MaxValue);
-            var filename = CsvExportService.GenerateFilename(CurrentQuery.Name ?? "export");
-
-            ExportProgress = 90;
-            await InvokeAsync(StateHasChanged);
-
-            // Trigger download via JavaScript
-            await DownloadCsvAsync(filename, csvContent);
-
-            var rowCount = PreviewResult.Rows.Count;
-            var hasMore = PreviewResult.HasMore;
-            SetSuccessMessage($"Exported {rowCount} rows{(hasMore ? " (first page only - use full export for all data)" : "")}.");
         }
 
         private async Task ExportAllPagesAsync()

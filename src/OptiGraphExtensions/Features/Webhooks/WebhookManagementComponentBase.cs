@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 
 using OptiGraphExtensions.Features.Common.Components;
@@ -31,6 +32,10 @@ namespace OptiGraphExtensions.Features.Webhooks
         protected bool ShowFilterHelp { get; set; }
         protected bool ShowEditTopicHelp { get; set; }
         protected bool ShowEditFilterHelp { get; set; }
+
+        // Detail view
+        protected WebhookModel? SelectedWebhook { get; set; }
+        protected bool ShowDetails { get; set; }
 
         protected string SelectedStatusFilter { get; set; } = string.Empty;
 
@@ -188,6 +193,20 @@ namespace OptiGraphExtensions.Features.Webhooks
             ShowEditTopicHelp = false;
             ShowEditFilterHelp = false;
             ClearMessages();
+        }
+
+        protected void ShowWebhookDetails(WebhookModel webhook)
+        {
+            SelectedWebhook = webhook;
+            ShowDetails = true;
+            StateHasChanged();
+        }
+
+        protected void CloseDetails()
+        {
+            ShowDetails = false;
+            SelectedWebhook = null;
+            StateHasChanged();
         }
 
         protected async Task UpdateWebhook()
@@ -380,6 +399,45 @@ namespace OptiGraphExtensions.Features.Webhooks
                 "*.*" => "Matches all events - equivalent to subscribing to everything",
                 _ => $"Custom topic pattern: {topic}"
             };
+        }
+
+        protected static string FormatWebhookAsJson(WebhookModel? webhook)
+        {
+            if (webhook == null)
+            {
+                return "{}";
+            }
+
+            // When no topics selected or only *. use *. for the API representation
+            var topics = (webhook.Topics != null && webhook.Topics.Count > 0)
+                ? webhook.Topics
+                : new List<string> { "*.*" };
+
+            var body = new Dictionary<string, object>
+            {
+                ["disabled"] = webhook.Disabled,
+                ["request"] = new Dictionary<string, object>
+                {
+                    ["url"] = webhook.Url ?? string.Empty,
+                    ["method"] = webhook.Method?.ToLowerInvariant() ?? "post"
+                },
+                ["topic"] = topics,
+                ["filters"] = (webhook.Filters ?? new List<WebhookFilter>()).Select(f =>
+                    new Dictionary<string, Dictionary<string, string>>
+                    {
+                        [f.Field] = new Dictionary<string, string>
+                        {
+                            [f.Operator] = f.Value
+                        }
+                    }
+                ).ToList()
+            };
+
+            return JsonSerializer.Serialize(body, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
         }
     }
 }
