@@ -11,6 +11,11 @@ namespace OptiGraphExtensions.Features.RequestLogs;
 
 public class RequestLogManagementComponentBase : ManagementComponentBase<RequestLogModel, RequestLogModel>
 {
+    /// <summary>
+    /// Threshold for warning about large result sets that may cause performance issues with client-side filtering.
+    /// </summary>
+    protected const int LargeResultSetThreshold = 500;
+
     [Inject]
     protected IRequestLogService RequestLogService { get; set; } = null!;
 
@@ -26,6 +31,11 @@ public class RequestLogManagementComponentBase : ManagementComponentBase<Request
     protected PaginationResult<RequestLogModel>? PaginationResult { get; set; }
     protected IList<RequestLogModel> AllLogs { get; set; } = new List<RequestLogModel>();
     protected IList<RequestLogModel> FilteredLogs { get; set; } = new List<RequestLogModel>();
+
+    /// <summary>
+    /// Warning message displayed when the result set is large and may cause performance issues.
+    /// </summary>
+    protected string? LargeResultSetWarning { get; set; }
 
     // API Query Parameters (server-side filtering)
     protected string ApiRequestId { get; set; } = string.Empty;
@@ -65,6 +75,17 @@ public class RequestLogManagementComponentBase : ManagementComponentBase<Request
         {
             var queryParameters = BuildQueryParameters();
             AllLogs = (await RequestLogService.GetRequestLogsAsync(queryParameters)).ToList();
+
+            // Check for large result sets and warn about potential performance impact
+            if (AllLogs.Count >= LargeResultSetThreshold)
+            {
+                LargeResultSetWarning = $"Large result set ({AllLogs.Count} items). Consider using API filters (Request ID, Host, Path, Success) to reduce the data set for better performance.";
+            }
+            else
+            {
+                LargeResultSetWarning = null;
+            }
+
             ApplyFilters();
         }, "loading request logs");
     }
@@ -111,15 +132,22 @@ public class RequestLogManagementComponentBase : ManagementComponentBase<Request
     {
         IEnumerable<RequestLogModel> filtered = AllLogs;
 
-        // Date range filter
+        // Date range filter (filter out items without parsed dates first)
+        if (StartDate.HasValue || EndDate.HasValue)
+        {
+            filtered = filtered.Where(l => l.CreatedAtParsed.HasValue);
+        }
+
         if (StartDate.HasValue)
         {
-            filtered = filtered.Where(l => l.CreatedAtParsed >= StartDate.Value);
+            filtered = filtered.Where(l => l.CreatedAtParsed!.Value >= StartDate.Value.Date);
         }
 
         if (EndDate.HasValue)
         {
-            filtered = filtered.Where(l => l.CreatedAtParsed <= EndDate.Value.AddDays(1).AddSeconds(-1));
+            // Use start of next day for inclusive end date comparison
+            var endOfDay = EndDate.Value.Date.AddDays(1);
+            filtered = filtered.Where(l => l.CreatedAtParsed!.Value < endOfDay);
         }
 
         // Method filter
@@ -245,16 +273,22 @@ public class RequestLogManagementComponentBase : ManagementComponentBase<Request
 
     protected async Task ExportToCsv()
     {
-        var csvContent = ExportService.ExportToCsv(FilteredLogs);
-        var fileName = $"request-logs-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
-        await DownloadFile(fileName, csvContent, "text/csv");
+        await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
+        {
+            var csvContent = ExportService.ExportToCsv(FilteredLogs);
+            var fileName = $"request-logs-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+            await DownloadFile(fileName, csvContent, "text/csv");
+        }, "exporting logs to CSV");
     }
 
     protected async Task ExportToJson()
     {
-        var jsonContent = ExportService.ExportToJson(FilteredLogs);
-        var fileName = $"request-logs-{DateTime.Now:yyyyMMdd-HHmmss}.json";
-        await DownloadFile(fileName, jsonContent, "application/json");
+        await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
+        {
+            var jsonContent = ExportService.ExportToJson(FilteredLogs);
+            var fileName = $"request-logs-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+            await DownloadFile(fileName, jsonContent, "application/json");
+        }, "exporting logs to JSON");
     }
 
     private async Task DownloadFile(string fileName, string content, string contentType)
