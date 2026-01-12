@@ -82,6 +82,18 @@ public sealed class AdministrationController : Controller
     }
 
     [HttpGet]
+    [Route("~/optimizely-graphextensions/administration/custom-data")]
+    public IActionResult CustomData()
+    {
+        var model = new AdministrationViewModel
+        {
+            Title = "Opti Graph Extensions - Custom Data",
+        };
+
+        return View("~/Views/OptiGraphExtensions/Administration/CustomData/Index.cshtml", model);
+    }
+
+    [HttpGet]
     [Route("~/optimizely-addon/administration/public/list")]
     [AllowAnonymous]
     public IActionResult PublicList()

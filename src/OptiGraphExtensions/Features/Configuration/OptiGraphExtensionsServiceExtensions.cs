@@ -29,6 +29,9 @@ using OptiGraphExtensions.Features.QueryLibrary.Services;
 using OptiGraphExtensions.Features.QueryLibrary.Services.Abstractions;
 using OptiGraphExtensions.Features.RequestLogs.Services;
 using OptiGraphExtensions.Features.RequestLogs.Services.Abstractions;
+using OptiGraphExtensions.Features.CustomData.Services;
+using OptiGraphExtensions.Features.CustomData.Services.Abstractions;
+using OptiGraphExtensions.Features.CustomData.Models;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -94,6 +97,10 @@ public static class OptiGraphExtensionsServiceExtensions
             .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
         services.AddHttpClient<IRequestLogService, RequestLogService>()
             .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
+        services.AddHttpClient<ICustomDataSchemaService, CustomDataSchemaService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<ICustomDataService, CustomDataService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;
@@ -212,5 +219,12 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IRawQueryService, RawQueryService>();
         services.AddScoped<ICsvExportService, CsvExportService>();
         services.AddScoped<ISavedQueryService, SavedQueryService>();
+
+        // Register Custom Data services
+        services.AddScoped<ICustomDataValidationService, CustomDataValidationService>();
+        services.AddScoped<INdJsonBuilderService, NdJsonBuilderService>();
+        services.AddScoped<ISchemaParserService, SchemaParserService>();
+        services.AddScoped<IValidationService<CreateSchemaRequest>, AttributeValidationService<CreateSchemaRequest>>();
+        services.AddScoped<IValidationService<SyncDataRequest>, AttributeValidationService<SyncDataRequest>>();
     }
 }

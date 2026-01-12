@@ -1,0 +1,1244 @@
+@using Microsoft.AspNetCore.Components
+@using OptiGraphExtensions.Features.CustomData
+@using OptiGraphExtensions.Features.CustomData.Models
+@inherits CustomDataManagementComponentBase
+
+<div class="epi-contentArea">
+    <div class="epi-contentAreaHeader">
+        <h1 class="epi-h1">Custom Data Management</h1>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--danger">
+            <div class="epi-notificationbar-text">@ErrorMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="epi-notificationbar epi-notificationbar--success">
+            <div class="epi-notificationbar-text">@SuccessMessage</div>
+            <button type="button" @onclick="ClearMessages" class="epi-notificationbar-close" aria-label="Close">×</button>
+        </div>
+    }
+
+    @* Full Sync Warning Modal *@
+    @if (ShowFullSyncWarning)
+    {
+        <div class="epi-modal-overlay" @onclick="CancelFullSyncWarning">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Warning: Full Sync</h2>
+                    <button type="button" @onclick="CancelFullSyncWarning" class="epi-modal-close" aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <div class="epi-warning-box">
+                        <strong>Warning:</strong> Full sync will <strong>DELETE ALL EXISTING DATA</strong> in this source. This action cannot be undone.
+                    </div>
+                    <p style="margin-top: 16px;">Are you sure you want to proceed?</p>
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelFullSyncWarning">Cancel</button>
+                    <button type="button" class="epi-button epi-button--danger" @onclick="@(async () => { ConfirmFullSyncWarning(); await SaveSchemaFullSync(); })">Yes, Delete Data and Sync</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Delete Source Confirmation Modal *@
+    @if (ShowDeleteConfirmation)
+    {
+        <div class="epi-modal-overlay" @onclick="CancelDeleteConfirmation">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Delete Source</h2>
+                    <button type="button" @onclick="CancelDeleteConfirmation" class="epi-modal-close" aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <div class="epi-warning-box">
+                        <strong>Warning:</strong> This will permanently delete the source <strong>"@SourceIdToDelete"</strong> and all associated data from Optimizely Graph. This action cannot be undone.
+                    </div>
+                    <p style="margin-top: 16px;">Are you sure you want to delete this source?</p>
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelDeleteConfirmation" disabled="@IsDeleting">Cancel</button>
+                    <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmDeleteSource" disabled="@IsDeleting">
+                        @if (IsDeleting) { <span class="epi-loader-small"></span> }
+                        Yes, Delete Source
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Mode: List *@
+    @if (CurrentMode == "list")
+    {
+        <div class="epi-contentGroup">
+            <div class="epi-groupHeader">
+                <h2 class="epi-h2">Custom Data Sources</h2>
+                <div class="epi-header-actions">
+                    <span class="epi-badge">@AllSources.Count total sources</span>
+                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="LoadSources" disabled="@IsLoading">
+                        Refresh
+                    </button>
+                    <button type="button" class="epi-button epi-button--primary epi-button--small" @onclick="ShowCreateSchemaForm" disabled="@IsLoading">
+                        New Source
+                    </button>
+                </div>
+            </div>
+            <div class="epi-content">
+                @if (IsLoading)
+                {
+                    <div class="epi-loading">
+                        <div class="epi-loader"></div>
+                        <p>Loading sources from Optimizely Graph...</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="epi-info-box">
+                        <p><strong>Custom Data Sources</strong> allow you to define your own GraphQL schemas and sync external data to Optimizely Graph.</p>
+                        <p style="margin-bottom: 0;"><strong>Note:</strong> Source IDs must be 1-4 lowercase letters and/or numbers only.</p>
+                    </div>
+
+                    @if (AllSources.Any())
+                    {
+                        <div class="epi-table-container">
+                            <table class="epi-table">
+                                <thead>
+                                    <tr>
+                                        <th>Source ID</th>
+                                        <th>Label</th>
+                                        <th>Languages</th>
+                                        <th>Content Types</th>
+                                        <th class="epi-align-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var source in PaginationResult?.Items ?? AllSources)
+                                    {
+                                        <tr>
+                                            <td><code class="epi-code">@source.SourceId</code></td>
+                                            <td>@(source.Label ?? "-")</td>
+                                            <td>@source.LanguagesDisplay</td>
+                                            <td>@source.ContentTypeCount type(s)</td>
+                                            <td class="epi-align-right">
+                                                <div class="epi-button-group">
+                                                    <button type="button" class="epi-button epi-button--info epi-button--small" @onclick="@(() => ShowEditSchemaForm(source.SourceId))" title="Edit Schema">
+                                                        Schema
+                                                    </button>
+                                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => ShowDataManagement(source.SourceId))" title="Manage Data">
+                                                        Data
+                                                    </button>
+                                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => ShowDeleteConfirmationDialog(source.SourceId))" title="Delete Source">
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if (TotalPages > 1)
+                        {
+                            <div class="epi-pagination">
+                                <div class="epi-pagination-info">
+                                    Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, AllSources.Count) of @AllSources.Count sources
+                                </div>
+                                <div class="epi-pagination-controls">
+                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(CurrentPage <= 1)" @onclick="GoToPreviousPage">
+                                        Previous
+                                    </button>
+                                    @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
+                                    {
+                                        var pageNumber = i;
+                                        <button type="button" @onclick="@(() => GoToPage(pageNumber))"
+                                                class="epi-button epi-button--small @(CurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
+                                            @pageNumber
+                                        </button>
+                                    }
+                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(CurrentPage >= TotalPages)" @onclick="GoToNextPage">
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="epi-empty-state">
+                            <p>No custom data sources found. Click "New Source" to create your first custom data source.</p>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
+    @* Mode: Schema Editor *@
+    @if (CurrentMode == "schema")
+    {
+        <div class="epi-contentGroup">
+            <div class="epi-groupHeader">
+                <h2 class="epi-h2">@(IsEditingSchema ? $"Edit Schema: {CurrentSchema.SourceId}" : "Create New Schema")</h2>
+                <div class="epi-header-actions">
+                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="BackToList">
+                        Back to List
+                    </button>
+                </div>
+            </div>
+            <div class="epi-form">
+                @* Editor Mode Toggle *@
+                <div class="epi-tabs">
+                    <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")" @onclick="SwitchToVisualMode">Visual Builder</button>
+                    <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")" @onclick="SwitchToRawMode">Raw JSON</button>
+                </div>
+
+                @if (EditorMode == "visual")
+                {
+                    <div class="epi-form-section">
+                        <h3 class="epi-h3">Source Configuration</h3>
+                        <p class="epi-help-text">Configure the basic properties of your custom data source.</p>
+
+                        <div class="epi-form-row">
+                            <div class="epi-form-field epi-form-field--source-id">
+                                <label for="sourceId" class="epi-label">Source ID *</label>
+                                <input id="sourceId" type="text" class="epi-textbox" @bind="CurrentSchema.SourceId"
+                                       placeholder="e.g., prod" maxlength="4"
+                                       disabled="@IsEditingSchema"
+                                       pattern="[a-z0-9]{1,4}" />
+                                <span class="epi-field-help">1-4 lowercase letters and/or numbers</span>
+                            </div>
+                            <div class="epi-form-field epi-form-field--label">
+                                <label for="schemaLabel" class="epi-label">Label</label>
+                                <input id="schemaLabel" type="text" class="epi-textbox" @bind="CurrentSchema.Label" placeholder="Human-readable label" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="epi-form-section">
+                        <h3 class="epi-h3">Languages</h3>
+                        <p class="epi-help-text">Define which languages are supported by this data source.</p>
+
+                        <div class="epi-languages-list">
+                            @for (int i = 0; i < CurrentSchema.Languages.Count; i++)
+                            {
+                                var index = i;
+                                <div class="epi-language-row">
+                                    <input type="text" class="epi-textbox epi-textbox--small" value="@CurrentSchema.Languages[index]"
+                                           @onchange="@(e => CurrentSchema.Languages[index] = e.Value?.ToString() ?? string.Empty)"
+                                           placeholder="e.g., en" />
+                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveLanguage(index))">Remove</button>
+                                </div>
+                            }
+                        </div>
+                        <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddLanguage">Add Language</button>
+                    </div>
+
+                    <div class="epi-form-section">
+                        <div class="epi-section-header">
+                            <h3 class="epi-h3">Content Types</h3>
+                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddContentType">Add Content Type</button>
+                        </div>
+                        <p class="epi-help-text">Define the content types and their properties that will be available in your custom data source.</p>
+
+                        @foreach (var contentType in CurrentSchema.ContentTypes)
+                        {
+                            <div class="epi-content-type-card">
+                                <div class="epi-content-type-header">
+                                    <div class="epi-form-row">
+                                        <div class="epi-form-field">
+                                            <label class="epi-label">Type Name *</label>
+                                            <input type="text" class="epi-textbox" @bind="contentType.Name" placeholder="e.g., Product" />
+                                        </div>
+                                        <div class="epi-form-field">
+                                            <label class="epi-label">Label</label>
+                                            <input type="text" class="epi-textbox" @bind="contentType.Label" placeholder="Human-readable label" />
+                                        </div>
+                                    </div>
+                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveContentType(contentType))">Remove Type</button>
+                                </div>
+
+                                <div class="epi-properties-section">
+                                    <h4 class="epi-h4">Properties</h4>
+                                    @if (contentType.Properties.Any())
+                                    {
+                                        <div class="epi-table-container">
+                                            <table class="epi-table epi-table--compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Type</th>
+                                                        <th>Searchable</th>
+                                                        <th>Required</th>
+                                                        <th class="epi-align-right">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var property in contentType.Properties)
+                                                    {
+                                                        <tr>
+                                                            <td><input type="text" class="epi-textbox epi-textbox--small" @bind="property.Name" placeholder="Property name" /></td>
+                                                            <td>
+                                                                <select class="epi-select epi-select--small" @bind="property.Type">
+                                                                    @foreach (var type in AvailablePropertyTypes)
+                                                                    {
+                                                                        <option value="@type">@type</option>
+                                                                    }
+                                                                </select>
+                                                            </td>
+                                                            <td class="epi-align-center"><input type="checkbox" @bind="property.IsSearchable" /></td>
+                                                            <td class="epi-align-center"><input type="checkbox" @bind="property.IsRequired" /></td>
+                                                            <td class="epi-align-right">
+                                                                <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveProperty(contentType, property))">Remove</button>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => AddProperty(contentType))">Add Property</button>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!CurrentSchema.ContentTypes.Any())
+                        {
+                            <div class="epi-empty-state epi-empty-state--compact">
+                                <p>No content types defined. Click "Add Content Type" to define your schema.</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="epi-form-section">
+                        <h3 class="epi-h3">Schema JSON</h3>
+                        <p class="epi-help-text">Edit the schema definition directly in JSON format.</p>
+                        <textarea class="epi-textarea epi-textarea--code" rows="20" @bind="RawSchemaJson"></textarea>
+                    </div>
+                }
+
+                <div class="epi-form-actions">
+                    @if (IsEditingSchema)
+                    {
+                        <button type="button" class="epi-button epi-button--primary" @onclick="SaveSchemaPartialSync" disabled="@IsSyncing">
+                            @if (IsSyncing) { <span class="epi-loader-small"></span> }
+                            Save (Partial Sync)
+                        </button>
+                    }
+                    <button type="button" class="epi-button @(IsEditingSchema ? "epi-button--warning" : "epi-button--primary")" @onclick="SaveSchemaFullSync" disabled="@IsSyncing">
+                        @if (IsSyncing) { <span class="epi-loader-small"></span> }
+                        @(IsEditingSchema ? "Save (Full Sync - Deletes Data)" : "Create Schema")
+                    </button>
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList" disabled="@IsSyncing">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Mode: Data Management *@
+    @if (CurrentMode == "data")
+    {
+        <div class="epi-contentGroup">
+            <div class="epi-groupHeader">
+                <h2 class="epi-h2">Manage Data: @CurrentSourceId</h2>
+                <div class="epi-header-actions">
+                    <span class="epi-badge">@DataItems.Count items</span>
+                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="BackToList">
+                        Back to List
+                    </button>
+                </div>
+            </div>
+            <div class="epi-form">
+                @* Editor Mode Toggle *@
+                <div class="epi-tabs">
+                    <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")" @onclick="SwitchToVisualMode">Visual Builder</button>
+                    <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")" @onclick="SwitchToRawMode">Raw NdJSON</button>
+                </div>
+
+                @if (EditorMode == "visual")
+                {
+                    @if (IsLoadingSchema)
+                    {
+                        <div class="epi-loading">
+                            <div class="epi-loader"></div>
+                            <p>Loading schema...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="epi-form-section">
+                            <h3 class="epi-h3">Content Type</h3>
+                            <p class="epi-help-text">Select the content type to add data items.</p>
+                            <div class="epi-form-row">
+                                <div class="epi-form-field">
+                                    <label for="contentTypeSelect" class="epi-label">Content Type</label>
+                                    <select id="contentTypeSelect" class="epi-select" @onchange="OnContentTypeSelected">
+                                        @foreach (var ct in CurrentSchema.ContentTypes)
+                                        {
+                                            <option value="@ct.Name" selected="@(SelectedContentType?.Name == ct.Name)">@ct.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        @* Add/Edit Item Form *@
+                        @if (EditingItem != null)
+                        {
+                            <div class="epi-form-section epi-form-section--highlight">
+                                <h3 class="epi-h3">@(DataItems.Any(i => i.Id == EditingItem.Id) ? "Edit Item" : "New Item")</h3>
+
+                                <div class="epi-form-row">
+                                    <div class="epi-form-field">
+                                        <label for="itemId" class="epi-label">Item ID *</label>
+                                        <input id="itemId" type="text" class="epi-textbox" @bind="EditingItem.Id" placeholder="Unique identifier" />
+                                    </div>
+                                    <div class="epi-form-field">
+                                        <label for="itemLanguage" class="epi-label">Language</label>
+                                        <select id="itemLanguage" class="epi-select" @bind="EditingItem.LanguageRouting">
+                                            @foreach (var lang in CurrentSchema.Languages)
+                                            {
+                                                <option value="@lang">@lang</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                @if (SelectedContentType != null)
+                                {
+                                    <div class="epi-properties-form">
+                                        @foreach (var property in SelectedContentType.Properties)
+                                        {
+                                            <div class="epi-form-field">
+                                                <label class="epi-label">
+                                                    @property.Name
+                                                    @if (property.IsRequired) { <span class="epi-required">*</span> }
+                                                </label>
+                                                @if (property.Type == "Boolean")
+                                                {
+                                                    <div class="epi-checkbox-wrapper">
+                                                        <input type="checkbox" id="prop_@property.Name" checked="@((bool?)GetPropertyValue(property.Name) ?? false)"
+                                                               @onchange="@(e => SetPropertyValue(property.Name, e.Value))" />
+                                                        <label for="prop_@property.Name">@property.Name</label>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <input type="@GetInputType(property.Type)" class="epi-textbox"
+                                                           value="@GetPropertyValue(property.Name)?.ToString()"
+                                                           @onchange="@(e => SetPropertyValue(property.Name, e.Value))"
+                                                           placeholder="@property.Name" />
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="epi-form-actions">
+                                    <button type="button" class="epi-button epi-button--primary" @onclick="SaveDataItem">Save Item</button>
+                                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelEditItem">Cancel</button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="epi-form-section">
+                                <button type="button" class="epi-button epi-button--secondary" @onclick="AddDataItem">Add Item</button>
+                            </div>
+                        }
+
+                        @* Data Items Table *@
+                        @if (DataItems.Any())
+                        {
+                            <div class="epi-form-section">
+                                <h3 class="epi-h3">Data Items (@DataItems.Count)</h3>
+                                <div class="epi-table-container">
+                                    <table class="epi-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Content Type</th>
+                                                <th>Language</th>
+                                                <th>Properties</th>
+                                                <th class="epi-align-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var item in DataPaginationResult?.Items ?? DataItems)
+                                            {
+                                                <tr>
+                                                    <td><code class="epi-code">@item.Id</code></td>
+                                                    <td>@item.ContentType</td>
+                                                    <td>@(item.LanguageRouting ?? "-")</td>
+                                                    <td>@item.Properties.Count properties</td>
+                                                    <td class="epi-align-right">
+                                                        <div class="epi-button-group">
+                                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => EditDataItem(item))">Edit</button>
+                                                            <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveDataItem(item))">Remove</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                @if (DataTotalPages > 1)
+                                {
+                                    <div class="epi-pagination">
+                                        <div class="epi-pagination-info">
+                                            Showing @((DataCurrentPage - 1) * DataPageSize + 1) to @Math.Min(DataCurrentPage * DataPageSize, DataItems.Count) of @DataItems.Count items
+                                        </div>
+                                        <div class="epi-pagination-controls">
+                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(DataCurrentPage <= 1)" @onclick="DataGoToPreviousPage">Previous</button>
+                                            @for (int i = Math.Max(1, DataCurrentPage - 2); i <= Math.Min(DataTotalPages, DataCurrentPage + 2); i++)
+                                            {
+                                                var pageNumber = i;
+                                                <button type="button" @onclick="@(() => DataGoToPage(pageNumber))"
+                                                        class="epi-button epi-button--small @(DataCurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
+                                                    @pageNumber
+                                                </button>
+                                            }
+                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(DataCurrentPage >= DataTotalPages)" @onclick="DataGoToNextPage">Next</button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <div class="epi-form-section">
+                        <h3 class="epi-h3">NdJSON Data</h3>
+                        <p class="epi-help-text">Edit the data directly in NdJSON format. Each item requires two lines: an action line and a data line.</p>
+                        <textarea class="epi-textarea epi-textarea--code" rows="20" @bind="RawNdJson"></textarea>
+
+                        <div class="epi-info-box" style="margin-top: 16px;">
+                            <p><strong>NdJSON Format Example:</strong></p>
+                            <pre class="epi-json-body">{"index": {"_id": "1", "language_routing": "en"}}
+{"Name": "Item 1", "Description": "..."}</pre>
+                        </div>
+                    </div>
+                }
+
+                <div class="epi-form-actions">
+                    <button type="button" class="epi-button epi-button--primary" @onclick="SyncDataToGraph" disabled="@(IsSyncing || IsLoadingSchema || !DataItems.Any())">
+                        @if (IsSyncing) { <span class="epi-loader-small"></span> }
+                        Sync to Graph (@DataItems.Count items)
+                    </button>
+                    <button type="button" class="epi-button epi-button--info" @onclick="LoadDataFromGraph" disabled="@(IsSyncing || IsLoadingSchema || SelectedContentType == null)">
+                        @if (IsLoadingSchema) { <span class="epi-loader-small"></span> }
+                        Refresh from Graph
+                    </button>
+                    <button type="button" class="epi-button epi-button--danger" @onclick="ClearAllData" disabled="@(IsSyncing || IsLoadingSchema)">
+                        Clear All Data
+                    </button>
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList" disabled="@(IsSyncing || IsLoadingSchema)">
+                        Cancel
+                    </button>
+                    <button type="button" class="epi-button epi-button--small" style="margin-left: auto;" @onclick="ToggleDebugInfo">
+                        @(ShowDebugInfo ? "Hide Debug" : "Show Debug")
+                    </button>
+                </div>
+
+                @if (ShowDebugInfo && !string.IsNullOrEmpty(DebugInfo))
+                {
+                    <div class="epi-debug-panel" style="margin-top: 16px; padding: 16px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
+                        <h4 style="margin: 0 0 8px 0;">Debug Information</h4>
+                        <pre style="margin: 0; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto;">@DebugInfo</pre>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    /* Basic Optimizely admin styles */
+    .epi-contentArea {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .epi-contentAreaHeader {
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+    }
+
+    .epi-h1 {
+        font-size: 28px;
+        font-weight: 300;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-h2 {
+        font-size: 20px;
+        font-weight: 500;
+        margin: 0;
+        color: #333;
+    }
+
+    .epi-h3 {
+        font-size: 16px;
+        font-weight: 500;
+        margin: 0 0 8px 0;
+        color: #333;
+    }
+
+    .epi-h4 {
+        font-size: 14px;
+        font-weight: 500;
+        margin: 0 0 8px 0;
+        color: #333;
+    }
+
+    .epi-help-text {
+        font-size: 13px;
+        color: #6c757d;
+        margin: 0 0 12px 0;
+    }
+
+    .epi-field-help {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .epi-contentGroup {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .epi-groupHeader {
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .epi-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .epi-content, .epi-form {
+        padding: 20px;
+    }
+
+    .epi-form-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+
+    .epi-form-section {
+        margin-bottom: 24px;
+        padding-top: 16px;
+        border-top: 1px solid #eee;
+    }
+
+    .epi-form-section:first-child {
+        padding-top: 0;
+        border-top: none;
+    }
+
+    .epi-form-section--highlight {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        padding: 16px;
+        margin: 16px 0;
+    }
+
+    .epi-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .epi-form-field {
+        flex: 1;
+        min-width: 200px;
+        margin-bottom: 15px;
+    }
+
+    .epi-form-field--source-id {
+        flex: 0 0 150px;
+        min-width: 150px;
+    }
+
+    .epi-form-field--label {
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .epi-label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-required {
+        color: #dc3545;
+    }
+
+    .epi-textbox {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .epi-textbox--small {
+        padding: 4px 8px;
+        font-size: 13px;
+    }
+
+    .epi-textbox:disabled {
+        background: #e9ecef;
+        cursor: not-allowed;
+    }
+
+    .epi-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+
+    .epi-textarea--code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .epi-select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: #fff;
+        cursor: pointer;
+        box-sizing: border-box;
+    }
+
+    .epi-select--small {
+        padding: 4px 8px;
+        font-size: 13px;
+        width: auto;
+        min-width: 150px;
+    }
+
+    .epi-checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+    }
+
+    .epi-checkbox-wrapper input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Button styles */
+    .epi-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 16px;
+        background: #0066cc;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .epi-button:hover:not(:disabled) {
+        background: #0052a3;
+    }
+
+    .epi-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .epi-button--primary {
+        background: #0066cc;
+    }
+
+    .epi-button--danger {
+        background: #d9534f;
+    }
+
+    .epi-button--danger:hover:not(:disabled) {
+        background: #c9302c;
+    }
+
+    .epi-button--secondary {
+        background: #6c757d;
+    }
+
+    .epi-button--secondary:hover:not(:disabled) {
+        background: #5a6268;
+    }
+
+    .epi-button--info {
+        background: #17a2b8;
+    }
+
+    .epi-button--info:hover:not(:disabled) {
+        background: #138496;
+    }
+
+    .epi-button--warning {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .epi-button--warning:hover:not(:disabled) {
+        background: #e0a800;
+    }
+
+    .epi-button--small {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .epi-button-group {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .epi-form-actions {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #eee;
+        display: flex;
+        gap: 8px;
+    }
+
+    /* Tabs */
+    .epi-tabs {
+        display: flex;
+        border-bottom: 2px solid #ddd;
+        margin-bottom: 20px;
+    }
+
+    .epi-tab {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 14px;
+        color: #666;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+
+    .epi-tab:hover {
+        color: #333;
+    }
+
+    .epi-tab--active {
+        color: #0066cc;
+        border-bottom-color: #0066cc;
+        font-weight: 500;
+    }
+
+    /* Table styles */
+    .epi-table-container {
+        overflow-x: auto;
+    }
+
+    .epi-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0;
+    }
+
+    .epi-table th,
+    .epi-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .epi-table th {
+        background: #f5f5f5;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .epi-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .epi-table--compact th,
+    .epi-table--compact td {
+        padding: 8px;
+    }
+
+    .epi-align-right {
+        text-align: right;
+    }
+
+    .epi-align-center {
+        text-align: center;
+    }
+
+    .epi-code {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        color: #d63384;
+    }
+
+    .epi-badge {
+        background: #6c757d;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    /* Notifications */
+    .epi-notificationbar {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .epi-notificationbar--success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+
+    .epi-notificationbar--danger {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+
+    .epi-notificationbar-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 12px;
+        opacity: 0.7;
+    }
+
+    .epi-notificationbar-close:hover {
+        opacity: 1;
+    }
+
+    /* Info and Warning boxes */
+    .epi-info-box {
+        background: #e7f3ff;
+        border: 1px solid #b6d4fe;
+        border-radius: 4px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+    }
+
+    .epi-info-box p {
+        margin: 0 0 8px 0;
+    }
+
+    .epi-info-box p:last-child {
+        margin-bottom: 0;
+    }
+
+    .epi-warning-box {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        padding: 12px 16px;
+        color: #856404;
+    }
+
+    /* Loading and empty states */
+    .epi-loading {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .epi-loader {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #0066cc;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px;
+    }
+
+    .epi-loader-small {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 8px;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .epi-empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .epi-empty-state--compact {
+        padding: 20px;
+    }
+
+    /* Pagination */
+    .epi-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        margin-top: 16px;
+        border-top: 1px solid #ddd;
+    }
+
+    .epi-pagination-info {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .epi-pagination-controls {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    /* Modal styles */
+    .epi-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .epi-modal {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        max-width: 500px;
+        width: 90%;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .epi-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #ddd;
+        background: #f5f5f5;
+    }
+
+    .epi-modal-header .epi-h2 {
+        margin: 0;
+    }
+
+    .epi-modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        line-height: 1;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+
+    .epi-modal-close:hover {
+        background: #e0e0e0;
+        color: #333;
+    }
+
+    .epi-modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .epi-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid #ddd;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        background: #f9f9f9;
+    }
+
+    /* Languages list */
+    .epi-languages-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .epi-language-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .epi-language-row .epi-textbox--small {
+        width: 150px;
+    }
+
+    /* Content type card */
+    .epi-content-type-card {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 16px;
+        margin-bottom: 16px;
+        background: #fafafa;
+    }
+
+    .epi-content-type-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+        gap: 16px;
+    }
+
+    .epi-content-type-header .epi-form-row {
+        flex: 1;
+        margin-bottom: 0;
+    }
+
+    .epi-properties-section {
+        border-top: 1px solid #ddd;
+        padding-top: 16px;
+    }
+
+    .epi-properties-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 16px;
+    }
+
+    .epi-json-body {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 16px;
+        border-radius: 6px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        overflow-x: auto;
+        white-space: pre;
+        margin: 8px 0 0 0;
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .epi-form-row {
+            flex-direction: column;
+        }
+
+        .epi-form-field,
+        .epi-form-field--source-id,
+        .epi-form-field--label {
+            flex: 1;
+            min-width: 100%;
+        }
+
+        .epi-groupHeader {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .epi-pagination {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .epi-pagination-info {
+            order: 2;
+        }
+
+        .epi-pagination-controls {
+            order: 1;
+        }
+
+        .epi-content-type-header {
+            flex-direction: column;
+        }
+
+        .epi-properties-form {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
