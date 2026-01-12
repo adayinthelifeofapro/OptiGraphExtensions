@@ -156,14 +156,9 @@ namespace OptiGraphExtensions.Features.CustomData.Services
 
         private static string BuildDataLine(CustomDataItemModel item)
         {
-            // Start with properties
+            // Start with properties only - don't add _type as it may cause issues
+            // The content type is determined by the schema, not by _type in the data
             var data = new Dictionary<string, object?>(item.Properties);
-
-            // Add content type metadata if needed
-            if (!string.IsNullOrEmpty(item.ContentType) && !data.ContainsKey("_type"))
-            {
-                data["_type"] = item.ContentType;
-            }
 
             return JsonSerializer.Serialize(data, JsonOptions);
         }
