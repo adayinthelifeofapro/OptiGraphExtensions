@@ -23,6 +23,16 @@ namespace OptiGraphExtensions.Features.CustomData.Services.Abstractions
             int limit = 100);
 
         /// <summary>
+        /// Gets all data items with debug information for troubleshooting.
+        /// </summary>
+        Task<(IEnumerable<CustomDataItemModel> Items, string DebugInfo)> GetAllItemsWithDebugAsync(
+            string sourceId,
+            string contentType,
+            IEnumerable<string> properties,
+            string? language = null,
+            int limit = 100);
+
+        /// <summary>
         /// Gets a specific data item by its ID.
         /// </summary>
         /// <param name="sourceId">The source ID.</param>

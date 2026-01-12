@@ -100,6 +100,71 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             }
         }
 
+        public async Task<(IEnumerable<CustomDataItemModel> Items, string DebugInfo)> GetAllItemsWithDebugAsync(
+            string sourceId,
+            string contentType,
+            IEnumerable<string> properties,
+            string? language = null,
+            int limit = 100)
+        {
+            var debugInfo = new StringBuilder();
+
+            if (string.IsNullOrWhiteSpace(contentType))
+            {
+                return (Enumerable.Empty<CustomDataItemModel>(), "Content type is empty");
+            }
+
+            var propertyList = properties.ToList();
+            if (!propertyList.Any())
+            {
+                return (Enumerable.Empty<CustomDataItemModel>(), "No properties specified");
+            }
+
+            var (gatewayUrl, authHeader) = GetAuthenticatedConfig();
+            var graphqlEndpoint = $"{gatewayUrl.TrimEnd('/')}/content/v2";
+
+            var query = BuildGraphQLQuery(sourceId, contentType, propertyList);
+            var variables = BuildQueryVariables(limit, language);
+
+            var requestBody = new
+            {
+                query = query,
+                variables = variables
+            };
+
+            var requestJson = JsonSerializer.Serialize(requestBody, JsonOptions);
+
+            debugInfo.AppendLine($"Endpoint: {graphqlEndpoint}");
+            debugInfo.AppendLine($"Query:\n{query}");
+            debugInfo.AppendLine($"Variables: {JsonSerializer.Serialize(variables, JsonOptions)}");
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, graphqlEndpoint);
+            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Basic", authHeader);
+            httpRequest.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await _httpClient.SendAsync(httpRequest);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                debugInfo.AppendLine($"\nResponse Status: {response.StatusCode}");
+                debugInfo.AppendLine($"Response Body:\n{responseContent}");
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return (Enumerable.Empty<CustomDataItemModel>(), debugInfo.ToString());
+                }
+
+                var items = ParseGraphQLResponse(responseContent, contentType, propertyList);
+                return (items, debugInfo.ToString());
+            }
+            catch (Exception ex)
+            {
+                debugInfo.AppendLine($"\nException: {ex.Message}");
+                return (Enumerable.Empty<CustomDataItemModel>(), debugInfo.ToString());
+            }
+        }
+
         private static string BuildGraphQLQuery(string sourceId, string contentType, List<string> properties)
         {
             // Build the properties selection

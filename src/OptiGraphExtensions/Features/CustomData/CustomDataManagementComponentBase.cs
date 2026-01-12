@@ -258,17 +258,18 @@ namespace OptiGraphExtensions.Features.CustomData
             {
                 DebugInfo += $"Calling GetAllItemsAsync...\n";
 
-                var items = await DataService.GetAllItemsAsync(
+                var (items, queryDebugInfo) = await DataService.GetAllItemsWithDebugAsync(
                     CurrentSourceId,
                     SelectedContentType.Name,
                     propertyNames,
-                    language,  // Pass language to query the correct locale
+                    language,
                     100);
 
                 DataItems = items.ToList();
                 UpdateDataPagination();
 
-                DebugInfo += $"Received {DataItems.Count} items from Graph.\n";
+                DebugInfo += $"\n=== GRAPHQL QUERY DEBUG ===\n{queryDebugInfo}\n";
+                DebugInfo += $"\nReceived {DataItems.Count} items from Graph.\n";
 
                 if (DataItems.Any())
                 {
@@ -279,6 +280,7 @@ namespace OptiGraphExtensions.Features.CustomData
                     DebugInfo += "No items returned. Possible causes:\n";
                     DebugInfo += "- Data may still be indexing (wait 30-60 seconds after sync)\n";
                     DebugInfo += "- Check Optimizely Graph Portal > Sync Logs for errors\n";
+                    DebugInfo += "- Property names may not match schema\n";
                 }
             }
             catch (Exception ex)
