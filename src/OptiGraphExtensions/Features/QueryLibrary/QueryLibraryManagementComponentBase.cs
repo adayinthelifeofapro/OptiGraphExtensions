@@ -610,9 +610,23 @@ namespace OptiGraphExtensions.Features.QueryLibrary
 
             try
             {
-                await InvokeAsync(StateHasChanged);
+                // If we have preview results, check if we already have all the data
+                if (PreviewResult != null && PreviewResult.IsSuccess && PreviewResult.Rows.Any())
+                {
+                    // Export preview directly if:
+                    // 1. HasMore is false, OR
+                    // 2. We already have all rows (Rows.Count >= TotalCount)
+                    var hasAllData = !PreviewResult.HasMore ||
+                                     (PreviewResult.TotalCount > 0 && PreviewResult.Rows.Count >= PreviewResult.TotalCount);
 
-                // Always fetch all pages for export to ensure complete data
+                    if (hasAllData)
+                    {
+                        await ExportPreviewData();
+                        return;
+                    }
+                }
+
+                // Multi-page export needed
                 await ExportAllPagesAsync();
             }
             catch (Exception ex)
@@ -623,8 +637,23 @@ namespace OptiGraphExtensions.Features.QueryLibrary
             {
                 IsExporting = false;
                 ExportProgress = 0;
-                await InvokeAsync(StateHasChanged);
+                StateHasChanged();
             }
+        }
+
+        private async Task ExportPreviewData()
+        {
+            if (PreviewResult == null || !PreviewResult.Rows.Any())
+            {
+                SetErrorMessage("No data to export.");
+                return;
+            }
+
+            var csvContent = CsvExportService.GenerateCsvPreview(PreviewResult, int.MaxValue);
+            var filename = CsvExportService.GenerateFilename(CurrentQuery.Name ?? "export");
+
+            await DownloadCsvAsync(filename, csvContent);
+            SetSuccessMessage($"Exported {PreviewResult.Rows.Count} rows successfully.");
         }
 
         private async Task ExportAllPagesAsync()
@@ -634,11 +663,11 @@ namespace OptiGraphExtensions.Features.QueryLibrary
             var allRows = new List<Dictionary<string, object?>>();
             var columns = new List<string>();
             string? cursor = null;
-            var hasMore = true;
             var pageCount = 0;
             var totalCount = 0;
+            const int maxPages = 100; // Safety limit
 
-            while (hasMore)
+            do
             {
                 pageCount++;
                 request.Cursor = cursor;
@@ -672,31 +701,39 @@ namespace OptiGraphExtensions.Features.QueryLibrary
 
                 allRows.AddRange(result.Rows);
 
+                // Update progress based on total count
                 if (totalCount > 0)
                 {
-                    ExportProgress = Math.Min(99, (int)((double)allRows.Count / totalCount * 100));
+                    ExportProgress = Math.Min(95, (int)((double)allRows.Count / totalCount * 95));
                 }
                 else
                 {
-                    ExportProgress = Math.Min(99, pageCount * 10);
+                    ExportProgress = Math.Min(95, pageCount * 20);
                 }
-                await InvokeAsync(StateHasChanged);
+                StateHasChanged();
 
                 cursor = result.NextCursor;
-                hasMore = result.HasMore && !string.IsNullOrEmpty(cursor);
 
-                if (pageCount > 1000)
+                // Exit conditions - check multiple ways to determine we're done
+                var hasAllRows = totalCount > 0 && allRows.Count >= totalCount;
+                var noMorePages = !result.HasMore || string.IsNullOrEmpty(cursor);
+                var hitPageLimit = pageCount >= maxPages;
+
+                if (hasAllRows || noMorePages || hitPageLimit)
                 {
-                    SetErrorMessage("Export exceeded maximum page limit (1000 pages).");
-                    return;
+                    break;
                 }
-            }
+
+            } while (true);
 
             if (!allRows.Any())
             {
                 SetErrorMessage("No data to export.");
                 return;
             }
+
+            ExportProgress = 98;
+            StateHasChanged();
 
             var csvResult = new QueryExecutionResult
             {
@@ -709,13 +746,11 @@ namespace OptiGraphExtensions.Features.QueryLibrary
             var filename = CsvExportService.GenerateFilename(CurrentQuery.Name ?? "export");
 
             await DownloadCsvAsync(filename, csvContent);
-
             SetSuccessMessage($"Exported {allRows.Count} rows successfully.");
         }
 
         protected async Task DownloadCsvAsync(string filename, string content)
         {
-            // Use JavaScript to trigger file download
             var bytes = System.Text.Encoding.UTF8.GetBytes(content);
             var base64 = Convert.ToBase64String(bytes);
             await JSRuntime.InvokeVoidAsync("downloadCsv", filename, base64);
