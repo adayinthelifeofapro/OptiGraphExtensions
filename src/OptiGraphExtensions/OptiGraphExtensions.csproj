@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
     <Title>Opti Graph Extensions</Title>
-    <Version>4.0.0</Version>
+    <Version>5.0.1</Version>
     <PackageReleaseNotes></PackageReleaseNotes>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Optimizely;Graph</PackageTags>
@@ -14,9 +14,9 @@
     <PackageProjectUrl>https://github.com/adayinthelifeofapro/OptiGraphExtensions</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Copyright>Graham Carr 2026</Copyright>
-    <Description>An Optimizely CMS package that allows the management of synonyms and pinned results within Graph</Description>
-    <AssemblyVersion>4.0.0</AssemblyVersion>
-    <FileVersion>4.0.0</FileVersion>
+    <Description>An Optimizely CMS package that allows the management of synonyms, pinned results, webhooks, request logs and create and export queries all within Optimizely Graph</Description>
+    <AssemblyVersion>5.0.1</AssemblyVersion>
+    <FileVersion>5.0.1</FileVersion>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
