@@ -1,6 +1,6 @@
 # OptiGraphExtensions
 
-An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, webhooks, saved queries, and request logs within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, webhook event management, GraphQL query building, and API monitoring.
+An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, webhooks, saved queries, request logs, and custom data sources within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, webhook event management, GraphQL query building, API monitoring, and external data integration.
 
 [![NuGet Version](https://img.shields.io/nuget/v/OptiGraphExtensions.svg)](https://www.nuget.org/packages/OptiGraphExtensions/)
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
@@ -81,6 +81,29 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, p
   - JSON export for programmatic processing
   - Exports respect current filter selections
 - **Detail View**: Click any log entry for complete information
+
+### 📦 Custom Data Management
+- Create and manage custom data sources in Optimizely Graph
+- **Schema Management**: Define custom content types and properties
+  - Visual schema builder with intuitive interface
+  - Support for multiple content types per source
+  - Property type definitions (String, Int, Float, Boolean, Date, DateTime, arrays)
+  - Searchable property configuration
+  - Raw JSON editor for advanced configurations
+- **Data Synchronization**: Sync external data to Optimizely Graph
+  - NdJSON format for efficient bulk data operations
+  - Language routing support for multilingual data
+  - Visual data entry with property validation
+  - Raw NdJSON editor for bulk operations
+- **Source Management**:
+  - Create sources with 1-4 character IDs
+  - Edit existing schemas (partial or full sync)
+  - Delete sources with confirmation
+  - View all custom data sources in your Graph instance
+- **Debug Tools**: Built-in debugging for troubleshooting
+  - View NdJSON payloads before sync
+  - GraphQL query inspection
+  - API response monitoring
 
 ### 🎨 Administration Interface
 - Clean, intuitive admin interface integrated with Optimizely CMS
@@ -219,9 +242,12 @@ src/
 │   │   │   ├── Services/           # Query execution, CSV export, schema discovery
 │   │   │   ├── Repositories/       # Saved query data access with caching
 │   │   │   └── Models/             # Query models and execution results
-│   │   └── RequestLogs/            # Request logs feature
-│   │       ├── Services/           # Log retrieval and export services
-│   │       └── Models/             # Log models and filter options
+│   │   ├── RequestLogs/            # Request logs feature
+│   │   │   ├── Services/           # Log retrieval and export services
+│   │   │   └── Models/             # Log models and filter options
+│   │   └── CustomData/             # Custom data management feature
+│   │       ├── Services/           # Schema, data sync, validation services
+│   │       └── Models/             # Schema and data item models
 │   ├── Menus/                      # CMS menu integration
 │   └── Views/                      # Razor views and layouts
 ├── OptiGraphExtensions.Tests/       # NUnit test project
@@ -407,6 +433,42 @@ The Request Logs feature provides visibility into API communications with Optimi
 | `path` | Filter by request path |
 | `success` | Filter by success status (true/false) |
 | `page` | Pagination page number |
+
+### Custom Data Management
+
+Custom Data allows you to define schemas and sync external data to Optimizely Graph for unified search experiences:
+
+| Feature | Description |
+|---------|-------------|
+| Schema Builder | Visual interface for defining content types and properties |
+| Data Sync | NdJSON-based synchronization with language routing |
+| Source Management | Create, edit, and delete custom data sources |
+| Debug Tools | View payloads, queries, and API responses |
+
+**Schema API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/content/v3/sources` | List all data sources |
+| GET | `/api/content/v3/types?id={sourceId}` | Get schema for a source |
+| PUT | `/api/content/v3/types?id={sourceId}` | Create/replace schema (full sync) |
+| POST | `/api/content/v3/types?id={sourceId}` | Update schema (partial sync) |
+| DELETE | `/api/content/v3/sources?id={sourceId}` | Delete a source and its data |
+
+**Data Sync API:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/content/v2/data?id={sourceId}` | Sync data items using NdJSON format |
+
+**NdJSON Format:**
+```json
+{"index":{"_id":"unique-id","language_routing":"en"}}
+{"PropertyName":"value","AnotherProperty":"value","_type":"ContentTypeName"}
+```
+
+**Supported Property Types:**
+- `String`, `Int`, `Float`, `Boolean`
+- `Date`, `DateTime`
+- `StringArray`, `IntArray`, `FloatArray`
 
 ## Authorization
 
