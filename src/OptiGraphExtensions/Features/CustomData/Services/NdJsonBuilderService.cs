@@ -159,11 +159,22 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             // Start with properties
             var data = new Dictionary<string, object?>(item.Properties);
 
-            // _type is REQUIRED to associate data with a content type
-            // Without it, data is accepted but not indexed to any type
-            if (!string.IsNullOrEmpty(item.ContentType) && !data.ContainsKey("_type"))
+            // ContentType array is required by Optimizely Graph
+            if (!string.IsNullOrEmpty(item.ContentType) && !data.ContainsKey("ContentType"))
             {
-                data["_type"] = item.ContentType;
+                data["ContentType"] = new[] { item.ContentType };
+            }
+
+            // Status is required - default to Published
+            if (!data.ContainsKey("Status"))
+            {
+                data["Status"] = "Published";
+            }
+
+            // RolesWithReadAccess is required - default to Everyone
+            if (!data.ContainsKey("RolesWithReadAccess"))
+            {
+                data["RolesWithReadAccess"] = "Everyone";
             }
 
             return JsonSerializer.Serialize(data, JsonOptions);

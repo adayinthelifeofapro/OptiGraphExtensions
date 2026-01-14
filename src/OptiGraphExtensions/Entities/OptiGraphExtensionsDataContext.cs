@@ -25,5 +25,7 @@ namespace OptiGraphExtensions.Entities
         public DbSet<PinnedResult> PinnedResults { get; set; }
 
         public DbSet<SavedQuery> SavedQueries { get; set; }
+
+        public DbSet<ImportConfiguration> ImportConfigurations { get; set; }
     }
 }

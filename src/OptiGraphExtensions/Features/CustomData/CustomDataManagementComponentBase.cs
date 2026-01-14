@@ -1,7 +1,10 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Components;
+using OptiGraphExtensions.Entities;
 using OptiGraphExtensions.Features.Common.Components;
 using OptiGraphExtensions.Features.Common.Services;
 using OptiGraphExtensions.Features.CustomData.Models;
+using OptiGraphExtensions.Features.CustomData.Repositories;
 using OptiGraphExtensions.Features.CustomData.Services.Abstractions;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
@@ -33,6 +36,12 @@ namespace OptiGraphExtensions.Features.CustomData
 
         [Inject]
         protected IPaginationService<CustomDataItemModel> DataPaginationService { get; set; } = null!;
+
+        [Inject]
+        protected IExternalDataImportService ImportService { get; set; } = null!;
+
+        [Inject]
+        protected IImportConfigurationRepository ImportConfigRepository { get; set; } = null!;
 
         // UI Mode State
         protected string CurrentMode { get; set; } = "list"; // list, schema, data
@@ -79,6 +88,23 @@ namespace OptiGraphExtensions.Features.CustomData
         // Clear Data Confirmation State
         protected bool ShowClearDataConfirmation { get; set; }
         protected bool IsClearingData { get; set; }
+
+        // Import State
+        protected List<ImportConfigurationModel> ImportConfigurations { get; set; } = new();
+        protected ImportConfigurationModel? EditingImportConfig { get; set; }
+        protected bool IsTestingConnection { get; set; }
+        protected bool IsImporting { get; set; }
+        protected string? TestConnectionResult { get; set; }
+        protected bool TestConnectionSuccess { get; set; }
+        protected string? TestConnectionSample { get; set; }
+        protected ImportResult? LastImportResult { get; set; }
+        protected List<CustomDataItemModel> ImportPreviewItems { get; set; } = new();
+        protected List<string> ImportPreviewWarnings { get; set; } = new();
+        protected bool ShowImportPreview { get; set; }
+        protected bool ShowImportConfirmation { get; set; }
+        protected bool ShowImportSection { get; set; }
+        protected string ImportNdJsonPreview { get; set; } = string.Empty;
+        protected bool ShowNdJsonPreview { get; set; }
 
         // Debug information
         protected string DebugInfo { get; set; } = string.Empty;
@@ -262,12 +288,13 @@ namespace OptiGraphExtensions.Features.CustomData
             {
                 DebugInfo += $"Calling GetAllItemsAsync...\n";
 
+                // Fetch all items - service handles pagination automatically (100 items per page)
                 var (items, queryDebugInfo) = await DataService.GetAllItemsWithDebugAsync(
                     CurrentSourceId,
                     SelectedContentType.Name,
                     propertyNames,
                     language,
-                    100);
+                    10000); // Max limit - will fetch all pages up to this amount
 
                 DataItems = items.ToList();
                 UpdateDataPagination();
@@ -860,6 +887,497 @@ namespace OptiGraphExtensions.Features.CustomData
         protected string PreviewNdJson()
         {
             return NdJsonBuilder.BuildNdJson(DataItems);
+        }
+
+        #endregion
+
+        #region Import Methods
+
+        protected void ToggleImportSection()
+        {
+            ShowImportSection = !ShowImportSection;
+            if (ShowImportSection)
+            {
+                _ = LoadImportConfigurations();
+            }
+            StateHasChanged();
+        }
+
+        protected async Task LoadImportConfigurations()
+        {
+            if (string.IsNullOrEmpty(CurrentSourceId))
+            {
+                return;
+            }
+
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
+            {
+                var configs = await ImportConfigRepository.GetBySourceIdAsync(CurrentSourceId);
+                ImportConfigurations = configs.Select(MapEntityToModel).ToList();
+            }, "loading import configurations");
+        }
+
+        protected void ShowNewImportConfigForm()
+        {
+            EditingImportConfig = new ImportConfigurationModel
+            {
+                TargetSourceId = CurrentSourceId,
+                TargetContentType = SelectedContentType?.Name ?? string.Empty,
+                LanguageRouting = CurrentSchema.Languages.FirstOrDefault()
+            };
+
+            // Pre-populate field mappings from schema
+            if (SelectedContentType != null)
+            {
+                foreach (var prop in SelectedContentType.Properties)
+                {
+                    EditingImportConfig.FieldMappings.Add(new FieldMapping
+                    {
+                        TargetProperty = prop.Name,
+                        SourcePath = prop.Name // Default to same name
+                    });
+                }
+            }
+
+            TestConnectionResult = null;
+            TestConnectionSample = null;
+            TestConnectionSuccess = false;
+            ImportPreviewItems.Clear();
+            ImportPreviewWarnings.Clear();
+            ShowImportPreview = false;
+            LastImportResult = null;
+            ClearMessages();
+            StateHasChanged();
+        }
+
+        protected void EditImportConfig(ImportConfigurationModel config)
+        {
+            EditingImportConfig = new ImportConfigurationModel
+            {
+                Id = config.Id,
+                Name = config.Name,
+                Description = config.Description,
+                TargetSourceId = config.TargetSourceId,
+                TargetContentType = config.TargetContentType,
+                ApiUrl = config.ApiUrl,
+                HttpMethod = config.HttpMethod,
+                AuthType = config.AuthType,
+                AuthKeyOrUsername = config.AuthKeyOrUsername,
+                AuthValueOrPassword = config.AuthValueOrPassword,
+                FieldMappings = config.FieldMappings.Select(m => new FieldMapping
+                {
+                    SourcePath = m.SourcePath,
+                    TargetProperty = m.TargetProperty,
+                    Transformation = m.Transformation,
+                    DefaultValue = m.DefaultValue
+                }).ToList(),
+                IdFieldMapping = config.IdFieldMapping,
+                LanguageRouting = config.LanguageRouting,
+                CustomHeaders = new Dictionary<string, string>(config.CustomHeaders),
+                IsActive = config.IsActive
+            };
+
+            TestConnectionResult = null;
+            TestConnectionSample = null;
+            TestConnectionSuccess = false;
+            ImportPreviewItems.Clear();
+            ImportPreviewWarnings.Clear();
+            ShowImportPreview = false;
+            LastImportResult = null;
+            ClearMessages();
+            StateHasChanged();
+        }
+
+        protected void CancelEditImportConfig()
+        {
+            EditingImportConfig = null;
+            TestConnectionResult = null;
+            TestConnectionSample = null;
+            ImportPreviewItems.Clear();
+            ImportPreviewWarnings.Clear();
+            ShowImportPreview = false;
+            LastImportResult = null;
+            StateHasChanged();
+        }
+
+        protected async Task TestConnection()
+        {
+            if (EditingImportConfig == null || string.IsNullOrWhiteSpace(EditingImportConfig.ApiUrl))
+            {
+                SetErrorMessage("Please enter an API URL.");
+                return;
+            }
+
+            IsTestingConnection = true;
+            TestConnectionResult = null;
+            TestConnectionSample = null;
+            TestConnectionSuccess = false;
+            StateHasChanged();
+
+            try
+            {
+                var (success, message, sample) = await ImportService.TestConnectionAsync(EditingImportConfig);
+                TestConnectionSuccess = success;
+                TestConnectionResult = message;
+                TestConnectionSample = sample;
+
+                if (!success)
+                {
+                    SetErrorMessage($"Connection test failed: {message}");
+                }
+                else
+                {
+                    SetSuccessMessage("Connection successful!");
+                }
+            }
+            catch (Exception ex)
+            {
+                TestConnectionSuccess = false;
+                TestConnectionResult = $"Error: {ex.Message}";
+                SetErrorMessage($"Connection test error: {ex.Message}");
+            }
+            finally
+            {
+                IsTestingConnection = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task PreviewImport()
+        {
+            if (EditingImportConfig == null || SelectedContentType == null)
+            {
+                SetErrorMessage("Please configure the import settings first.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(EditingImportConfig.IdFieldMapping))
+            {
+                SetErrorMessage("Please specify the ID field mapping.");
+                return;
+            }
+
+            IsImporting = true;
+            ImportPreviewItems.Clear();
+            ImportPreviewWarnings.Clear();
+            ImportNdJsonPreview = string.Empty;
+            ShowNdJsonPreview = false;
+            StateHasChanged();
+
+            try
+            {
+                var (items, warnings) = await ImportService.PreviewImportAsync(
+                    EditingImportConfig,
+                    SelectedContentType);
+
+                ImportPreviewItems = items.Take(20).ToList();
+                ImportPreviewWarnings = warnings;
+                ShowImportPreview = true;
+
+                // Generate NdJSON preview from the items
+                if (ImportPreviewItems.Any())
+                {
+                    ImportNdJsonPreview = GenerateNdJsonPreview(ImportPreviewItems.Take(5).ToList());
+                    SetSuccessMessage($"Preview loaded: {ImportPreviewItems.Count} items (showing first 20)");
+                }
+                else
+                {
+                    SetErrorMessage("No items could be mapped from the external data. Check your field mappings.");
+                }
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Preview error: {ex.Message}");
+            }
+            finally
+            {
+                IsImporting = false;
+                StateHasChanged();
+            }
+        }
+
+        protected void ToggleNdJsonPreview()
+        {
+            ShowNdJsonPreview = !ShowNdJsonPreview;
+            StateHasChanged();
+        }
+
+        private string GenerateNdJsonPreview(List<CustomDataItemModel> items)
+        {
+            if (SelectedContentType == null || string.IsNullOrEmpty(CurrentSourceId))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                // Set the content type on items if not already set
+                foreach (var item in items)
+                {
+                    if (string.IsNullOrEmpty(item.ContentType))
+                    {
+                        item.ContentType = SelectedContentType.Name;
+                    }
+                }
+                return NdJsonBuilder.BuildNdJson(items);
+            }
+            catch (Exception ex)
+            {
+                return $"Error generating NdJSON: {ex.Message}";
+            }
+        }
+
+        protected void ShowImportConfirmationDialog()
+        {
+            ShowImportConfirmation = true;
+            StateHasChanged();
+        }
+
+        protected void CancelImportConfirmation()
+        {
+            ShowImportConfirmation = false;
+            StateHasChanged();
+        }
+
+        protected async Task ExecuteImport()
+        {
+            if (EditingImportConfig == null || SelectedContentType == null)
+            {
+                return;
+            }
+
+            ShowImportConfirmation = false;
+            IsImporting = true;
+            StateHasChanged();
+
+            try
+            {
+                LastImportResult = await ImportService.ExecuteImportAsync(
+                    EditingImportConfig,
+                    SelectedContentType,
+                    CurrentSourceId);
+
+                if (LastImportResult.Success)
+                {
+                    SetSuccessMessage($"Import completed: {LastImportResult.ItemsImported} items imported.");
+
+                    // Update the config with last import stats if it's a saved config
+                    if (EditingImportConfig.Id.HasValue)
+                    {
+                        var entity = await ImportConfigRepository.GetByIdAsync(EditingImportConfig.Id.Value);
+                        if (entity != null)
+                        {
+                            entity.LastImportAt = DateTime.UtcNow;
+                            entity.LastImportCount = LastImportResult.ItemsImported;
+                            await ImportConfigRepository.UpdateAsync(entity);
+                            await LoadImportConfigurations();
+                        }
+                    }
+
+                    // Reload data from Graph
+                    await LoadDataFromGraph();
+                }
+                else
+                {
+                    SetErrorMessage($"Import failed: {string.Join(", ", LastImportResult.Errors)}");
+                }
+
+                if (LastImportResult.Warnings.Any())
+                {
+                    DebugInfo = $"Import Warnings:\n{string.Join("\n", LastImportResult.Warnings)}";
+                }
+
+                if (!string.IsNullOrEmpty(LastImportResult.DebugInfo))
+                {
+                    DebugInfo += $"\n\n{LastImportResult.DebugInfo}";
+                }
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Import error: {ex.Message}");
+            }
+            finally
+            {
+                IsImporting = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task SaveImportConfiguration()
+        {
+            if (EditingImportConfig == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(EditingImportConfig.Name))
+            {
+                SetErrorMessage("Please enter a name for this import configuration.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(EditingImportConfig.ApiUrl))
+            {
+                SetErrorMessage("Please enter an API URL.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(EditingImportConfig.IdFieldMapping))
+            {
+                SetErrorMessage("Please specify the ID field mapping.");
+                return;
+            }
+
+            IsLoading = true;
+            StateHasChanged();
+
+            try
+            {
+                var entity = MapModelToEntity(EditingImportConfig);
+
+                if (EditingImportConfig.Id.HasValue)
+                {
+                    entity.Id = EditingImportConfig.Id.Value;
+                    await ImportConfigRepository.UpdateAsync(entity);
+                    SetSuccessMessage("Import configuration updated.");
+                }
+                else
+                {
+                    var created = await ImportConfigRepository.CreateAsync(entity);
+                    EditingImportConfig.Id = created.Id;
+                    SetSuccessMessage("Import configuration saved.");
+                }
+
+                await LoadImportConfigurations();
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Error saving configuration: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task DeleteImportConfiguration(Guid id)
+        {
+            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
+            {
+                await ImportConfigRepository.DeleteAsync(id);
+                SetSuccessMessage("Import configuration deleted.");
+                await LoadImportConfigurations();
+            }, "deleting import configuration");
+        }
+
+        protected async Task RunSavedImport(ImportConfigurationModel config)
+        {
+            EditImportConfig(config);
+            await ExecuteImport();
+        }
+
+        protected void AddFieldMapping()
+        {
+            EditingImportConfig?.FieldMappings.Add(new FieldMapping());
+            StateHasChanged();
+        }
+
+        protected void RemoveFieldMapping(FieldMapping mapping)
+        {
+            EditingImportConfig?.FieldMappings.Remove(mapping);
+            StateHasChanged();
+        }
+
+        protected void AddCustomHeader()
+        {
+            if (EditingImportConfig != null)
+            {
+                var headerCount = EditingImportConfig.CustomHeaders.Count;
+                EditingImportConfig.CustomHeaders[$"Header{headerCount + 1}"] = string.Empty;
+                StateHasChanged();
+            }
+        }
+
+        protected void RemoveCustomHeader(string key)
+        {
+            EditingImportConfig?.CustomHeaders.Remove(key);
+            StateHasChanged();
+        }
+
+        private ImportConfigurationModel MapEntityToModel(ImportConfiguration entity)
+        {
+            var model = new ImportConfigurationModel
+            {
+                Id = entity.Id,
+                Name = entity.Name,
+                Description = entity.Description,
+                TargetSourceId = entity.TargetSourceId,
+                TargetContentType = entity.TargetContentType,
+                ApiUrl = entity.ApiUrl,
+                HttpMethod = entity.HttpMethod,
+                AuthType = entity.AuthType,
+                AuthKeyOrUsername = entity.AuthKeyOrUsername,
+                AuthValueOrPassword = entity.AuthValueOrPassword,
+                IdFieldMapping = entity.IdFieldMapping,
+                LanguageRouting = entity.LanguageRouting,
+                IsActive = entity.IsActive,
+                LastImportAt = entity.LastImportAt,
+                LastImportCount = entity.LastImportCount
+            };
+
+            // Deserialize field mappings
+            if (!string.IsNullOrEmpty(entity.FieldMappingsJson))
+            {
+                try
+                {
+                    model.FieldMappings = JsonSerializer.Deserialize<List<FieldMapping>>(entity.FieldMappingsJson)
+                        ?? new List<FieldMapping>();
+                }
+                catch
+                {
+                    model.FieldMappings = new List<FieldMapping>();
+                }
+            }
+
+            // Deserialize custom headers
+            if (!string.IsNullOrEmpty(entity.CustomHeadersJson))
+            {
+                try
+                {
+                    model.CustomHeaders = JsonSerializer.Deserialize<Dictionary<string, string>>(entity.CustomHeadersJson)
+                        ?? new Dictionary<string, string>();
+                }
+                catch
+                {
+                    model.CustomHeaders = new Dictionary<string, string>();
+                }
+            }
+
+            return model;
+        }
+
+        private ImportConfiguration MapModelToEntity(ImportConfigurationModel model)
+        {
+            return new ImportConfiguration
+            {
+                Name = model.Name,
+                Description = model.Description,
+                TargetSourceId = model.TargetSourceId,
+                TargetContentType = model.TargetContentType,
+                ApiUrl = model.ApiUrl,
+                HttpMethod = model.HttpMethod,
+                AuthType = model.AuthType,
+                AuthKeyOrUsername = model.AuthKeyOrUsername,
+                AuthValueOrPassword = model.AuthValueOrPassword,
+                FieldMappingsJson = JsonSerializer.Serialize(model.FieldMappings),
+                IdFieldMapping = model.IdFieldMapping,
+                LanguageRouting = model.LanguageRouting,
+                CustomHeadersJson = JsonSerializer.Serialize(model.CustomHeaders),
+                IsActive = model.IsActive,
+                LastImportAt = model.LastImportAt,
+                LastImportCount = model.LastImportCount
+            };
         }
 
         #endregion

@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Components
+@using OptiGraphExtensions.Entities
 @using OptiGraphExtensions.Features.CustomData
 @using OptiGraphExtensions.Features.CustomData.Models
 @inherits CustomDataManagementComponentBase
@@ -93,6 +94,41 @@
                     <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmClearAllData" disabled="@IsClearingData">
                         @if (IsClearingData) { <span class="epi-loader-small"></span> }
                         Yes, Clear All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Import Confirmation Modal *@
+    @if (ShowImportConfirmation)
+    {
+        <div class="epi-modal-overlay" @onclick="CancelImportConfirmation">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Confirm Import</h2>
+                    <button type="button" @onclick="CancelImportConfirmation" class="epi-modal-close" aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <div class="epi-info-box">
+                        <p><strong>Ready to import data to Optimizely Graph.</strong></p>
+                        <p>Items to import: <strong>@ImportPreviewItems.Count</strong></p>
+                        <p>Target source: <strong>@CurrentSourceId</strong></p>
+                        <p>Content type: <strong>@SelectedContentType?.Name</strong></p>
+                    </div>
+                    @if (ImportPreviewWarnings.Any())
+                    {
+                        <div class="epi-warning-box" style="margin-top: 16px;">
+                            <strong>Note:</strong> There were @ImportPreviewWarnings.Count warning(s) during preview. Check the preview results for details.
+                        </div>
+                    }
+                    <p style="margin-top: 16px;">Do you want to proceed with the import?</p>
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelImportConfirmation" disabled="@IsImporting">Cancel</button>
+                    <button type="button" class="epi-button epi-button--primary" @onclick="ExecuteImport" disabled="@IsImporting">
+                        @if (IsImporting) { <span class="epi-loader-small"></span> }
+                        Yes, Import Data
                     </button>
                 </div>
             </div>
@@ -379,17 +415,446 @@
                 <h2 class="epi-h2">Manage Data: @CurrentSourceId</h2>
                 <div class="epi-header-actions">
                     <span class="epi-badge">@DataItems.Count items</span>
+                    <button type="button" class="epi-button epi-button--info epi-button--small" @onclick="ToggleImportSection">
+                        @(ShowImportSection ? "Hide Import" : "Import")
+                    </button>
                     <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="BackToList">
                         Back to List
                     </button>
                 </div>
             </div>
             <div class="epi-form">
-                @* Editor Mode Toggle *@
-                <div class="epi-tabs">
-                    <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")" @onclick="SwitchToVisualMode">Visual Builder</button>
-                    <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")" @onclick="SwitchToRawMode">Raw NdJSON</button>
-                </div>
+                @* Import Section *@
+                @if (ShowImportSection)
+                {
+                    <div class="epi-form-section epi-import-section">
+                        <h3 class="epi-h3">External Data Import</h3>
+                        <p class="epi-help-text">Import data from external APIs and sync to Optimizely Graph.</p>
+
+                        @if (EditingImportConfig == null)
+                        {
+                            @* Saved Configurations List *@
+                            <div class="epi-import-configs">
+                                <div class="epi-section-header">
+                                    <h4 class="epi-h4">Saved Configurations</h4>
+                                    <button type="button" class="epi-button epi-button--primary epi-button--small" @onclick="ShowNewImportConfigForm">
+                                        New Import
+                                    </button>
+                                </div>
+
+                                @if (ImportConfigurations.Any())
+                                {
+                                    <div class="epi-table-container">
+                                        <table class="epi-table epi-table--compact">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>API URL</th>
+                                                    <th>Last Import</th>
+                                                    <th class="epi-align-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var config in ImportConfigurations)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            <strong>@config.Name</strong>
+                                                            @if (!string.IsNullOrEmpty(config.Description))
+                                                            {
+                                                                <br /><small class="epi-muted">@config.Description</small>
+                                                            }
+                                                        </td>
+                                                        <td><code class="epi-code epi-code--truncate">@config.ApiUrl</code></td>
+                                                        <td>
+                                                            @if (config.LastImportAt.HasValue)
+                                                            {
+                                                                <span>@config.LastImportAt.Value.ToString("g") (@config.LastImportCount items)</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="epi-muted">Never</span>
+                                                            }
+                                                        </td>
+                                                        <td class="epi-align-right">
+                                                            <div class="epi-button-group">
+                                                                <button type="button" class="epi-button epi-button--primary epi-button--small" @onclick="@(() => RunSavedImport(config))" disabled="@IsImporting">
+                                                                    Run
+                                                                </button>
+                                                                <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => EditImportConfig(config))">
+                                                                    Edit
+                                                                </button>
+                                                                <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => DeleteImportConfiguration(config.Id!.Value))">
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="epi-empty-state epi-empty-state--compact">
+                                        <p>No saved import configurations. Click "New Import" to create one.</p>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            @* Import Configuration Form *@
+                            <div class="epi-import-form">
+                                <h4 class="epi-h4">@(EditingImportConfig.Id.HasValue ? "Edit Import Configuration" : "New Import Configuration")</h4>
+
+                                @* Basic Info *@
+                                <div class="epi-form-row">
+                                    <div class="epi-form-field">
+                                        <label class="epi-label">Name *</label>
+                                        <input type="text" class="epi-textbox" @bind="EditingImportConfig.Name" placeholder="e.g., Product API Import" />
+                                    </div>
+                                    <div class="epi-form-field">
+                                        <label class="epi-label">Description</label>
+                                        <input type="text" class="epi-textbox" @bind="EditingImportConfig.Description" placeholder="Optional description" />
+                                    </div>
+                                </div>
+
+                                @* API Settings *@
+                                <div class="epi-form-row">
+                                    <div class="epi-form-field" style="flex: 2;">
+                                        <label class="epi-label">API URL *</label>
+                                        <input type="url" class="epi-textbox" @bind="EditingImportConfig.ApiUrl" placeholder="https://api.example.com/data" />
+                                    </div>
+                                    <div class="epi-form-field" style="flex: 0 0 150px;">
+                                        <label class="epi-label">HTTP Method</label>
+                                        <select class="epi-select" @bind="EditingImportConfig.HttpMethod">
+                                            <option value="GET">GET</option>
+                                            <option value="POST">POST</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                @* Authentication *@
+                                <div class="epi-form-subsection">
+                                    <h5 class="epi-h5">Authentication</h5>
+                                    <div class="epi-form-row">
+                                        <div class="epi-form-field" style="flex: 0 0 200px;">
+                                            <label class="epi-label">Auth Type</label>
+                                            <select class="epi-select" @bind="EditingImportConfig.AuthType">
+                                                <option value="@AuthenticationType.None">None</option>
+                                                <option value="@AuthenticationType.ApiKey">API Key</option>
+                                                <option value="@AuthenticationType.Basic">Basic Auth</option>
+                                                <option value="@AuthenticationType.Bearer">Bearer Token</option>
+                                            </select>
+                                        </div>
+                                        @if (EditingImportConfig.AuthType == AuthenticationType.ApiKey)
+                                        {
+                                            <div class="epi-form-field">
+                                                <label class="epi-label">Header Name</label>
+                                                <input type="text" class="epi-textbox" @bind="EditingImportConfig.AuthKeyOrUsername" placeholder="X-API-Key" />
+                                            </div>
+                                            <div class="epi-form-field">
+                                                <label class="epi-label">API Key</label>
+                                                <input type="password" class="epi-textbox" @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Your API key" />
+                                            </div>
+                                        }
+                                        @if (EditingImportConfig.AuthType == AuthenticationType.Basic)
+                                        {
+                                            <div class="epi-form-field">
+                                                <label class="epi-label">Username</label>
+                                                <input type="text" class="epi-textbox" @bind="EditingImportConfig.AuthKeyOrUsername" placeholder="Username" />
+                                            </div>
+                                            <div class="epi-form-field">
+                                                <label class="epi-label">Password</label>
+                                                <input type="password" class="epi-textbox" @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Password" />
+                                            </div>
+                                        }
+                                        @if (EditingImportConfig.AuthType == AuthenticationType.Bearer)
+                                        {
+                                            <div class="epi-form-field" style="flex: 2;">
+                                                <label class="epi-label">Bearer Token</label>
+                                                <input type="password" class="epi-textbox" @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Your bearer token" />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                @* Test Connection *@
+                                <div class="epi-form-actions epi-form-actions--inline">
+                                    <button type="button" class="epi-button epi-button--secondary" @onclick="TestConnection" disabled="@IsTestingConnection">
+                                        @if (IsTestingConnection) { <span class="epi-loader-small"></span> }
+                                        Test Connection
+                                    </button>
+                                </div>
+
+                                @if (TestConnectionResult != null)
+                                {
+                                    <div class="@(TestConnectionSuccess ? "epi-info-box epi-info-box--success" : "epi-warning-box")">
+                                        <p><strong>@(TestConnectionSuccess ? "Success:" : "Error:")</strong> @TestConnectionResult</p>
+                                        @if (!string.IsNullOrEmpty(TestConnectionSample))
+                                        {
+                                            <details>
+                                                <summary>Sample Data (click to expand)</summary>
+                                                <pre class="epi-json-body">@TestConnectionSample</pre>
+                                            </details>
+                                        }
+                                    </div>
+                                }
+
+                                @* Field Mappings *@
+                                <div class="epi-form-subsection">
+                                    <div class="epi-section-header">
+                                        <h5 class="epi-h5">Field Mappings</h5>
+                                        <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddFieldMapping">
+                                            Add Mapping
+                                        </button>
+                                    </div>
+                                    <p class="epi-help-text">Map fields from the external API to your content type properties. Use dot notation for nested fields (e.g., "data.product.name").</p>
+
+                                    @* ID Field Mapping (Required) *@
+                                    <div class="epi-form-row epi-form-row--highlight">
+                                        <div class="epi-form-field">
+                                            <label class="epi-label">ID Field *</label>
+                                            <input type="text" class="epi-textbox" @bind="EditingImportConfig.IdFieldMapping" placeholder="e.g., id or data.id" />
+                                            <span class="epi-field-help">Required. Maps to the unique item ID.</span>
+                                        </div>
+                                        <div class="epi-form-field">
+                                            <label class="epi-label">Language</label>
+                                            <select class="epi-select" @bind="EditingImportConfig.LanguageRouting">
+                                                @foreach (var lang in CurrentSchema.Languages)
+                                                {
+                                                    <option value="@lang">@lang</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    @* Property Mappings Table *@
+                                    @if (EditingImportConfig.FieldMappings.Any())
+                                    {
+                                        <div class="epi-table-container">
+                                            <table class="epi-table epi-table--compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Source Path</th>
+                                                        <th>Target Property</th>
+                                                        <th>Transformation</th>
+                                                        <th>Default Value</th>
+                                                        <th class="epi-align-right">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var mapping in EditingImportConfig.FieldMappings)
+                                                    {
+                                                        <tr>
+                                                            <td>
+                                                                <input type="text" class="epi-textbox epi-textbox--small" @bind="mapping.SourcePath" placeholder="e.g., name" />
+                                                            </td>
+                                                            <td>
+                                                                <select class="epi-select epi-select--small" @bind="mapping.TargetProperty">
+                                                                    <option value="">-- Select --</option>
+                                                                    @if (SelectedContentType != null)
+                                                                    {
+                                                                        @foreach (var prop in SelectedContentType.Properties)
+                                                                        {
+                                                                            <option value="@prop.Name">@prop.Name (@prop.Type)</option>
+                                                                        }
+                                                                    }
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <select class="epi-select epi-select--small" @bind="mapping.Transformation">
+                                                                    <option value="@FieldTransformation.None">None</option>
+                                                                    <option value="@FieldTransformation.ToString">To String</option>
+                                                                    <option value="@FieldTransformation.ToInt">To Int</option>
+                                                                    <option value="@FieldTransformation.ToFloat">To Float</option>
+                                                                    <option value="@FieldTransformation.ToBoolean">To Boolean</option>
+                                                                    <option value="@FieldTransformation.ToDate">To Date</option>
+                                                                    <option value="@FieldTransformation.ToDateTime">To DateTime</option>
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <input type="text" class="epi-textbox epi-textbox--small" @bind="mapping.DefaultValue" placeholder="Optional" />
+                                                            </td>
+                                                            <td class="epi-align-right">
+                                                                <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveFieldMapping(mapping))">
+                                                                    Remove
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* Custom Headers (Collapsible) *@
+                                <details class="epi-collapsible">
+                                    <summary>Custom Headers (Optional)</summary>
+                                    <div class="epi-form-subsection">
+                                        <div class="epi-section-header">
+                                            <span></span>
+                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddCustomHeader">
+                                                Add Header
+                                            </button>
+                                        </div>
+                                        @if (EditingImportConfig.CustomHeaders.Any())
+                                        {
+                                            @foreach (var header in EditingImportConfig.CustomHeaders.ToList())
+                                            {
+                                                <div class="epi-form-row">
+                                                    <div class="epi-form-field">
+                                                        <input type="text" class="epi-textbox epi-textbox--small" value="@header.Key" placeholder="Header name"
+                                                               @onchange="@(e => { EditingImportConfig.CustomHeaders.Remove(header.Key); EditingImportConfig.CustomHeaders[e.Value?.ToString() ?? ""] = header.Value; })" />
+                                                    </div>
+                                                    <div class="epi-form-field">
+                                                        <input type="text" class="epi-textbox epi-textbox--small" value="@header.Value" placeholder="Header value"
+                                                               @onchange="@(e => EditingImportConfig.CustomHeaders[header.Key] = e.Value?.ToString() ?? "")" />
+                                                    </div>
+                                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveCustomHeader(header.Key))">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </details>
+
+                                @* Import Form Actions *@
+                                <div class="epi-form-actions">
+                                    <button type="button" class="epi-button epi-button--info" @onclick="PreviewImport" disabled="@IsImporting">
+                                        @if (IsImporting) { <span class="epi-loader-small"></span> }
+                                        Preview
+                                    </button>
+                                    <button type="button" class="epi-button epi-button--primary" @onclick="ShowImportConfirmationDialog" disabled="@(IsImporting || !ImportPreviewItems.Any())">
+                                        Import to Graph
+                                    </button>
+                                    <button type="button" class="epi-button epi-button--secondary" @onclick="SaveImportConfiguration" disabled="@IsLoading">
+                                        @if (IsLoading) { <span class="epi-loader-small"></span> }
+                                        Save Configuration
+                                    </button>
+                                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelEditImportConfig">
+                                        Cancel
+                                    </button>
+                                </div>
+
+                                @* Preview Results *@
+                                @if (ShowImportPreview && ImportPreviewItems.Any())
+                                {
+                                    <div class="epi-form-section">
+                                        <h5 class="epi-h5">Preview (@ImportPreviewItems.Count items)</h5>
+                                        @if (ImportPreviewWarnings.Any())
+                                        {
+                                            <div class="epi-warning-box">
+                                                <strong>Warnings:</strong>
+                                                <ul>
+                                                    @foreach (var warning in ImportPreviewWarnings.Take(5))
+                                                    {
+                                                        <li>@warning</li>
+                                                    }
+                                                    @if (ImportPreviewWarnings.Count > 5)
+                                                    {
+                                                        <li>... and @(ImportPreviewWarnings.Count - 5) more</li>
+                                                    }
+                                                </ul>
+                                            </div>
+                                        }
+                                        <div class="epi-table-container">
+                                            <table class="epi-table epi-table--compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th>ID</th>
+                                                        <th>Language</th>
+                                                        @if (SelectedContentType != null)
+                                                        {
+                                                            @foreach (var prop in SelectedContentType.Properties.Take(4))
+                                                            {
+                                                                <th>@prop.Name</th>
+                                                            }
+                                                        }
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var item in ImportPreviewItems.Take(10))
+                                                    {
+                                                        <tr>
+                                                            <td><code class="epi-code">@item.Id</code></td>
+                                                            <td>@(item.LanguageRouting ?? "-")</td>
+                                                            @if (SelectedContentType != null)
+                                                            {
+                                                                @foreach (var prop in SelectedContentType.Properties.Take(4))
+                                                                {
+                                                                    <td>@(item.Properties.TryGetValue(prop.Name, out var val) ? val?.ToString() ?? "-" : "-")</td>
+                                                                }
+                                                            }
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        @if (ImportPreviewItems.Count > 10)
+                                        {
+                                            <p class="epi-help-text">Showing first 10 of @ImportPreviewItems.Count items</p>
+                                        }
+
+                                        @* NdJSON Preview Toggle *@
+                                        <div class="epi-ndjson-preview-section">
+                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="ToggleNdJsonPreview">
+                                                @(ShowNdJsonPreview ? "Hide NdJSON Preview" : "Show NdJSON Preview")
+                                            </button>
+                                            @if (ShowNdJsonPreview && !string.IsNullOrEmpty(ImportNdJsonPreview))
+                                            {
+                                                <div class="epi-ndjson-preview">
+                                                    <p class="epi-help-text">NdJSON that will be sent to Graph (showing first 5 items):</p>
+                                                    <pre class="epi-json-body">@ImportNdJsonPreview</pre>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
+                                @* Import Results *@
+                                @if (LastImportResult != null)
+                                {
+                                    <div class="@(LastImportResult.Success ? "epi-info-box epi-info-box--success" : "epi-warning-box")">
+                                        <h5 class="epi-h5">Import Results</h5>
+                                        <p><strong>Status:</strong> @(LastImportResult.Success ? "Success" : "Failed")</p>
+                                        <p><strong>Items Imported:</strong> @LastImportResult.ItemsImported of @LastImportResult.TotalItemsReceived</p>
+                                        <p><strong>Duration:</strong> @LastImportResult.Duration.TotalSeconds.ToString("F2") seconds</p>
+                                        @if (LastImportResult.Errors.Any())
+                                        {
+                                            <p><strong>Errors:</strong></p>
+                                            <ul>
+                                                @foreach (var error in LastImportResult.Errors.Take(5))
+                                                {
+                                                    <li>@error</li>
+                                                }
+                                            </ul>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @* Hide visual builder and raw NdJSON when import section is visible *@
+                @if (!ShowImportSection)
+                {
+                    <div class="epi-manual-data-section">
+                        <div class="epi-manual-data-header">
+                            <h3 class="epi-h3">Manual Data Entry</h3>
+                            <p class="epi-help-text">Add and edit data items manually using the visual builder or raw NdJSON editor.</p>
+                        </div>
+
+                        @* Editor Mode Toggle *@
+                        <div class="epi-tabs">
+                        <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")" @onclick="SwitchToVisualMode">Visual Builder</button>
+                        <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")" @onclick="SwitchToRawMode">Raw NdJSON</button>
+                    </div>
 
                 @if (EditorMode == "visual")
                 {
@@ -585,6 +1050,8 @@
                         <pre style="margin: 0; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto;">@DebugInfo</pre>
                     </div>
                 }
+                    </div> @* End of epi-manual-data-section *@
+                } @* End of !ShowImportSection *@
             </div>
         </div>
     }
@@ -1226,6 +1693,148 @@
         overflow-x: auto;
         white-space: pre;
         margin: 8px 0 0 0;
+    }
+
+    /* Import Section Styles */
+    .epi-import-section {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    /* Manual Data Entry Section Styles */
+    .epi-manual-data-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .epi-manual-data-header {
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .epi-manual-data-header .epi-h3 {
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .epi-manual-data-header .epi-help-text {
+        margin-bottom: 0;
+    }
+
+    .epi-import-configs {
+        margin-top: 16px;
+    }
+
+    .epi-import-form {
+        margin-top: 16px;
+    }
+
+    .epi-form-subsection {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+        padding: 16px;
+        margin: 16px 0;
+    }
+
+    .epi-h5 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+        color: #333;
+    }
+
+    .epi-form-actions--inline {
+        margin-top: 12px;
+        padding-top: 0;
+        border-top: none;
+    }
+
+    .epi-form-row--highlight {
+        background: #e7f3ff;
+        border: 1px solid #b6d4fe;
+        border-radius: 4px;
+        padding: 12px;
+        margin: 12px 0;
+    }
+
+    .epi-info-box--success {
+        background: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+
+    .epi-muted {
+        color: #6c757d;
+    }
+
+    .epi-code--truncate {
+        max-width: 250px;
+        display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .epi-collapsible {
+        margin: 16px 0;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+    }
+
+    .epi-collapsible summary {
+        padding: 12px 16px;
+        cursor: pointer;
+        background: #f8f9fa;
+        font-weight: 500;
+        border-radius: 4px;
+    }
+
+    .epi-collapsible summary:hover {
+        background: #e9ecef;
+    }
+
+    .epi-collapsible[open] summary {
+        border-bottom: 1px solid #e9ecef;
+        border-radius: 4px 4px 0 0;
+    }
+
+    .epi-collapsible .epi-form-subsection {
+        margin: 0;
+        border: none;
+        border-radius: 0 0 4px 4px;
+    }
+
+    .epi-warning-box ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+    }
+
+    .epi-warning-box li {
+        margin: 4px 0;
+    }
+
+    .epi-ndjson-preview-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .epi-ndjson-preview {
+        margin-top: 12px;
+    }
+
+    .epi-ndjson-preview .epi-json-body {
+        max-height: 400px;
+        overflow-y: auto;
     }
 
     /* Responsive */

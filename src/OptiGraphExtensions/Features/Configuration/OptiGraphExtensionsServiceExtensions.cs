@@ -32,6 +32,7 @@ using OptiGraphExtensions.Features.RequestLogs.Services.Abstractions;
 using OptiGraphExtensions.Features.CustomData.Services;
 using OptiGraphExtensions.Features.CustomData.Services.Abstractions;
 using OptiGraphExtensions.Features.CustomData.Models;
+using OptiGraphExtensions.Features.CustomData.Repositories;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -100,6 +101,8 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddHttpClient<ICustomDataSchemaService, CustomDataSchemaService>()
             .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
         services.AddHttpClient<ICustomDataService, CustomDataService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<IExternalDataImportService, ExternalDataImportService>()
             .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
 
         // Database
@@ -226,5 +229,8 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<ISchemaParserService, SchemaParserService>();
         services.AddScoped<IValidationService<CreateSchemaRequest>, AttributeValidationService<CreateSchemaRequest>>();
         services.AddScoped<IValidationService<SyncDataRequest>, AttributeValidationService<SyncDataRequest>>();
+
+        // Register Import Configuration repository
+        services.AddScoped<IImportConfigurationRepository, ImportConfigurationRepository>();
     }
 }

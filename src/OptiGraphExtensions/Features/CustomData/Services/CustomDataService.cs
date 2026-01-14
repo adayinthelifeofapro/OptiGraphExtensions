@@ -108,6 +108,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             int limit = 100)
         {
             var debugInfo = new StringBuilder();
+            const int pageSize = 100; // Graph API maximum per request
 
             if (string.IsNullOrWhiteSpace(contentType))
             {
@@ -123,49 +124,89 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             var (gatewayUrl, authHeader) = GetAuthenticatedConfig();
             var graphqlEndpoint = $"{gatewayUrl.TrimEnd('/')}/content/v2";
 
-            var query = BuildGraphQLQuery(sourceId, contentType, propertyList);
-            var variables = BuildQueryVariables(limit, language);
-
-            var requestBody = new
-            {
-                query = query,
-                variables = variables
-            };
-
-            var requestJson = JsonSerializer.Serialize(requestBody, JsonOptions);
+            var allItems = new List<CustomDataItemModel>();
+            string? cursor = null;
+            int totalItems = 0;
+            int pageNumber = 1;
 
             debugInfo.AppendLine($"Endpoint: {graphqlEndpoint}");
-            debugInfo.AppendLine($"Query:\n{query}");
-            debugInfo.AppendLine($"Variables: {JsonSerializer.Serialize(variables, JsonOptions)}");
-
-            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, graphqlEndpoint);
-            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Basic", authHeader);
-            httpRequest.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
             try
             {
-                var response = await _httpClient.SendAsync(httpRequest);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                debugInfo.AppendLine($"\nResponse Status: {response.StatusCode}");
-                debugInfo.AppendLine($"Response Body:\n{responseContent}");
-
-                if (!response.IsSuccessStatusCode)
+                do
                 {
-                    return (Enumerable.Empty<CustomDataItemModel>(), debugInfo.ToString());
+                    // Build query - use cursor parameter after first page
+                    var useCursor = cursor != null;
+                    var query = BuildGraphQLQuery(sourceId, contentType, propertyList, useCursor);
+                    var variables = BuildQueryVariables(pageSize, language, cursor);
+
+                    var requestBody = new
+                    {
+                        query = query,
+                        variables = variables
+                    };
+
+                    var requestJson = JsonSerializer.Serialize(requestBody, JsonOptions);
+
+                    if (pageNumber == 1)
+                    {
+                        debugInfo.AppendLine($"Query:\n{query}");
+                    }
+                    debugInfo.AppendLine($"\nPage {pageNumber} - Variables: {JsonSerializer.Serialize(variables, JsonOptions)}");
+
+                    using var httpRequest = new HttpRequestMessage(HttpMethod.Post, graphqlEndpoint);
+                    httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Basic", authHeader);
+                    httpRequest.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+
+                    var response = await _httpClient.SendAsync(httpRequest);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    debugInfo.AppendLine($"Page {pageNumber} Response Status: {response.StatusCode}");
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        debugInfo.AppendLine($"Response Body:\n{responseContent}");
+                        return (allItems, debugInfo.ToString());
+                    }
+
+                    var (items, nextCursor, total) = ParseGraphQLResponseWithPagination(responseContent, contentType, propertyList);
+                    var itemsList = items.ToList();
+
+                    allItems.AddRange(itemsList);
+                    cursor = nextCursor;
+                    totalItems = total;
+
+                    debugInfo.AppendLine($"Page {pageNumber}: Retrieved {itemsList.Count} items (Total in Graph: {total})");
+
+                    pageNumber++;
+
+                    // Stop if we've retrieved all items or reached the requested limit
+                    if (allItems.Count >= totalItems || allItems.Count >= limit || itemsList.Count == 0 || string.IsNullOrEmpty(cursor))
+                    {
+                        break;
+                    }
+
+                } while (true);
+
+                debugInfo.AppendLine($"\nTotal retrieved: {allItems.Count} of {totalItems} items in {pageNumber - 1} page(s)");
+
+                // Apply limit if specified
+                if (limit > 0 && allItems.Count > limit)
+                {
+                    allItems = allItems.Take(limit).ToList();
+                    debugInfo.AppendLine($"Applied limit: returning {limit} items");
                 }
 
-                var items = ParseGraphQLResponse(responseContent, contentType, propertyList);
-                return (items, debugInfo.ToString());
+                return (allItems, debugInfo.ToString());
             }
             catch (Exception ex)
             {
                 debugInfo.AppendLine($"\nException: {ex.Message}");
-                return (Enumerable.Empty<CustomDataItemModel>(), debugInfo.ToString());
+                return (allItems, debugInfo.ToString());
             }
         }
 
-        private static string BuildGraphQLQuery(string sourceId, string contentType, List<string> properties)
+        private static string BuildGraphQLQuery(string sourceId, string contentType, List<string> properties, bool useCursor = false)
         {
             // Build the properties selection
             var propsSelection = string.Join("\n                        ", properties);
@@ -174,19 +215,24 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             // Custom data types don't have _locale field like CMS content
             var localeType = $"{sourceId}_Locales";
 
+            // Add cursor parameter if pagination is needed
+            var cursorParam = useCursor ? ", $cursor: String" : "";
+            var cursorArg = useCursor ? ", cursor: $cursor" : "";
+
             return $@"
-            query GetCustomData($limit: Int!, $locale: [{localeType}]) {{
-                {contentType}(limit: $limit, locale: $locale) {{
+            query GetCustomData($limit: Int!, $locale: [{localeType}]{cursorParam}) {{
+                {contentType}(limit: $limit, locale: $locale{cursorArg}) {{
                     items {{
                         _id
                         {propsSelection}
                     }}
+                    cursor
                     total
                 }}
             }}";
         }
 
-        private static Dictionary<string, object> BuildQueryVariables(int limit, string? language)
+        private static Dictionary<string, object> BuildQueryVariables(int limit, string? language, string? cursor = null)
         {
             var variables = new Dictionary<string, object>
             {
@@ -199,10 +245,15 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 variables["locale"] = new[] { language.ToLowerInvariant() };
             }
 
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                variables["cursor"] = cursor;
+            }
+
             return variables;
         }
 
-        private static IEnumerable<CustomDataItemModel> ParseGraphQLResponse(
+        private static (IEnumerable<CustomDataItemModel> Items, string? Cursor, int Total) ParseGraphQLResponseWithPagination(
             string responseContent,
             string contentType,
             List<string> properties)
@@ -236,6 +287,22 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                     // The content type doesn't exist in the response - list available types
                     var availableTypes = dataElement.EnumerateObject().Select(p => p.Name).ToList();
                     throw new GraphSyncException($"Content type '{contentType}' not found in GraphQL response. Available types: [{string.Join(", ", availableTypes)}]. Full response: {responseContent}");
+                }
+
+                // Get cursor and total for pagination
+                string? cursor = null;
+                int total = 0;
+
+                if (contentTypeElement.TryGetProperty("cursor", out var cursorElement) &&
+                    cursorElement.ValueKind == JsonValueKind.String)
+                {
+                    cursor = cursorElement.GetString();
+                }
+
+                if (contentTypeElement.TryGetProperty("total", out var totalElement) &&
+                    totalElement.ValueKind == JsonValueKind.Number)
+                {
+                    total = totalElement.GetInt32();
                 }
 
                 if (!contentTypeElement.TryGetProperty("items", out var itemsElement) ||
@@ -282,12 +349,21 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                     results.Add(dataItem);
                 }
 
-                return results;
+                return (results, cursor, total);
             }
             catch (JsonException)
             {
-                return Enumerable.Empty<CustomDataItemModel>();
+                return (Enumerable.Empty<CustomDataItemModel>(), null, 0);
             }
+        }
+
+        private static IEnumerable<CustomDataItemModel> ParseGraphQLResponse(
+            string responseContent,
+            string contentType,
+            List<string> properties)
+        {
+            var (items, _, _) = ParseGraphQLResponseWithPagination(responseContent, contentType, properties);
+            return items;
         }
 
         private static object? ConvertJsonElement(JsonElement element)
