@@ -185,13 +185,45 @@ else
                         }
                         else
                         {
-                            <select class="epi-select" @onchange="OnContentTypeChanged" value="@CurrentQuery.ContentType">
-                                <option value="">-- Select Content Type --</option>
-                                @foreach (var contentType in AvailableContentTypes)
+                            <div class="epi-searchable-select">
+                                <div class="epi-searchable-select-input-wrapper">
+                                    <input type="text"
+                                           class="epi-textbox"
+                                           placeholder="Search content types..."
+                                           value="@ContentTypeSearchText"
+                                           @oninput="OnContentTypeSearchInput"
+                                           @onfocus="OnContentTypeSearchFocus"
+                                           @onblur="OnContentTypeSearchBlur" />
+                                    @if (!string.IsNullOrEmpty(CurrentQuery.ContentType))
+                                    {
+                                        <button type="button" class="epi-searchable-select-clear" @onclick="ClearContentTypeSelection" title="Clear selection">×</button>
+                                    }
+                                </div>
+                                @if (IsContentTypeDropdownOpen && FilteredContentTypes.Any())
                                 {
-                                    <option value="@contentType">@contentType</option>
+                                    <div class="epi-searchable-select-dropdown">
+                                        @foreach (var contentType in FilteredContentTypes.Take(50))
+                                        {
+                                            <div class="epi-searchable-select-option @(contentType == CurrentQuery.ContentType ? "epi-searchable-select-option--selected" : "")"
+                                                 @onclick="() => SelectContentType(contentType)">
+                                                @contentType
+                                            </div>
+                                        }
+                                        @if (FilteredContentTypes.Count > 50)
+                                        {
+                                            <div class="epi-searchable-select-more">
+                                                ...and @(FilteredContentTypes.Count - 50) more. Type to filter.
+                                            </div>
+                                        }
+                                    </div>
                                 }
-                            </select>
+                                else if (IsContentTypeDropdownOpen && !FilteredContentTypes.Any() && !string.IsNullOrWhiteSpace(ContentTypeSearchText))
+                                {
+                                    <div class="epi-searchable-select-dropdown">
+                                        <div class="epi-searchable-select-no-results">No content types match "@ContentTypeSearchText"</div>
+                                    </div>
+                                }
+                            </div>
                         }
                     </div>
 
@@ -829,5 +861,84 @@ else
 
     .epi-info-box--sync small {
         color: #004085;
+    }
+
+    /* Searchable Select Styles */
+    .epi-searchable-select {
+        position: relative;
+    }
+
+    .epi-searchable-select-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .epi-searchable-select-input-wrapper .epi-textbox {
+        padding-right: 30px;
+    }
+
+    .epi-searchable-select-clear {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        color: #888;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+    }
+
+    .epi-searchable-select-clear:hover {
+        color: #333;
+    }
+
+    .epi-searchable-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 300px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+
+    .epi-searchable-select-option {
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .epi-searchable-select-option:hover {
+        background: #f0f7ff;
+    }
+
+    .epi-searchable-select-option--selected {
+        background: #e6f0ff;
+        font-weight: 500;
+    }
+
+    .epi-searchable-select-no-results {
+        padding: 12px;
+        color: #888;
+        font-style: italic;
+        font-size: 0.9rem;
+    }
+
+    .epi-searchable-select-more {
+        padding: 8px 12px;
+        color: #666;
+        font-size: 0.85rem;
+        font-style: italic;
+        border-top: 1px solid #eee;
+        background: #f9f9f9;
     }
 </style>

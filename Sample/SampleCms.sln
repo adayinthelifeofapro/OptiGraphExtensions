@@ -1,13 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.10.35004.147
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11312.151 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SampleCms", "SampleCms\SampleCms.csproj", "{C6421053-975B-4F55-A76F-7FB82027C775}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OptiGraphExtensions", "..\src\OptiGraphExtensions\OptiGraphExtensions.csproj", "{9BBAFD11-F358-4C2E-B8CB-8C6C27AD6C99}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OptiGraphExtensions.Tests", "..\src\OptiGraphExtensions.Tests\OptiGraphExtensions.Tests.csproj", "{63BA95B2-C1AF-49D0-82EC-F2E2C1D1E23D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{204DBD10-672E-4537-8A96-31CAF3650CEF}"
+	ProjectSection(SolutionItems) = preProject
+		..\.gitignore = ..\.gitignore
+		..\README.md = ..\README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

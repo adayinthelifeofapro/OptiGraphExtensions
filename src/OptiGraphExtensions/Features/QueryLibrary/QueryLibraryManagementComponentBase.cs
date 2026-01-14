@@ -55,6 +55,13 @@ namespace OptiGraphExtensions.Features.QueryLibrary
         protected bool IsLoadingContentTypes { get; set; }
         protected bool IsLoadingFields { get; set; }
 
+        // Content Type Search State
+        protected string ContentTypeSearchText { get; set; } = "";
+        protected bool IsContentTypeDropdownOpen { get; set; }
+        protected IList<string> FilteredContentTypes => string.IsNullOrWhiteSpace(ContentTypeSearchText)
+            ? AvailableContentTypes
+            : AvailableContentTypes.Where(ct => ct.Contains(ContentTypeSearchText, StringComparison.OrdinalIgnoreCase)).ToList();
+
         // Preview State
         protected QueryExecutionResult? PreviewResult { get; set; }
         protected bool IsExecuting { get; set; }
@@ -113,6 +120,59 @@ namespace OptiGraphExtensions.Features.QueryLibrary
                 AvailableFields = new List<SchemaField>();
             }
 
+            OnVisualSettingsChanged();
+            StateHasChanged();
+        }
+
+        protected void OnContentTypeSearchInput(ChangeEventArgs e)
+        {
+            ContentTypeSearchText = e.Value?.ToString() ?? "";
+            IsContentTypeDropdownOpen = true;
+            StateHasChanged();
+        }
+
+        protected void OnContentTypeSearchFocus()
+        {
+            IsContentTypeDropdownOpen = true;
+            StateHasChanged();
+        }
+
+        protected void OnContentTypeSearchBlur()
+        {
+            // Delay closing to allow click events on dropdown items
+            Task.Delay(200).ContinueWith(_ =>
+            {
+                IsContentTypeDropdownOpen = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+
+        protected async Task SelectContentType(string contentType)
+        {
+            CurrentQuery.ContentType = contentType;
+            ContentTypeSearchText = contentType;
+            IsContentTypeDropdownOpen = false;
+            CurrentQuery.SelectedFields = new List<string>();
+
+            if (!string.IsNullOrEmpty(contentType))
+            {
+                await LoadFieldsForContentType(contentType);
+            }
+            else
+            {
+                AvailableFields = new List<SchemaField>();
+            }
+
+            OnVisualSettingsChanged();
+            StateHasChanged();
+        }
+
+        protected void ClearContentTypeSelection()
+        {
+            CurrentQuery.ContentType = null;
+            ContentTypeSearchText = "";
+            CurrentQuery.SelectedFields = new List<string>();
+            AvailableFields = new List<SchemaField>();
             OnVisualSettingsChanged();
             StateHasChanged();
         }
@@ -207,6 +267,8 @@ namespace OptiGraphExtensions.Features.QueryLibrary
                 Filters = new List<QueryFilter>(),
                 PageSize = 100
             };
+            ContentTypeSearchText = "";
+            IsContentTypeDropdownOpen = false;
             PreviewResult = null;
             RawQueryValidation = null;
             ClearMessages();
@@ -490,6 +552,10 @@ namespace OptiGraphExtensions.Features.QueryLibrary
                 PageSize = query.PageSize,
                 IsActive = query.IsActive
             };
+
+            // Initialize content type search text
+            ContentTypeSearchText = query.ContentType ?? "";
+            IsContentTypeDropdownOpen = false;
 
             QueryInputMode = query.QueryType == QueryType.Raw ? "raw" : "visual";
 
