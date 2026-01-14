@@ -76,6 +76,10 @@ namespace OptiGraphExtensions.Features.CustomData
         protected string? SourceIdToDelete { get; set; }
         protected bool IsDeleting { get; set; }
 
+        // Clear Data Confirmation State
+        protected bool ShowClearDataConfirmation { get; set; }
+        protected bool IsClearingData { get; set; }
+
         // Debug information
         protected string DebugInfo { get; set; } = string.Empty;
         protected bool ShowDebugInfo { get; set; }
@@ -709,15 +713,40 @@ namespace OptiGraphExtensions.Features.CustomData
             }
         }
 
-        protected async Task ClearAllData()
+        protected void ShowClearDataConfirmationDialog()
         {
-            await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
+            ShowClearDataConfirmation = true;
+            ClearMessages();
+            StateHasChanged();
+        }
+
+        protected void CancelClearDataConfirmation()
+        {
+            ShowClearDataConfirmation = false;
+            StateHasChanged();
+        }
+
+        protected async Task ConfirmClearAllData()
+        {
+            IsClearingData = true;
+            StateHasChanged();
+
+            try
             {
-                await DataService.ClearAllDataAsync(CurrentSourceId);
-                DataItems.Clear();
-                UpdateDataPagination();
-                SetSuccessMessage("All data cleared from Graph.");
-            }, "clearing data");
+                await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
+                {
+                    await DataService.ClearAllDataAsync(CurrentSourceId);
+                    DataItems.Clear();
+                    UpdateDataPagination();
+                    ShowClearDataConfirmation = false;
+                    SetSuccessMessage("All data cleared from Graph.");
+                }, "clearing data");
+            }
+            finally
+            {
+                IsClearingData = false;
+                StateHasChanged();
+            }
         }
 
         protected void UpdateDataPagination()

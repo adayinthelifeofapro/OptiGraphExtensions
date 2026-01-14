@@ -73,6 +73,32 @@
         </div>
     }
 
+    @* Clear Data Confirmation Modal *@
+    @if (ShowClearDataConfirmation)
+    {
+        <div class="epi-modal-overlay" @onclick="CancelClearDataConfirmation">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Clear All Data</h2>
+                    <button type="button" @onclick="CancelClearDataConfirmation" class="epi-modal-close" aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <div class="epi-warning-box">
+                        <strong>Warning:</strong> This will clear all data items from source <strong>"@CurrentSourceId"</strong> in Optimizely Graph. This action cannot be undone.
+                    </div>
+                    <p style="margin-top: 16px;">Are you sure you want to clear all data?</p>
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelClearDataConfirmation" disabled="@IsClearingData">Cancel</button>
+                    <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmClearAllData" disabled="@IsClearingData">
+                        @if (IsClearingData) { <span class="epi-loader-small"></span> }
+                        Yes, Clear All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
     @* Mode: List *@
     @if (CurrentMode == "list")
     {
@@ -541,7 +567,7 @@
                         @if (IsLoadingSchema) { <span class="epi-loader-small"></span> }
                         Refresh from Graph
                     </button>
-                    <button type="button" class="epi-button epi-button--danger" @onclick="ClearAllData" disabled="@(IsSyncing || IsLoadingSchema)">
+                    <button type="button" class="epi-button epi-button--danger" @onclick="ShowClearDataConfirmationDialog" disabled="@(IsSyncing || IsLoadingSchema)">
                         Clear All Data
                     </button>
                     <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList" disabled="@(IsSyncing || IsLoadingSchema)">
