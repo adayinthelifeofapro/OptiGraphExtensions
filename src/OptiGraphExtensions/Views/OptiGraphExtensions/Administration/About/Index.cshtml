@@ -68,11 +68,14 @@
 
                         <div class="feature-card">
                             <h3>Custom Data Management</h3>
-                            <p>Create and manage custom data sources in Optimizely Graph with schema definitions and data synchronization capabilities.</p>
+                            <p>Create and manage custom data sources in Optimizely Graph with schema definitions, data synchronization, and automated external API imports.</p>
                             <ul>
                                 <li>Visual schema builder with content types and properties</li>
+                                <li>Import data from external REST APIs with field mapping</li>
+                                <li>Scheduled imports (hourly, daily, weekly, monthly)</li>
+                                <li>Automatic retry with exponential backoff on failures</li>
+                                <li>Email notifications for import status</li>
                                 <li>NdJSON data sync with language routing support</li>
-                                <li>Raw JSON editor for advanced configurations</li>
                             </ul>
                         </div>
                     </div>
@@ -104,6 +107,9 @@
                         </div>
                         <div class="integration-item">
                             <strong>Custom Data Sources:</strong> Define schemas and sync external data to Graph for unified search
+                        </div>
+                        <div class="integration-item">
+                            <strong>External API Imports:</strong> Automatically import data from external REST APIs on a schedule with retry logic
                         </div>
                         <div class="integration-item">
                             <strong>Error Handling:</strong> Graceful fallback to local data when Graph is unavailable
@@ -140,7 +146,7 @@
                         </a>
                         <a href="/optimizely-graphextensions/administration/custom-data" class="nav-link">
                             <strong>Custom Data</strong>
-                            <span>Manage custom data sources and schemas</span>
+                            <span>Manage custom data sources and import from external APIs</span>
                         </a>
                     </div>
                 </div>
