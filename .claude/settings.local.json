@@ -21,7 +21,9 @@
       "Bash(dotnet tool install:*)",
       "Bash(dotnet dotnet-ef migrations add:*)",
       "Bash(dotnet tool run dotnet-ef:*)",
-      "Bash(dotnet tool:*)"
+      "Bash(dotnet tool:*)",
+      "Bash(dotnet --list-sdks:*)",
+      "Bash(dotnet nuget:*)"
     ],
     "deny": [],
     "ask": []

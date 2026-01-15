@@ -44,10 +44,5 @@ namespace OptiGraphExtensions.Features.CustomData.Services.Abstractions
         /// Sample data from the API response for preview.
         /// </summary>
         public List<Dictionary<string, object?>>? SampleData { get; set; }
-
-        /// <summary>
-        /// Debug information about the inference process.
-        /// </summary>
-        public string? DebugInfo { get; set; }
     }
 }

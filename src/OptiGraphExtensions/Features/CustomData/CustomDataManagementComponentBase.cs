@@ -5,6 +5,7 @@ using OptiGraphExtensions.Features.Common.Components;
 using OptiGraphExtensions.Features.Common.Services;
 using OptiGraphExtensions.Features.CustomData.Models;
 using OptiGraphExtensions.Features.CustomData.Repositories;
+using OptiGraphExtensions.Features.CustomData.Services;
 using OptiGraphExtensions.Features.CustomData.Services.Abstractions;
 using OptiGraphExtensions.Features.Synonyms.Services.Abstractions;
 
@@ -45,6 +46,12 @@ namespace OptiGraphExtensions.Features.CustomData
 
         [Inject]
         protected IApiSchemaInferenceService ApiSchemaInferenceService { get; set; } = null!;
+
+        [Inject]
+        protected IImportExecutionHistoryRepository ExecutionHistoryRepository { get; set; } = null!;
+
+        [Inject]
+        protected IScheduledImportService ScheduledImportService { get; set; } = null!;
 
         // UI Mode State
         protected string CurrentMode { get; set; } = "list"; // list, schema, data
@@ -113,9 +120,17 @@ namespace OptiGraphExtensions.Features.CustomData
         protected ImportConfigurationModel? ImportConfigToRun { get; set; }
         protected bool ShowRunImportConfigConfirmation { get; set; }
 
-        // Debug information
-        protected string DebugInfo { get; set; } = string.Empty;
-        protected bool ShowDebugInfo { get; set; }
+        // Execution History State
+        protected List<ImportExecutionHistory> ExecutionHistory { get; set; } = new();
+        protected bool ShowHistoryModal { get; set; }
+        protected Guid? HistoryConfigId { get; set; }
+        protected string? HistoryConfigName { get; set; }
+        protected ExecutionStatistics? ExecutionStats { get; set; }
+        protected bool IsLoadingHistory { get; set; }
+
+        // Schedule Time Helpers (for UI binding)
+        protected int ScheduleHour { get; set; }
+        protected int ScheduleMinute { get; set; }
 
         // API Schema Import State
         protected bool ShowApiSchemaImport { get; set; }
@@ -297,18 +312,10 @@ namespace OptiGraphExtensions.Features.CustomData
             // Use the first language from the schema, or "en" as default
             var language = CurrentSchema.Languages.FirstOrDefault() ?? "en";
 
-            DebugInfo = $"Loading data for content type: {SelectedContentType.Name}\n";
-            DebugInfo += $"Source ID: {CurrentSourceId}\n";
-            DebugInfo += $"Language: {language}\n";
-            DebugInfo += $"Properties: {string.Join(", ", propertyNames)}\n";
-            StateHasChanged();
-
             try
             {
-                DebugInfo += $"Calling GetAllItemsAsync...\n";
-
                 // Fetch all items - service handles pagination automatically (100 items per page)
-                var (items, queryDebugInfo) = await DataService.GetAllItemsWithDebugAsync(
+                var items = await DataService.GetAllItemsAsync(
                     CurrentSourceId,
                     SelectedContentType.Name,
                     propertyNames,
@@ -318,24 +325,13 @@ namespace OptiGraphExtensions.Features.CustomData
                 DataItems = items.ToList();
                 UpdateDataPagination();
 
-                DebugInfo += $"\n=== GRAPHQL QUERY DEBUG ===\n{queryDebugInfo}\n";
-                DebugInfo += $"\nReceived {DataItems.Count} items from Graph.\n";
-
                 if (DataItems.Any())
                 {
                     SetSuccessMessage($"Loaded {DataItems.Count} items from Graph.");
                 }
-                else
-                {
-                    DebugInfo += "No items returned. Possible causes:\n";
-                    DebugInfo += "- Data may still be indexing (wait 30-60 seconds after sync)\n";
-                    DebugInfo += "- Check Optimizely Graph Portal > Sync Logs for errors\n";
-                    DebugInfo += "- Property names may not match schema\n";
-                }
             }
             catch (Exception ex)
             {
-                DebugInfo += $"ERROR: {ex.Message}\n";
                 SetErrorMessage($"Error loading data from Graph: {ex.Message}");
             }
             finally
@@ -343,12 +339,6 @@ namespace OptiGraphExtensions.Features.CustomData
                 IsLoadingSchema = false;
                 StateHasChanged();
             }
-        }
-
-        protected void ToggleDebugInfo()
-        {
-            ShowDebugInfo = !ShowDebugInfo;
-            StateHasChanged();
         }
 
         #endregion
@@ -518,11 +508,6 @@ namespace OptiGraphExtensions.Features.CustomData
                 else
                 {
                     SetErrorMessage(ApiSchemaInferenceResult.ErrorMessage ?? "Failed to infer schema");
-                }
-
-                if (!string.IsNullOrEmpty(ApiSchemaInferenceResult.DebugInfo))
-                {
-                    DebugInfo = ApiSchemaInferenceResult.DebugInfo;
                 }
             }
             catch (Exception ex)
@@ -836,16 +821,6 @@ namespace OptiGraphExtensions.Features.CustomData
 
             try
             {
-                // Show the NdJSON being sent for debugging
-                var ndJson = NdJsonBuilder.BuildNdJson(DataItems);
-                DebugInfo = $"=== SYNC DEBUG INFO ===\n";
-                DebugInfo += $"Source ID: {CurrentSourceId}\n";
-                DebugInfo += $"Content Type: {SelectedContentType?.Name ?? "N/A"}\n";
-                DebugInfo += $"Items to sync: {DataItems.Count}\n";
-                DebugInfo += $"Languages in schema: {string.Join(", ", CurrentSchema.Languages)}\n\n";
-                DebugInfo += $"NdJSON payload:\n{ndJson}\n";
-                StateHasChanged();
-
                 var jobId = Guid.NewGuid().ToString();
                 var request = new SyncDataRequest
                 {
@@ -854,24 +829,12 @@ namespace OptiGraphExtensions.Features.CustomData
                     JobId = jobId
                 };
 
-                DebugInfo += $"Job ID: {jobId}\n";
-                DebugInfo += $"Calling SyncDataAsync...\n";
-                StateHasChanged();
+                await DataService.SyncDataAsync(request);
 
-                var syncResponse = await DataService.SyncDataAsync(request);
-
-                DebugInfo += $"\n=== SYNC API RESPONSE ===\n{syncResponse}\n";
-                DebugInfo += "\nIMPORTANT: Check Optimizely Graph Portal > Sync Logs to verify indexing status.\n";
-                DebugInfo += "Data typically takes 30-60 seconds to be indexed and queryable.\n";
                 SetSuccessMessage($"Successfully synced {DataItems.Count} items to Graph. Data may take 30-60 seconds to be indexed.");
             }
             catch (Exception ex)
             {
-                DebugInfo += $"\nSync ERROR: {ex.Message}\n";
-                if (ex.InnerException != null)
-                {
-                    DebugInfo += $"Inner Exception: {ex.InnerException.Message}\n";
-                }
                 SetErrorMessage($"Error syncing data: {ex.Message}");
             }
             finally
@@ -938,6 +901,84 @@ namespace OptiGraphExtensions.Features.CustomData
                 return value;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Checks if a property type is an array type (e.g., [String], [Int], [Float]).
+        /// </summary>
+        protected static bool IsArrayType(string propertyType)
+        {
+            return propertyType.StartsWith("[") && propertyType.EndsWith("]");
+        }
+
+        /// <summary>
+        /// Gets the display value for an array property as a comma-separated string.
+        /// </summary>
+        protected string GetArrayDisplayValue(string propertyName)
+        {
+            var value = GetPropertyValue(propertyName);
+            if (value == null)
+            {
+                return string.Empty;
+            }
+
+            // Handle different list types
+            if (value is IEnumerable<string> stringList)
+            {
+                return string.Join(", ", stringList);
+            }
+            if (value is IEnumerable<int> intList)
+            {
+                return string.Join(", ", intList);
+            }
+            if (value is IEnumerable<double> doubleList)
+            {
+                return string.Join(", ", doubleList);
+            }
+            if (value is IEnumerable<object> objectList)
+            {
+                return string.Join(", ", objectList.Select(o => o?.ToString() ?? string.Empty));
+            }
+
+            return value.ToString() ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Sets an array property value from a comma-separated string.
+        /// </summary>
+        protected void SetArrayPropertyValue(string propertyName, string propertyType, string? value)
+        {
+            if (EditingItem == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                // Set empty list based on type
+                EditingItem.Properties[propertyName] = propertyType switch
+                {
+                    "[String]" => new List<string>(),
+                    "[Int]" => new List<int>(),
+                    "[Float]" => new List<double>(),
+                    _ => new List<string>()
+                };
+                return;
+            }
+
+            // Split by comma and trim whitespace
+            var items = value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim())
+                            .Where(s => !string.IsNullOrEmpty(s))
+                            .ToList();
+
+            // Convert to appropriate type
+            EditingItem.Properties[propertyName] = propertyType switch
+            {
+                "[Int]" => items.Select(s => int.TryParse(s, out var i) ? i : 0).ToList(),
+                "[Float]" => items.Select(s => double.TryParse(s, out var d) ? d : 0.0).ToList(),
+                _ => items // Default to List<string>
+            };
         }
 
         #endregion
@@ -1037,7 +1078,20 @@ namespace OptiGraphExtensions.Features.CustomData
             ShowImportSection = !ShowImportSection;
             if (ShowImportSection)
             {
+                // Reset to list view and load configurations
+                EditingImportConfig = null;
                 _ = LoadImportConfigurations();
+            }
+            else
+            {
+                // Reset state when hiding the import section
+                EditingImportConfig = null;
+                TestConnectionResult = null;
+                TestConnectionSample = null;
+                ImportPreviewItems.Clear();
+                ImportPreviewWarnings.Clear();
+                ShowImportPreview = false;
+                LastImportResult = null;
             }
             StateHasChanged();
         }
@@ -1114,8 +1168,19 @@ namespace OptiGraphExtensions.Features.CustomData
                 LanguageRouting = config.LanguageRouting,
                 JsonPath = config.JsonPath,
                 CustomHeaders = new Dictionary<string, string>(config.CustomHeaders),
-                IsActive = config.IsActive
+                IsActive = config.IsActive,
+                // Scheduling properties
+                ScheduleFrequency = config.ScheduleFrequency,
+                ScheduleIntervalValue = config.ScheduleIntervalValue,
+                ScheduleTimeOfDay = config.ScheduleTimeOfDay,
+                ScheduleDayOfWeek = config.ScheduleDayOfWeek,
+                ScheduleDayOfMonth = config.ScheduleDayOfMonth,
+                MaxRetries = config.MaxRetries,
+                NotificationEmail = config.NotificationEmail
             };
+
+            // Initialize schedule time helpers
+            InitializeScheduleTimeFromModel();
 
             TestConnectionResult = null;
             TestConnectionSample = null;
@@ -1156,10 +1221,6 @@ namespace OptiGraphExtensions.Features.CustomData
 
             try
             {
-                // Debug: Log the values being sent
-                System.Diagnostics.Debug.WriteLine($"[TestConnection] ApiUrl: '{EditingImportConfig.ApiUrl}'");
-                System.Diagnostics.Debug.WriteLine($"[TestConnection] JsonPath: '{EditingImportConfig.JsonPath}'");
-
                 var (success, message, sample) = await ImportService.TestConnectionAsync(EditingImportConfig);
                 TestConnectionSuccess = success;
                 TestConnectionResult = message;
@@ -1325,16 +1386,6 @@ namespace OptiGraphExtensions.Features.CustomData
                 {
                     SetErrorMessage($"Import failed: {string.Join(", ", LastImportResult.Errors)}");
                 }
-
-                if (LastImportResult.Warnings.Any())
-                {
-                    DebugInfo = $"Import Warnings:\n{string.Join("\n", LastImportResult.Warnings)}";
-                }
-
-                if (!string.IsNullOrEmpty(LastImportResult.DebugInfo))
-                {
-                    DebugInfo += $"\n\n{LastImportResult.DebugInfo}";
-                }
             }
             catch (Exception ex)
             {
@@ -1383,12 +1434,26 @@ namespace OptiGraphExtensions.Features.CustomData
                 {
                     entity.Id = EditingImportConfig.Id.Value;
                     await ImportConfigRepository.UpdateAsync(entity);
+
+                    // Initialize schedule if scheduling is enabled
+                    if (entity.ScheduleFrequency != ScheduleFrequency.None)
+                    {
+                        await ScheduledImportService.InitializeScheduleAsync(entity);
+                    }
+
                     SetSuccessMessage("Import configuration updated.");
                 }
                 else
                 {
                     var created = await ImportConfigRepository.CreateAsync(entity);
                     EditingImportConfig.Id = created.Id;
+
+                    // Initialize schedule if scheduling is enabled
+                    if (created.ScheduleFrequency != ScheduleFrequency.None)
+                    {
+                        await ScheduledImportService.InitializeScheduleAsync(created);
+                    }
+
                     SetSuccessMessage("Import configuration saved.");
                 }
 
@@ -1518,16 +1583,6 @@ namespace OptiGraphExtensions.Features.CustomData
                 {
                     SetErrorMessage($"Import '{config.Name}' failed: {string.Join(", ", result.Errors)}");
                 }
-
-                if (result.Warnings.Any())
-                {
-                    DebugInfo = $"Import Warnings:\n{string.Join("\n", result.Warnings)}";
-                }
-
-                if (!string.IsNullOrEmpty(result.DebugInfo))
-                {
-                    DebugInfo += $"\n\n{result.DebugInfo}";
-                }
             }
             catch (Exception ex)
             {
@@ -1587,7 +1642,23 @@ namespace OptiGraphExtensions.Features.CustomData
                 JsonPath = entity.JsonPath,
                 IsActive = entity.IsActive,
                 LastImportAt = entity.LastImportAt,
-                LastImportCount = entity.LastImportCount
+                LastImportCount = entity.LastImportCount,
+                // Scheduling properties
+                ScheduleFrequency = entity.ScheduleFrequency,
+                ScheduleIntervalValue = entity.ScheduleIntervalValue,
+                ScheduleTimeOfDay = entity.ScheduleTimeOfDay,
+                ScheduleDayOfWeek = entity.ScheduleDayOfWeek.HasValue ? (int)entity.ScheduleDayOfWeek.Value : null,
+                ScheduleDayOfMonth = entity.ScheduleDayOfMonth,
+                NextScheduledRunAt = entity.NextScheduledRunAt,
+                // Retry properties
+                MaxRetries = entity.MaxRetries,
+                ConsecutiveFailures = entity.ConsecutiveFailures,
+                NextRetryAt = entity.NextRetryAt,
+                // Status properties
+                LastImportSuccess = entity.LastImportSuccess,
+                LastImportError = entity.LastImportError,
+                // Notification
+                NotificationEmail = entity.NotificationEmail
             };
 
             // Deserialize field mappings
@@ -1641,7 +1712,23 @@ namespace OptiGraphExtensions.Features.CustomData
                 CustomHeadersJson = JsonSerializer.Serialize(model.CustomHeaders),
                 IsActive = model.IsActive,
                 LastImportAt = model.LastImportAt,
-                LastImportCount = model.LastImportCount
+                LastImportCount = model.LastImportCount,
+                // Scheduling properties
+                ScheduleFrequency = model.ScheduleFrequency,
+                ScheduleIntervalValue = model.ScheduleIntervalValue,
+                ScheduleTimeOfDay = model.ScheduleTimeOfDay,
+                ScheduleDayOfWeek = model.ScheduleDayOfWeek.HasValue ? (DayOfWeek)model.ScheduleDayOfWeek.Value : null,
+                ScheduleDayOfMonth = model.ScheduleDayOfMonth,
+                NextScheduledRunAt = model.NextScheduledRunAt,
+                // Retry properties
+                MaxRetries = model.MaxRetries,
+                ConsecutiveFailures = model.ConsecutiveFailures,
+                NextRetryAt = model.NextRetryAt,
+                // Status properties
+                LastImportSuccess = model.LastImportSuccess,
+                LastImportError = model.LastImportError,
+                // Notification
+                NotificationEmail = model.NotificationEmail
             };
         }
 
@@ -1661,6 +1748,172 @@ namespace OptiGraphExtensions.Features.CustomData
             }
 
             return char.ToLowerInvariant(value[0]) + value[1..];
+        }
+
+        #endregion
+
+        #region Execution History Methods
+
+        protected async Task ShowExecutionHistory(ImportConfigurationModel config)
+        {
+            if (config.Id == null)
+            {
+                return;
+            }
+
+            HistoryConfigId = config.Id;
+            HistoryConfigName = config.Name;
+            IsLoadingHistory = true;
+            ShowHistoryModal = true;
+            StateHasChanged();
+
+            try
+            {
+                var history = await ExecutionHistoryRepository.GetByConfigurationIdAsync(config.Id.Value, 50);
+                ExecutionHistory = history.ToList();
+
+                var stats = await ExecutionHistoryRepository.GetStatisticsAsync(config.Id.Value, DateTime.UtcNow.AddDays(-30));
+                ExecutionStats = stats;
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Error loading execution history: {ex.Message}");
+            }
+            finally
+            {
+                IsLoadingHistory = false;
+                StateHasChanged();
+            }
+        }
+
+        protected void CloseHistoryModal()
+        {
+            ShowHistoryModal = false;
+            HistoryConfigId = null;
+            HistoryConfigName = null;
+            ExecutionHistory.Clear();
+            ExecutionStats = null;
+            StateHasChanged();
+        }
+
+        #endregion
+
+        #region Schedule Time Helpers
+
+        protected void OnScheduleFrequencyChanged(ChangeEventArgs e)
+        {
+            if (EditingImportConfig == null)
+            {
+                return;
+            }
+
+            if (Enum.TryParse<ScheduleFrequency>(e.Value?.ToString(), out var frequency))
+            {
+                EditingImportConfig.ScheduleFrequency = frequency;
+
+                // Set defaults based on frequency
+                if (frequency == ScheduleFrequency.Daily ||
+                    frequency == ScheduleFrequency.Weekly ||
+                    frequency == ScheduleFrequency.Monthly)
+                {
+                    EditingImportConfig.ScheduleTimeOfDay ??= new TimeSpan(2, 0, 0); // Default to 2 AM
+                    ScheduleHour = EditingImportConfig.ScheduleTimeOfDay.Value.Hours;
+                    ScheduleMinute = EditingImportConfig.ScheduleTimeOfDay.Value.Minutes;
+                }
+
+                if (frequency == ScheduleFrequency.Weekly)
+                {
+                    EditingImportConfig.ScheduleDayOfWeek ??= 1; // Default to Monday
+                }
+
+                if (frequency == ScheduleFrequency.Monthly)
+                {
+                    EditingImportConfig.ScheduleDayOfMonth ??= 1; // Default to 1st of month
+                }
+
+                StateHasChanged();
+            }
+        }
+
+        protected void OnScheduleHourChanged(ChangeEventArgs e)
+        {
+            if (EditingImportConfig == null)
+            {
+                return;
+            }
+
+            if (int.TryParse(e.Value?.ToString(), out var hour) && hour >= 0 && hour < 24)
+            {
+                ScheduleHour = hour;
+                UpdateScheduleTimeOfDay();
+            }
+        }
+
+        protected void OnScheduleMinuteChanged(ChangeEventArgs e)
+        {
+            if (EditingImportConfig == null)
+            {
+                return;
+            }
+
+            if (int.TryParse(e.Value?.ToString(), out var minute) && minute >= 0 && minute < 60)
+            {
+                ScheduleMinute = minute;
+                UpdateScheduleTimeOfDay();
+            }
+        }
+
+        private void UpdateScheduleTimeOfDay()
+        {
+            if (EditingImportConfig != null)
+            {
+                EditingImportConfig.ScheduleTimeOfDay = new TimeSpan(ScheduleHour, ScheduleMinute, 0);
+            }
+        }
+
+        protected void InitializeScheduleTimeFromModel()
+        {
+            if (EditingImportConfig?.ScheduleTimeOfDay != null)
+            {
+                ScheduleHour = EditingImportConfig.ScheduleTimeOfDay.Value.Hours;
+                ScheduleMinute = EditingImportConfig.ScheduleTimeOfDay.Value.Minutes;
+            }
+            else
+            {
+                ScheduleHour = 2; // Default to 2 AM
+                ScheduleMinute = 0;
+            }
+        }
+
+        protected string GetStatusBadgeClass(bool? success)
+        {
+            if (!success.HasValue)
+            {
+                return "epi-badge epi-badge--neutral";
+            }
+            return success.Value ? "epi-badge epi-badge--success" : "epi-badge epi-badge--danger";
+        }
+
+        protected string GetStatusText(bool? success)
+        {
+            if (!success.HasValue)
+            {
+                return "Never run";
+            }
+            return success.Value ? "Success" : "Failed";
+        }
+
+        protected string FormatDuration(TimeSpan duration)
+        {
+            if (duration.TotalSeconds < 1)
+            {
+                return $"{duration.TotalMilliseconds:F0}ms";
+            }
+            if (duration.TotalMinutes < 1)
+            {
+                return $"{duration.TotalSeconds:F1}s";
+            }
+            return $"{duration.TotalMinutes:F1}m";
         }
 
         #endregion

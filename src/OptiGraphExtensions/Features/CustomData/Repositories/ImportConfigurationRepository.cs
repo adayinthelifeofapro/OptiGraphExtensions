@@ -83,6 +83,26 @@ namespace OptiGraphExtensions.Features.CustomData.Repositories
             existing.UpdatedAt = DateTime.UtcNow;
             existing.UpdatedBy = config.UpdatedBy;
 
+            // Scheduling properties
+            existing.ScheduleFrequency = config.ScheduleFrequency;
+            existing.ScheduleIntervalValue = config.ScheduleIntervalValue;
+            existing.ScheduleTimeOfDay = config.ScheduleTimeOfDay;
+            existing.ScheduleDayOfWeek = config.ScheduleDayOfWeek;
+            existing.ScheduleDayOfMonth = config.ScheduleDayOfMonth;
+            existing.NextScheduledRunAt = config.NextScheduledRunAt;
+
+            // Retry properties
+            existing.MaxRetries = config.MaxRetries;
+            existing.ConsecutiveFailures = config.ConsecutiveFailures;
+            existing.NextRetryAt = config.NextRetryAt;
+
+            // Status properties
+            existing.LastImportSuccess = config.LastImportSuccess;
+            existing.LastImportError = config.LastImportError;
+
+            // Notification
+            existing.NotificationEmail = config.NotificationEmail;
+
             await _dataContext.SaveChangesAsync();
             return existing;
         }

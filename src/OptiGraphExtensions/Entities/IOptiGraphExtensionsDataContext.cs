@@ -14,6 +14,8 @@ namespace OptiGraphExtensions.Entities
 
         DbSet<ImportConfiguration> ImportConfigurations { get; set; }
 
+        DbSet<ImportExecutionHistory> ImportExecutionHistories { get; set; }
+
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

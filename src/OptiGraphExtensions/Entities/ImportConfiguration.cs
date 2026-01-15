@@ -124,6 +124,83 @@ namespace OptiGraphExtensions.Entities
         /// </summary>
         public int? LastImportCount { get; set; }
 
+        // ============================================
+        // Scheduling Configuration
+        // ============================================
+
+        /// <summary>
+        /// Schedule frequency for automated imports.
+        /// </summary>
+        public ScheduleFrequency ScheduleFrequency { get; set; } = ScheduleFrequency.None;
+
+        /// <summary>
+        /// Interval value for hourly schedules (e.g., 2 = every 2 hours).
+        /// </summary>
+        public int ScheduleIntervalValue { get; set; } = 1;
+
+        /// <summary>
+        /// Time of day for daily/weekly/monthly schedules.
+        /// </summary>
+        public TimeSpan? ScheduleTimeOfDay { get; set; }
+
+        /// <summary>
+        /// Day of week for weekly schedules.
+        /// </summary>
+        public DayOfWeek? ScheduleDayOfWeek { get; set; }
+
+        /// <summary>
+        /// Day of month for monthly schedules (1-31).
+        /// </summary>
+        public int? ScheduleDayOfMonth { get; set; }
+
+        /// <summary>
+        /// Calculated next scheduled run time.
+        /// </summary>
+        public DateTime? NextScheduledRunAt { get; set; }
+
+        // ============================================
+        // Retry Configuration
+        // ============================================
+
+        /// <summary>
+        /// Maximum number of retry attempts after failure.
+        /// </summary>
+        public int MaxRetries { get; set; } = 3;
+
+        /// <summary>
+        /// Current count of consecutive failures.
+        /// </summary>
+        public int ConsecutiveFailures { get; set; } = 0;
+
+        /// <summary>
+        /// Next retry time for exponential backoff.
+        /// </summary>
+        public DateTime? NextRetryAt { get; set; }
+
+        // ============================================
+        // Enhanced Execution Tracking
+        // ============================================
+
+        /// <summary>
+        /// Whether the last import was successful.
+        /// </summary>
+        public bool? LastImportSuccess { get; set; }
+
+        /// <summary>
+        /// Error message from last failed import.
+        /// </summary>
+        public string? LastImportError { get; set; }
+
+        // ============================================
+        // Notification Settings
+        // ============================================
+
+        /// <summary>
+        /// Email address to notify on import failures.
+        /// </summary>
+        [StringLength(255)]
+        public string? NotificationEmail { get; set; }
+
         /// <summary>
         /// When this configuration was created.
         /// </summary>
@@ -145,5 +222,14 @@ namespace OptiGraphExtensions.Entities
         /// </summary>
         [StringLength(255)]
         public string? UpdatedBy { get; set; }
+
+        // ============================================
+        // Navigation Properties
+        // ============================================
+
+        /// <summary>
+        /// History of execution attempts for this configuration.
+        /// </summary>
+        public virtual ICollection<ImportExecutionHistory> ExecutionHistory { get; set; } = new List<ImportExecutionHistory>();
     }
 }

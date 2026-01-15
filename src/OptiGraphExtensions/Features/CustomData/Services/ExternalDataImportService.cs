@@ -38,10 +38,6 @@ namespace OptiGraphExtensions.Features.CustomData.Services
         {
             try
             {
-                // Debug: Log received values
-                System.Diagnostics.Debug.WriteLine($"[ExternalDataImportService.TestConnection] ApiUrl: '{config.ApiUrl}'");
-                System.Diagnostics.Debug.WriteLine($"[ExternalDataImportService.TestConnection] JsonPath: '{config.JsonPath}'");
-
                 // Validate JsonPath doesn't look like a URL (common mistake)
                 if (!string.IsNullOrWhiteSpace(config.JsonPath) &&
                     (config.JsonPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||

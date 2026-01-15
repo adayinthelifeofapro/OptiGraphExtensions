@@ -41,11 +41,6 @@ namespace OptiGraphExtensions.Features.CustomData.Models
         public List<string> Warnings { get; set; } = new();
 
         /// <summary>
-        /// Debug information for troubleshooting.
-        /// </summary>
-        public string? DebugInfo { get; set; }
-
-        /// <summary>
         /// How long the import took.
         /// </summary>
         public TimeSpan Duration { get; set; }

@@ -234,5 +234,12 @@ public static class OptiGraphExtensionsServiceExtensions
 
         // Register Import Configuration repository
         services.AddScoped<IImportConfigurationRepository, ImportConfigurationRepository>();
+
+        // Register Import Execution History repository
+        services.AddScoped<IImportExecutionHistoryRepository, ImportExecutionHistoryRepository>();
+
+        // Register Scheduled Import services
+        services.AddScoped<IScheduledImportService, ScheduledImportService>();
+        services.AddScoped<IImportNotificationService, ImportNotificationService>();
     }
 }

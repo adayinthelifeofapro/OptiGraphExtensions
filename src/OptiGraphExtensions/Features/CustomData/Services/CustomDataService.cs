@@ -77,14 +77,8 @@ namespace OptiGraphExtensions.Features.CustomData.Services
 
             try
             {
-                // Log the query for debugging
-                Console.WriteLine($"GraphQL Request:\n{requestJson}");
-
                 var response = await _httpClient.SendAsync(httpRequest);
                 var responseContent = await response.Content.ReadAsStringAsync();
-
-                // Log the response for debugging
-                Console.WriteLine($"GraphQL Response ({response.StatusCode}):\n{responseContent}");
 
                 if (!response.IsSuccessStatusCode)
                 {

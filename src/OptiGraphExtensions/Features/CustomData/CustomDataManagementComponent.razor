@@ -223,6 +223,126 @@
         </div>
     }
 
+    @* Execution History Modal *@
+    @if (ShowHistoryModal)
+    {
+        <div class="epi-modal-overlay" @onclick="CloseHistoryModal">
+            <div class="epi-modal epi-modal--large" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Execution History: @HistoryConfigName</h2>
+                    <button type="button" @onclick="CloseHistoryModal" class="epi-modal-close" aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    @if (IsLoadingHistory)
+                    {
+                        <div class="epi-loading">
+                            <div class="epi-loader"></div>
+                            <p>Loading execution history...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        @* Statistics Summary *@
+                        @if (ExecutionStats != null && ExecutionStats.TotalExecutions > 0)
+                        {
+                            <div class="epi-stats-grid">
+                                <div class="epi-stat-card">
+                                    <div class="epi-stat-value">@ExecutionStats.TotalExecutions</div>
+                                    <div class="epi-stat-label">Total Runs (30 days)</div>
+                                </div>
+                                <div class="epi-stat-card epi-stat-card--success">
+                                    <div class="epi-stat-value">@ExecutionStats.SuccessfulExecutions</div>
+                                    <div class="epi-stat-label">Successful</div>
+                                </div>
+                                <div class="epi-stat-card epi-stat-card--danger">
+                                    <div class="epi-stat-value">@ExecutionStats.FailedExecutions</div>
+                                    <div class="epi-stat-label">Failed</div>
+                                </div>
+                                <div class="epi-stat-card">
+                                    <div class="epi-stat-value">@FormatDuration(ExecutionStats.AverageDuration)</div>
+                                    <div class="epi-stat-label">Avg Duration</div>
+                                </div>
+                            </div>
+                        }
+
+                        @* History Table *@
+                        @if (ExecutionHistory.Any())
+                        {
+                            <div class="epi-table-container" style="max-height: 400px; overflow-y: auto;">
+                                <table class="epi-table epi-table--compact">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                            <th>Items</th>
+                                            <th>Duration</th>
+                                            <th>Type</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var history in ExecutionHistory)
+                                        {
+                                            <tr>
+                                                <td>@history.ExecutedAt.ToString("g")</td>
+                                                <td>
+                                                    <span class="@GetStatusBadgeClass(history.Success)">
+                                                        @(history.Success ? "Success" : "Failed")
+                                                    </span>
+                                                </td>
+                                                <td>@history.ItemsImported / @history.ItemsReceived</td>
+                                                <td>@FormatDuration(TimeSpan.FromTicks(history.DurationTicks))</td>
+                                                <td>
+                                                    @if (history.WasRetry)
+                                                    {
+                                                        <span class="epi-badge epi-badge--warning">Retry #@history.RetryAttempt</span>
+                                                    }
+                                                    else if (history.WasScheduled)
+                                                    {
+                                                        <span class="epi-badge epi-badge--info">Scheduled</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="epi-badge epi-badge--neutral">Manual</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(history.ErrorMessage))
+                                                    {
+                                                        <span title="@history.ErrorMessage" class="epi-text-error">
+                                                            @(history.ErrorMessage.Length > 50 ? history.ErrorMessage.Substring(0, 50) + "..." : history.ErrorMessage)
+                                                        </span>
+                                                    }
+                                                    @if (history.ItemsSkipped > 0)
+                                                    {
+                                                        <span class="epi-text-warning">@history.ItemsSkipped skipped</span>
+                                                    }
+                                                    @if (history.ItemsFailed > 0)
+                                                    {
+                                                        <span class="epi-text-error">@history.ItemsFailed failed</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="epi-empty-state">
+                                <p>No execution history found for this configuration.</p>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CloseHistoryModal">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
     @* API Schema Import Modal *@
     @if (ShowApiSchemaImport)
     {
@@ -713,6 +833,10 @@
                         @onclick="ToggleImportSection">
                         @(ShowImportSection ? "Hide Import" : "Import")
                     </button>
+                    <button type="button" class="epi-button epi-button--danger epi-button--small"
+                        @onclick="ShowClearDataConfirmationDialog" disabled="@(IsSyncing || IsLoadingSchema)">
+                        Clear All Data
+                    </button>
                     <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="BackToList">
                         Back to List
                     </button>
@@ -745,7 +869,8 @@
                                             <thead>
                                                 <tr>
                                                     <th>Name</th>
-                                                    <th>API URL</th>
+                                                    <th>Schedule</th>
+                                                    <th>Status</th>
                                                     <th>Last Import</th>
                                                     <th class="epi-align-right">Actions</th>
                                                 </tr>
@@ -759,16 +884,43 @@
                                                             @if (!string.IsNullOrEmpty(config.Description))
                                                             {
                                                                 <br />
-                                        
                                                                 <small class="epi-muted">@config.Description</small>
                                                             }
                                                         </td>
-                                                        <td><code class="epi-code epi-code--truncate">@config.ApiUrl</code></td>
+                                                        <td>
+                                                            @if (config.IsScheduled)
+                                                            {
+                                                                <span class="epi-badge epi-badge--info">@config.ScheduleDescription</span>
+                                                                @if (config.NextScheduledRunAt.HasValue)
+                                                                {
+                                                                    <br />
+                                                                    <small class="epi-muted">Next: @config.NextScheduledRunAt.Value.ToString("g")</small>
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="epi-muted">Manual</span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            <span class="@GetStatusBadgeClass(config.LastImportSuccess)">
+                                                                @GetStatusText(config.LastImportSuccess)
+                                                            </span>
+                                                            @if (config.ConsecutiveFailures > 0)
+                                                            {
+                                                                <br />
+                                                                <small class="epi-text-warning">@config.ConsecutiveFailures failures</small>
+                                                            }
+                                                            @if (config.HasPendingRetry)
+                                                            {
+                                                                <br />
+                                                                <small class="epi-text-info">Retry at @config.NextRetryAt?.ToString("HH:mm")</small>
+                                                            }
+                                                        </td>
                                                         <td>
                                                             @if (config.LastImportAt.HasValue)
                                                             {
-                                                                <span>@config.LastImportAt.Value.ToString("g") (@config.LastImportCount
-                                                                    items)</span>
+                                                                <span>@config.LastImportAt.Value.ToString("g") (@config.LastImportCount items)</span>
                                                             }
                                                             else
                                                             {
@@ -786,6 +938,12 @@
                                                                     class="epi-button epi-button--secondary epi-button--small"
                                                                     @onclick="@(() => EditImportConfig(config))">
                                                                     Edit
+                                                                </button>
+                                                                <button type="button"
+                                                                    class="epi-button epi-button--info epi-button--small"
+                                                                    @onclick="@(() => ShowExecutionHistory(config))"
+                                                                    title="View execution history">
+                                                                    History
                                                                 </button>
                                                                 <button type="button"
                                                                     class="epi-button epi-button--danger epi-button--small"
@@ -1024,6 +1182,120 @@
                                         </div>
                                     }
                                 </div>
+
+                                @* Scheduling (Collapsible) *@
+                                <details class="epi-collapsible">
+                                    <summary>Scheduling (Optional)</summary>
+                                    <div class="epi-form-subsection">
+                                        <p class="epi-help-text">Configure automatic scheduled runs for this import configuration.
+                                            The import will be executed by the "External Data Import" scheduled job.</p>
+
+                                        <div class="epi-form-row">
+                                            <div class="epi-form-field">
+                                                <label class="epi-label">Schedule Frequency</label>
+                                                <select class="epi-select" value="@EditingImportConfig.ScheduleFrequency"
+                                                    @onchange="OnScheduleFrequencyChanged">
+                                                    @foreach (var freq in ImportConfigurationModel.AvailableScheduleFrequencies)
+                                                    {
+                                                        <option value="@freq.Value">@freq.Label</option>
+                                                    }
+                                                </select>
+                                            </div>
+
+                                            @if (EditingImportConfig.ScheduleFrequency == ScheduleFrequency.Hourly)
+                                            {
+                                                <div class="epi-form-field">
+                                                    <label class="epi-label">Every N Hours</label>
+                                                    <input type="number" class="epi-textbox" min="1" max="24"
+                                                        @bind="EditingImportConfig.ScheduleIntervalValue" />
+                                                </div>
+                                            }
+
+                                            @if (EditingImportConfig.ScheduleFrequency == ScheduleFrequency.Daily ||
+                                                EditingImportConfig.ScheduleFrequency == ScheduleFrequency.Weekly ||
+                                                EditingImportConfig.ScheduleFrequency == ScheduleFrequency.Monthly)
+                                            {
+                                                <div class="epi-form-field">
+                                                    <label class="epi-label">Time of Day</label>
+                                                    <div class="epi-time-picker">
+                                                        <select class="epi-select epi-select--small" value="@ScheduleHour"
+                                                            @onchange="OnScheduleHourChanged">
+                                                            @foreach (var hour in ImportConfigurationModel.AvailableHours)
+                                                            {
+                                                                <option value="@hour">@hour.ToString("00")</option>
+                                                            }
+                                                        </select>
+                                                        <span>:</span>
+                                                        <select class="epi-select epi-select--small" value="@ScheduleMinute"
+                                                            @onchange="OnScheduleMinuteChanged">
+                                                            @foreach (var minute in ImportConfigurationModel.AvailableMinutes)
+                                                            {
+                                                                <option value="@minute">@minute.ToString("00")</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        @if (EditingImportConfig.ScheduleFrequency == ScheduleFrequency.Weekly)
+                                        {
+                                            <div class="epi-form-row">
+                                                <div class="epi-form-field">
+                                                    <label class="epi-label">Day of Week</label>
+                                                    <select class="epi-select" @bind="EditingImportConfig.ScheduleDayOfWeek">
+                                                        @foreach (var day in ImportConfigurationModel.AvailableDaysOfWeek)
+                                                        {
+                                                            <option value="@day.Value">@day.Label</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (EditingImportConfig.ScheduleFrequency == ScheduleFrequency.Monthly)
+                                        {
+                                            <div class="epi-form-row">
+                                                <div class="epi-form-field">
+                                                    <label class="epi-label">Day of Month</label>
+                                                    <select class="epi-select" @bind="EditingImportConfig.ScheduleDayOfMonth">
+                                                        @foreach (var day in ImportConfigurationModel.AvailableDaysOfMonth)
+                                                        {
+                                                            <option value="@day">@day</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (EditingImportConfig.ScheduleFrequency != ScheduleFrequency.None)
+                                        {
+                                            <div class="epi-form-row">
+                                                <div class="epi-form-field">
+                                                    <label class="epi-label">Max Retries</label>
+                                                    <input type="number" class="epi-textbox" min="0" max="10"
+                                                        @bind="EditingImportConfig.MaxRetries" />
+                                                    <span class="epi-field-help">Number of retry attempts after a failure (0 to
+                                                        disable)</span>
+                                                </div>
+                                                <div class="epi-form-field">
+                                                    <label class="epi-label">Notification Email</label>
+                                                    <input type="email" class="epi-textbox"
+                                                        @bind="EditingImportConfig.NotificationEmail"
+                                                        placeholder="admin@example.com" />
+                                                    <span class="epi-field-help">Email address for failure notifications (after max
+                                                        retries)</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="epi-info-box">
+                                                <p><strong>Schedule Preview:</strong> @EditingImportConfig.ScheduleDescription</p>
+                                                <p class="epi-help-text">Enable the "External Data Import" scheduled job in CMS Admin
+                                                    > Scheduled Jobs for automatic execution.</p>
+                                            </div>
+                                        }
+                                    </div>
+                                </details>
 
                                 @* Custom Headers (Collapsible) *@
                                             <details class="epi-collapsible">
@@ -1284,6 +1556,13 @@
                                                                 <label for="prop_@property.Name">@property.Name</label>
                                                             </div>
                                                         }
+                                                        else if (IsArrayType(property.Type))
+                                                        {
+                                                            <textarea class="epi-textbox" rows="3"
+                                                                @onchange="@(e => SetArrayPropertyValue(property.Name, property.Type, e.Value?.ToString()))"
+                                                                placeholder="@($"Enter comma-separated values for {property.Name}")">@GetArrayDisplayValue(property.Name)</textarea>
+                                                            <small class="epi-help-text">Enter values separated by commas</small>
+                                                        }
                                                         else
                                                         {
                                                             <input type="@GetInputType(property.Type)" class="epi-textbox"
@@ -1414,29 +1693,11 @@
                                 }
                                 Refresh from Graph
                             </button>
-                            <button type="button" class="epi-button epi-button--danger"
-                                @onclick="ShowClearDataConfirmationDialog" disabled="@(IsSyncing || IsLoadingSchema)">
-                                Clear All Data
-                            </button>
                             <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList"
                                 disabled="@(IsSyncing || IsLoadingSchema)">
                                 Cancel
                             </button>
-                            <button type="button" class="epi-button epi-button--small" style="margin-left: auto;"
-                                @onclick="ToggleDebugInfo">
-                                @(ShowDebugInfo ? "Hide Debug" : "Show Debug")
-                            </button>
                         </div>
-
-                        @if (ShowDebugInfo && !string.IsNullOrEmpty(DebugInfo))
-                        {
-                            <div class="epi-debug-panel"
-                                style="margin-top: 16px; padding: 16px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
-                                <h4 style="margin: 0 0 8px 0;">Debug Information</h4>
-                                <pre
-                                    style="margin: 0; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto;">@DebugInfo</pre>
-                            </div>
-                        }
                     </div> @* End of epi-manual-data-section *@
                     } @* End of !ShowImportSection *@
             </div>
