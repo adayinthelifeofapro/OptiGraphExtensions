@@ -1073,6 +1073,8 @@ namespace OptiGraphExtensions.Features.CustomData
             ShowImportSection = !ShowImportSection;
             if (ShowImportSection)
             {
+                // Hide manual section when showing import section (mutually exclusive)
+                ShowManualSection = false;
                 // Reset to list view and load configurations
                 EditingImportConfig = null;
                 _ = LoadImportConfigurations();
@@ -1094,6 +1096,19 @@ namespace OptiGraphExtensions.Features.CustomData
         protected void ToggleManualSection()
         {
             ShowManualSection = !ShowManualSection;
+            if (ShowManualSection)
+            {
+                // Hide import section when showing manual section (mutually exclusive)
+                ShowImportSection = false;
+                // Reset import state
+                EditingImportConfig = null;
+                TestConnectionResult = null;
+                TestConnectionSample = null;
+                ImportPreviewItems.Clear();
+                ImportPreviewWarnings.Clear();
+                ShowImportPreview = false;
+                LastImportResult = null;
+            }
             StateHasChanged();
         }
 
