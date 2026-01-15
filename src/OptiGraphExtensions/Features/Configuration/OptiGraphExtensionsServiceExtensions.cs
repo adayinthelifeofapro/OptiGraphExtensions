@@ -104,6 +104,8 @@ public static class OptiGraphExtensionsServiceExtensions
             .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
         services.AddHttpClient<IExternalDataImportService, ExternalDataImportService>()
             .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<IApiSchemaInferenceService, ApiSchemaInferenceService>()
+            .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
 
         // Database
         var connectionStringName = string.IsNullOrWhiteSpace(concreteOptions.ConnectionStringName) ? "EPiServerDB" : concreteOptions.ConnectionStringName;

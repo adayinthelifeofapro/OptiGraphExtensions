@@ -85,6 +85,13 @@ namespace OptiGraphExtensions.Features.CustomData.Models
         public string? LanguageRouting { get; set; }
 
         /// <summary>
+        /// Optional JSON path to navigate to the data array within the response.
+        /// Examples: "data", "results", "items", "data.records"
+        /// </summary>
+        [StringLength(255)]
+        public string? JsonPath { get; set; }
+
+        /// <summary>
         /// Custom HTTP headers to include in the request.
         /// </summary>
         public Dictionary<string, string> CustomHeaders { get; set; } = new();

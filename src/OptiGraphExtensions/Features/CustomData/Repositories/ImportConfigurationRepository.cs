@@ -75,6 +75,7 @@ namespace OptiGraphExtensions.Features.CustomData.Repositories
             existing.FieldMappingsJson = config.FieldMappingsJson;
             existing.IdFieldMapping = config.IdFieldMapping;
             existing.LanguageRouting = config.LanguageRouting;
+            existing.JsonPath = config.JsonPath;
             existing.CustomHeadersJson = config.CustomHeadersJson;
             existing.IsActive = config.IsActive;
             existing.LastImportAt = config.LastImportAt;

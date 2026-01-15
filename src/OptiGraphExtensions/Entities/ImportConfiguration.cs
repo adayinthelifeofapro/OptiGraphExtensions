@@ -98,6 +98,13 @@ namespace OptiGraphExtensions.Entities
         public string? LanguageRouting { get; set; }
 
         /// <summary>
+        /// Optional JSON path to navigate to the data array within the response.
+        /// Examples: "data", "results", "items", "data.records"
+        /// </summary>
+        [StringLength(255)]
+        public string? JsonPath { get; set; }
+
+        /// <summary>
         /// JSON-serialized custom HTTP headers to include.
         /// </summary>
         public string? CustomHeadersJson { get; set; }

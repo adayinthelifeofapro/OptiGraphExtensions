@@ -14,8 +14,8 @@ namespace OptiGraphExtensions.Features.CustomData.Services
         private static readonly Regex IdentifierRegex = new(@"^[A-Za-z][A-Za-z0-9_]*$", RegexOptions.Compiled);
         private static readonly HashSet<string> ValidPropertyTypes = new(StringComparer.OrdinalIgnoreCase)
         {
-            "String", "Int", "Float", "Boolean", "Date", "DateTime",
-            "StringArray", "IntArray", "FloatArray"
+            "String", "Int", "Float", "Boolean",
+            "[String]", "[Int]", "[Float]"
         };
 
         public CustomDataValidationResult ValidateSourceId(string sourceId)

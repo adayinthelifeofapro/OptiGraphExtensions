@@ -17,7 +17,7 @@ namespace OptiGraphExtensions.Features.CustomData.Models
 
         /// <summary>
         /// The data type of the property.
-        /// Valid types: String, Int, Float, Boolean, Date, DateTime, StringArray, IntArray, FloatArray
+        /// Valid types: String, Int, Float, Boolean, [String], [Int], [Float]
         /// </summary>
         [Required(ErrorMessage = "Property type is required")]
         public string Type { get; set; } = "String";
@@ -46,11 +46,9 @@ namespace OptiGraphExtensions.Features.CustomData.Models
             "Int",
             "Float",
             "Boolean",
-            "Date",
-            "DateTime",
-            "StringArray",
-            "IntArray",
-            "FloatArray"
+            "[String]",
+            "[Int]",
+            "[Float]"
         };
     }
 }

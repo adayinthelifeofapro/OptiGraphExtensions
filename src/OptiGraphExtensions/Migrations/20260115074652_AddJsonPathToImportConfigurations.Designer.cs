@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OptiGraphExtensions.Entities;
 
@@ -11,9 +12,11 @@ using OptiGraphExtensions.Entities;
 namespace OptiGraphExtensions.Migrations
 {
     [DbContext(typeof(OptiGraphExtensionsDataContext))]
-    partial class OptiGraphExtensionsDataContextModelSnapshot : ModelSnapshot
+    [Migration("20260115074652_AddJsonPathToImportConfigurations")]
+    partial class AddJsonPathToImportConfigurations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,9 +115,6 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TargetSourceId")
-                        .HasDatabaseName("IX_tbl_OptiGraphExtensions_ImportConfigurations_TargetSourceId");
-
                     b.ToTable("tbl_OptiGraphExtensions_ImportConfigurations");
                 });
 
@@ -159,12 +159,6 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasIndex("CollectionId");
 
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_PinnedResults_IsActive");
-
-                    b.HasIndex("Language")
-                        .HasDatabaseName("IX_PinnedResults_Language");
-
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResults");
                 });
 
@@ -190,9 +184,6 @@ namespace OptiGraphExtensions.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_PinnedResultsCollections_IsActive");
 
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResultsCollections");
                 });
@@ -264,13 +255,6 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_SavedQueries_IsActive");
-
-                    b.HasIndex("Name")
-                        .IsUnique()
-                        .HasDatabaseName("IX_SavedQueries_Name");
-
                     b.ToTable("tbl_OptiGraphExtensions_SavedQueries");
                 });
 
@@ -297,15 +281,6 @@ namespace OptiGraphExtensions.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Language")
-                        .HasDatabaseName("IX_Synonyms_Language");
-
-                    b.HasIndex("Slot")
-                        .HasDatabaseName("IX_Synonyms_Slot");
-
-                    b.HasIndex("Language", "Slot")
-                        .HasDatabaseName("IX_Synonyms_Language_Slot");
 
                     b.ToTable("tbl_OptiGraphExtensions_Synonyms");
                 });

@@ -38,6 +38,18 @@ namespace OptiGraphExtensions.Features.CustomData.Services
         {
             try
             {
+                // Debug: Log received values
+                System.Diagnostics.Debug.WriteLine($"[ExternalDataImportService.TestConnection] ApiUrl: '{config.ApiUrl}'");
+                System.Diagnostics.Debug.WriteLine($"[ExternalDataImportService.TestConnection] JsonPath: '{config.JsonPath}'");
+
+                // Validate JsonPath doesn't look like a URL (common mistake)
+                if (!string.IsNullOrWhiteSpace(config.JsonPath) &&
+                    (config.JsonPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                     config.JsonPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return (false, "JSON Path should be the path to the data array within the JSON response (e.g., 'products', 'data', 'results'), not a URL. The API URL should be entered in the 'API URL' field.", null);
+                }
+
                 using var request = BuildHttpRequest(config);
                 var response = await _httpClient.SendAsync(request);
 
@@ -49,12 +61,16 @@ namespace OptiGraphExtensions.Features.CustomData.Services
 
                 var content = await response.Content.ReadAsStringAsync();
 
-                if (!IsValidJsonArray(content))
+                if (!IsValidJsonArray(content, config.JsonPath))
                 {
-                    return (false, "Response is not a valid JSON array at root level. The API must return a JSON array.", TruncateString(content, 500));
+                    var pathHint = string.IsNullOrWhiteSpace(config.JsonPath)
+                        ? "The API must return a JSON array at the root level, or specify a JSON Path to navigate to the array (e.g., 'data', 'results', 'items')."
+                        : $"Could not find a JSON array at path '{config.JsonPath}'. Check that the path is correct.";
+                    return (false, pathHint, TruncateString(content, 500));
                 }
 
-                var sample = TruncateJsonForPreview(content, maxItems: 2);
+                var arrayJson = ExtractJsonArrayAtPath(content, config.JsonPath) ?? content;
+                var sample = TruncateJsonForPreview(arrayJson, maxItems: 2);
                 return (true, "Connection successful", sample);
             }
             catch (HttpRequestException ex)
@@ -87,12 +103,17 @@ namespace OptiGraphExtensions.Features.CustomData.Services
 
                 var content = await response.Content.ReadAsStringAsync();
 
-                if (!IsValidJsonArray(content))
+                if (!IsValidJsonArray(content, config.JsonPath))
                 {
-                    return (false, content, "Response is not a valid JSON array at root level");
+                    var pathHint = string.IsNullOrWhiteSpace(config.JsonPath)
+                        ? "Response is not a valid JSON array at root level. Specify a JSON Path to navigate to the array."
+                        : $"Could not find a JSON array at path '{config.JsonPath}'.";
+                    return (false, content, pathHint);
                 }
 
-                return (true, content, null);
+                // Extract the array at the specified path
+                var arrayJson = ExtractJsonArrayAtPath(content, config.JsonPath) ?? content;
+                return (true, arrayJson, null);
             }
             catch (Exception ex)
             {
@@ -323,10 +344,28 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                     return null;
                 }
 
-                if (!current.TryGetProperty(segment, out current))
+                // Try exact match first, then case-insensitive match
+                if (!current.TryGetProperty(segment, out var next))
                 {
-                    return null;
+                    // Case-insensitive fallback
+                    var found = false;
+                    foreach (var prop in current.EnumerateObject())
+                    {
+                        if (string.Equals(prop.Name, segment, StringComparison.OrdinalIgnoreCase))
+                        {
+                            next = prop.Value;
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        return null;
+                    }
                 }
+
+                current = next;
             }
 
             return ConvertJsonElement(current);
@@ -478,7 +517,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             return request;
         }
 
-        private static bool IsValidJsonArray(string json)
+        private static bool IsValidJsonArray(string json, string? jsonPath = null)
         {
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -488,11 +527,75 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             try
             {
                 using var doc = JsonDocument.Parse(json);
-                return doc.RootElement.ValueKind == JsonValueKind.Array;
+                var element = NavigateToJsonPath(doc.RootElement, jsonPath);
+                return element?.ValueKind == JsonValueKind.Array;
             }
             catch
             {
                 return false;
+            }
+        }
+
+        private static JsonElement? NavigateToJsonPath(JsonElement root, string? jsonPath)
+        {
+            if (string.IsNullOrWhiteSpace(jsonPath))
+            {
+                return root;
+            }
+
+            var segments = jsonPath.Split(new[] { '.', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            JsonElement current = root;
+
+            foreach (var segment in segments)
+            {
+                // Handle array index notation (e.g., "items[0]")
+                var match = System.Text.RegularExpressions.Regex.Match(segment, @"^(\w+)\[(\d+)\]$");
+                if (match.Success)
+                {
+                    var propName = match.Groups[1].Value;
+                    var index = int.Parse(match.Groups[2].Value);
+
+                    if (!current.TryGetProperty(propName, out var arrElement))
+                        return null;
+
+                    if (arrElement.ValueKind != JsonValueKind.Array || arrElement.GetArrayLength() <= index)
+                        return null;
+
+                    current = arrElement[index];
+                }
+                else
+                {
+                    if (!current.TryGetProperty(segment, out var next))
+                        return null;
+                    current = next;
+                }
+            }
+
+            return current;
+        }
+
+        private static string? ExtractJsonArrayAtPath(string json, string? jsonPath)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var element = NavigateToJsonPath(doc.RootElement, jsonPath);
+
+                if (element == null || element.Value.ValueKind != JsonValueKind.Array)
+                {
+                    return null;
+                }
+
+                return element.Value.GetRawText();
+            }
+            catch
+            {
+                return null;
             }
         }
 

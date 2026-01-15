@@ -43,6 +43,9 @@ namespace OptiGraphExtensions.Features.CustomData
         [Inject]
         protected IImportConfigurationRepository ImportConfigRepository { get; set; } = null!;
 
+        [Inject]
+        protected IApiSchemaInferenceService ApiSchemaInferenceService { get; set; } = null!;
+
         // UI Mode State
         protected string CurrentMode { get; set; } = "list"; // list, schema, data
         protected string EditorMode { get; set; } = "visual"; // visual, raw
@@ -105,10 +108,26 @@ namespace OptiGraphExtensions.Features.CustomData
         protected bool ShowImportSection { get; set; }
         protected string ImportNdJsonPreview { get; set; } = string.Empty;
         protected bool ShowNdJsonPreview { get; set; }
+        protected ImportConfigurationModel? ImportConfigToDelete { get; set; }
+        protected bool ShowDeleteImportConfigConfirmation { get; set; }
+        protected ImportConfigurationModel? ImportConfigToRun { get; set; }
+        protected bool ShowRunImportConfigConfirmation { get; set; }
 
         // Debug information
         protected string DebugInfo { get; set; } = string.Empty;
         protected bool ShowDebugInfo { get; set; }
+
+        // API Schema Import State
+        protected bool ShowApiSchemaImport { get; set; }
+        protected string ApiSchemaUrl { get; set; } = string.Empty;
+        protected string ApiSchemaContentTypeName { get; set; } = string.Empty;
+        protected string ApiSchemaJsonPath { get; set; } = string.Empty;
+        protected Dictionary<string, string> ApiSchemaHeaders { get; set; } = new();
+        protected string NewApiHeaderKey { get; set; } = string.Empty;
+        protected string NewApiHeaderValue { get; set; } = string.Empty;
+        protected bool IsInferringSchema { get; set; }
+        protected ApiSchemaInferenceResult? ApiSchemaInferenceResult { get; set; }
+        protected bool ShowApiSchemaPreview { get; set; }
 
         // Available property types for dropdowns
         protected static IEnumerable<string> AvailablePropertyTypes => PropertyTypeModel.AvailableTypes;
@@ -422,6 +441,128 @@ namespace OptiGraphExtensions.Features.CustomData
             contentType.Properties.Remove(property);
             StateHasChanged();
         }
+
+        #region API Schema Import
+
+        protected void ShowApiSchemaImportDialog()
+        {
+            ShowApiSchemaImport = true;
+            ApiSchemaUrl = string.Empty;
+            ApiSchemaContentTypeName = string.Empty;
+            ApiSchemaJsonPath = string.Empty;
+            ApiSchemaHeaders.Clear();
+            NewApiHeaderKey = string.Empty;
+            NewApiHeaderValue = string.Empty;
+            ApiSchemaInferenceResult = null;
+            ShowApiSchemaPreview = false;
+            ClearMessages();
+            StateHasChanged();
+        }
+
+        protected void CloseApiSchemaImportDialog()
+        {
+            ShowApiSchemaImport = false;
+            ApiSchemaInferenceResult = null;
+            ShowApiSchemaPreview = false;
+            StateHasChanged();
+        }
+
+        protected void AddApiHeader()
+        {
+            if (!string.IsNullOrWhiteSpace(NewApiHeaderKey))
+            {
+                ApiSchemaHeaders[NewApiHeaderKey] = NewApiHeaderValue;
+                NewApiHeaderKey = string.Empty;
+                NewApiHeaderValue = string.Empty;
+                StateHasChanged();
+            }
+        }
+
+        protected void RemoveApiHeader(string key)
+        {
+            ApiSchemaHeaders.Remove(key);
+            StateHasChanged();
+        }
+
+        protected async Task InferSchemaFromApi()
+        {
+            if (string.IsNullOrWhiteSpace(ApiSchemaUrl))
+            {
+                SetErrorMessage("Please enter an API URL");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(ApiSchemaContentTypeName))
+            {
+                SetErrorMessage("Please enter a content type name");
+                return;
+            }
+
+            IsInferringSchema = true;
+            ClearMessages();
+            StateHasChanged();
+
+            try
+            {
+                ApiSchemaInferenceResult = await ApiSchemaInferenceService.InferSchemaFromApiAsync(
+                    ApiSchemaUrl,
+                    ApiSchemaContentTypeName,
+                    string.IsNullOrWhiteSpace(ApiSchemaJsonPath) ? null : ApiSchemaJsonPath,
+                    ApiSchemaHeaders.Count > 0 ? ApiSchemaHeaders : null);
+
+                if (ApiSchemaInferenceResult.Success)
+                {
+                    ShowApiSchemaPreview = true;
+                    SetSuccessMessage($"Successfully inferred schema with {ApiSchemaInferenceResult.ContentType?.Properties.Count ?? 0} properties");
+                }
+                else
+                {
+                    SetErrorMessage(ApiSchemaInferenceResult.ErrorMessage ?? "Failed to infer schema");
+                }
+
+                if (!string.IsNullOrEmpty(ApiSchemaInferenceResult.DebugInfo))
+                {
+                    DebugInfo = ApiSchemaInferenceResult.DebugInfo;
+                }
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Error inferring schema: {ex.Message}");
+            }
+            finally
+            {
+                IsInferringSchema = false;
+                StateHasChanged();
+            }
+        }
+
+        protected void ApplyApiSchemaToContentType()
+        {
+            if (ApiSchemaInferenceResult?.ContentType == null)
+                return;
+
+            // Add the inferred content type to the current schema
+            CurrentSchema.ContentTypes.Add(ApiSchemaInferenceResult.ContentType);
+
+            SetSuccessMessage($"Added content type '{ApiSchemaInferenceResult.ContentType.Name}' with {ApiSchemaInferenceResult.ContentType.Properties.Count} properties");
+
+            // Close the dialog
+            CloseApiSchemaImportDialog();
+        }
+
+        protected void ToggleApiPropertySearchable(PropertyTypeModel property)
+        {
+            property.IsSearchable = !property.IsSearchable;
+            StateHasChanged();
+        }
+
+        protected void RemoveApiInferredProperty(PropertyTypeModel property)
+        {
+            ApiSchemaInferenceResult?.ContentType?.Properties.Remove(property);
+            StateHasChanged();
+        }
+
+        #endregion
 
         protected void AddLanguage()
         {
@@ -857,11 +998,9 @@ namespace OptiGraphExtensions.Features.CustomData
                 "Int" => 0,
                 "Float" => 0.0,
                 "Boolean" => false,
-                "Date" => DateTime.Today.ToString("yyyy-MM-dd"),
-                "DateTime" => DateTime.Now.ToString("yyyy-MM-ddTHH:mm"),
-                "StringArray" => new List<string>(),
-                "IntArray" => new List<int>(),
-                "FloatArray" => new List<double>(),
+                "[String]" => new List<string>(),
+                "[Int]" => new List<int>(),
+                "[Float]" => new List<double>(),
                 _ => null
             };
         }
@@ -934,7 +1073,7 @@ namespace OptiGraphExtensions.Features.CustomData
                     EditingImportConfig.FieldMappings.Add(new FieldMapping
                     {
                         TargetProperty = prop.Name,
-                        SourcePath = prop.Name // Default to same name
+                        SourcePath = ToCamelCase(prop.Name) // Default to camelCase (common JSON convention)
                     });
                 }
             }
@@ -973,6 +1112,7 @@ namespace OptiGraphExtensions.Features.CustomData
                 }).ToList(),
                 IdFieldMapping = config.IdFieldMapping,
                 LanguageRouting = config.LanguageRouting,
+                JsonPath = config.JsonPath,
                 CustomHeaders = new Dictionary<string, string>(config.CustomHeaders),
                 IsActive = config.IsActive
             };
@@ -1016,6 +1156,10 @@ namespace OptiGraphExtensions.Features.CustomData
 
             try
             {
+                // Debug: Log the values being sent
+                System.Diagnostics.Debug.WriteLine($"[TestConnection] ApiUrl: '{EditingImportConfig.ApiUrl}'");
+                System.Diagnostics.Debug.WriteLine($"[TestConnection] JsonPath: '{EditingImportConfig.JsonPath}'");
+
                 var (success, message, sample) = await ImportService.TestConnectionAsync(EditingImportConfig);
                 TestConnectionSuccess = success;
                 TestConnectionResult = message;
@@ -1248,6 +1392,15 @@ namespace OptiGraphExtensions.Features.CustomData
                     SetSuccessMessage("Import configuration saved.");
                 }
 
+                // Return to the list view
+                EditingImportConfig = null;
+                TestConnectionResult = null;
+                TestConnectionSample = null;
+                ImportPreviewItems.Clear();
+                ImportPreviewWarnings.Clear();
+                ShowImportPreview = false;
+                LastImportResult = null;
+
                 await LoadImportConfigurations();
             }
             catch (Exception ex)
@@ -1261,20 +1414,130 @@ namespace OptiGraphExtensions.Features.CustomData
             }
         }
 
-        protected async Task DeleteImportConfiguration(Guid id)
+        protected void ShowDeleteImportConfigDialog(ImportConfigurationModel config)
         {
+            ImportConfigToDelete = config;
+            ShowDeleteImportConfigConfirmation = true;
+            StateHasChanged();
+        }
+
+        protected void CancelDeleteImportConfig()
+        {
+            ImportConfigToDelete = null;
+            ShowDeleteImportConfigConfirmation = false;
+            StateHasChanged();
+        }
+
+        protected async Task ConfirmDeleteImportConfiguration()
+        {
+            if (ImportConfigToDelete?.Id == null)
+            {
+                return;
+            }
+
+            ShowDeleteImportConfigConfirmation = false;
+            var configName = ImportConfigToDelete.Name;
+
             await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
             {
-                await ImportConfigRepository.DeleteAsync(id);
-                SetSuccessMessage("Import configuration deleted.");
+                await ImportConfigRepository.DeleteAsync(ImportConfigToDelete.Id.Value);
+                SetSuccessMessage($"Import configuration '{configName}' deleted.");
+                ImportConfigToDelete = null;
                 await LoadImportConfigurations();
             }, "deleting import configuration");
         }
 
+        protected void ShowRunImportConfigDialog(ImportConfigurationModel config)
+        {
+            ImportConfigToRun = config;
+            ShowRunImportConfigConfirmation = true;
+            StateHasChanged();
+        }
+
+        protected void CancelRunImportConfig()
+        {
+            ImportConfigToRun = null;
+            ShowRunImportConfigConfirmation = false;
+            StateHasChanged();
+        }
+
+        protected async Task ConfirmRunImportConfiguration()
+        {
+            if (ImportConfigToRun == null)
+            {
+                return;
+            }
+
+            ShowRunImportConfigConfirmation = false;
+            var configToRun = ImportConfigToRun;
+            ImportConfigToRun = null;
+
+            await RunSavedImport(configToRun);
+        }
+
         protected async Task RunSavedImport(ImportConfigurationModel config)
         {
-            EditImportConfig(config);
-            await ExecuteImport();
+            // Find the content type schema for this config
+            var contentType = CurrentSchema.ContentTypes.FirstOrDefault(ct =>
+                string.Equals(ct.Name, config.TargetContentType, StringComparison.OrdinalIgnoreCase));
+
+            if (contentType == null)
+            {
+                SetErrorMessage($"Content type '{config.TargetContentType}' not found in schema.");
+                return;
+            }
+
+            IsImporting = true;
+            StateHasChanged();
+
+            try
+            {
+                var result = await ImportService.ExecuteImportAsync(config, contentType, CurrentSourceId);
+
+                if (result.Success)
+                {
+                    SetSuccessMessage($"Import '{config.Name}' completed: {result.ItemsImported} items imported.");
+
+                    // Update the config with last import stats
+                    if (config.Id.HasValue)
+                    {
+                        var entity = await ImportConfigRepository.GetByIdAsync(config.Id.Value);
+                        if (entity != null)
+                        {
+                            entity.LastImportAt = DateTime.UtcNow;
+                            entity.LastImportCount = result.ItemsImported;
+                            await ImportConfigRepository.UpdateAsync(entity);
+                            await LoadImportConfigurations();
+                        }
+                    }
+
+                    // Reload data from Graph
+                    await LoadDataFromGraph();
+                }
+                else
+                {
+                    SetErrorMessage($"Import '{config.Name}' failed: {string.Join(", ", result.Errors)}");
+                }
+
+                if (result.Warnings.Any())
+                {
+                    DebugInfo = $"Import Warnings:\n{string.Join("\n", result.Warnings)}";
+                }
+
+                if (!string.IsNullOrEmpty(result.DebugInfo))
+                {
+                    DebugInfo += $"\n\n{result.DebugInfo}";
+                }
+            }
+            catch (Exception ex)
+            {
+                SetErrorMessage($"Import error: {ex.Message}");
+            }
+            finally
+            {
+                IsImporting = false;
+                StateHasChanged();
+            }
         }
 
         protected void AddFieldMapping()
@@ -1321,6 +1584,7 @@ namespace OptiGraphExtensions.Features.CustomData
                 AuthValueOrPassword = entity.AuthValueOrPassword,
                 IdFieldMapping = entity.IdFieldMapping,
                 LanguageRouting = entity.LanguageRouting,
+                JsonPath = entity.JsonPath,
                 IsActive = entity.IsActive,
                 LastImportAt = entity.LastImportAt,
                 LastImportCount = entity.LastImportCount
@@ -1373,11 +1637,30 @@ namespace OptiGraphExtensions.Features.CustomData
                 FieldMappingsJson = JsonSerializer.Serialize(model.FieldMappings),
                 IdFieldMapping = model.IdFieldMapping,
                 LanguageRouting = model.LanguageRouting,
+                JsonPath = model.JsonPath,
                 CustomHeadersJson = JsonSerializer.Serialize(model.CustomHeaders),
                 IsActive = model.IsActive,
                 LastImportAt = model.LastImportAt,
                 LastImportCount = model.LastImportCount
             };
+        }
+
+        /// <summary>
+        /// Converts a PascalCase string to camelCase.
+        /// </summary>
+        private static string ToCamelCase(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+
+            if (value.Length == 1)
+            {
+                return value.ToLowerInvariant();
+            }
+
+            return char.ToLowerInvariant(value[0]) + value[1..];
         }
 
         #endregion

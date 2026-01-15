@@ -32,17 +32,22 @@
             <div class="epi-modal" @onclick:stopPropagation="true">
                 <div class="epi-modal-header">
                     <h2 class="epi-h2">Warning: Full Sync</h2>
-                    <button type="button" @onclick="CancelFullSyncWarning" class="epi-modal-close" aria-label="Close">×</button>
+                    <button type="button" @onclick="CancelFullSyncWarning" class="epi-modal-close"
+                        aria-label="Close">×</button>
                 </div>
                 <div class="epi-modal-body">
                     <div class="epi-warning-box">
-                        <strong>Warning:</strong> Full sync will <strong>DELETE ALL EXISTING DATA</strong> in this source. This action cannot be undone.
+                        <strong>Warning:</strong> Full sync will <strong>DELETE ALL EXISTING DATA</strong> in this source.
+                        This action cannot be undone.
                     </div>
                     <p style="margin-top: 16px;">Are you sure you want to proceed?</p>
                 </div>
                 <div class="epi-modal-footer">
-                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelFullSyncWarning">Cancel</button>
-                    <button type="button" class="epi-button epi-button--danger" @onclick="@(async () => { ConfirmFullSyncWarning(); await SaveSchemaFullSync(); })">Yes, Delete Data and Sync</button>
+                    <button type="button" class="epi-button epi-button--secondary"
+                        @onclick="CancelFullSyncWarning">Cancel</button>
+                    <button type="button" class="epi-button epi-button--danger"
+                        @onclick="@(async () => { ConfirmFullSyncWarning(); await SaveSchemaFullSync(); })">Yes, Delete Data
+                        and Sync</button>
                 </div>
             </div>
         </div>
@@ -55,18 +60,26 @@
             <div class="epi-modal" @onclick:stopPropagation="true">
                 <div class="epi-modal-header">
                     <h2 class="epi-h2">Delete Source</h2>
-                    <button type="button" @onclick="CancelDeleteConfirmation" class="epi-modal-close" aria-label="Close">×</button>
+                    <button type="button" @onclick="CancelDeleteConfirmation" class="epi-modal-close"
+                        aria-label="Close">×</button>
                 </div>
                 <div class="epi-modal-body">
                     <div class="epi-warning-box">
-                        <strong>Warning:</strong> This will permanently delete the source <strong>"@SourceIdToDelete"</strong> and all associated data from Optimizely Graph. This action cannot be undone.
+                        <strong>Warning:</strong> This will permanently delete the source
+                        <strong>"@SourceIdToDelete"</strong> and all associated data from Optimizely Graph. This action
+                        cannot be undone.
                     </div>
                     <p style="margin-top: 16px;">Are you sure you want to delete this source?</p>
                 </div>
                 <div class="epi-modal-footer">
-                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelDeleteConfirmation" disabled="@IsDeleting">Cancel</button>
-                    <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmDeleteSource" disabled="@IsDeleting">
-                        @if (IsDeleting) { <span class="epi-loader-small"></span> }
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelDeleteConfirmation"
+                        disabled="@IsDeleting">Cancel</button>
+                    <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmDeleteSource"
+                        disabled="@IsDeleting">
+                        @if (IsDeleting)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
                         Yes, Delete Source
                     </button>
                 </div>
@@ -81,18 +94,25 @@
             <div class="epi-modal" @onclick:stopPropagation="true">
                 <div class="epi-modal-header">
                     <h2 class="epi-h2">Clear All Data</h2>
-                    <button type="button" @onclick="CancelClearDataConfirmation" class="epi-modal-close" aria-label="Close">×</button>
+                    <button type="button" @onclick="CancelClearDataConfirmation" class="epi-modal-close"
+                        aria-label="Close">×</button>
                 </div>
                 <div class="epi-modal-body">
                     <div class="epi-warning-box">
-                        <strong>Warning:</strong> This will clear all data items from source <strong>"@CurrentSourceId"</strong> in Optimizely Graph. This action cannot be undone.
+                        <strong>Warning:</strong> This will clear all data items from source
+                        <strong>"@CurrentSourceId"</strong> in Optimizely Graph. This action cannot be undone.
                     </div>
                     <p style="margin-top: 16px;">Are you sure you want to clear all data?</p>
                 </div>
                 <div class="epi-modal-footer">
-                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelClearDataConfirmation" disabled="@IsClearingData">Cancel</button>
-                    <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmClearAllData" disabled="@IsClearingData">
-                        @if (IsClearingData) { <span class="epi-loader-small"></span> }
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelClearDataConfirmation"
+                        disabled="@IsClearingData">Cancel</button>
+                    <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmClearAllData"
+                        disabled="@IsClearingData">
+                        @if (IsClearingData)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
                         Yes, Clear All Data
                     </button>
                 </div>
@@ -107,7 +127,8 @@
             <div class="epi-modal" @onclick:stopPropagation="true">
                 <div class="epi-modal-header">
                     <h2 class="epi-h2">Confirm Import</h2>
-                    <button type="button" @onclick="CancelImportConfirmation" class="epi-modal-close" aria-label="Close">×</button>
+                    <button type="button" @onclick="CancelImportConfirmation" class="epi-modal-close"
+                        aria-label="Close">×</button>
                 </div>
                 <div class="epi-modal-body">
                     <div class="epi-info-box">
@@ -119,17 +140,248 @@
                     @if (ImportPreviewWarnings.Any())
                     {
                         <div class="epi-warning-box" style="margin-top: 16px;">
-                            <strong>Note:</strong> There were @ImportPreviewWarnings.Count warning(s) during preview. Check the preview results for details.
+                            <strong>Note:</strong> There were @ImportPreviewWarnings.Count warning(s) during preview. Check the
+                            preview results for details.
                         </div>
                     }
                     <p style="margin-top: 16px;">Do you want to proceed with the import?</p>
                 </div>
                 <div class="epi-modal-footer">
-                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelImportConfirmation" disabled="@IsImporting">Cancel</button>
-                    <button type="button" class="epi-button epi-button--primary" @onclick="ExecuteImport" disabled="@IsImporting">
-                        @if (IsImporting) { <span class="epi-loader-small"></span> }
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelImportConfirmation"
+                        disabled="@IsImporting">Cancel</button>
+                    <button type="button" class="epi-button epi-button--primary" @onclick="ExecuteImport"
+                        disabled="@IsImporting">
+                        @if (IsImporting)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
                         Yes, Import Data
                     </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Delete Import Configuration Confirmation Modal *@
+    @if (ShowDeleteImportConfigConfirmation && ImportConfigToDelete != null)
+    {
+        <div class="epi-modal-overlay" @onclick="CancelDeleteImportConfig">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Delete Import Configuration</h2>
+                    <button type="button" @onclick="CancelDeleteImportConfig" class="epi-modal-close"
+                        aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <p>Are you sure you want to delete the import configuration
+                        "<strong>@ImportConfigToDelete.Name</strong>"?</p>
+                    <p style="margin-top: 8px; color: #666;">This action cannot be undone. The configuration will be
+                        permanently removed.</p>
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary"
+                        @onclick="CancelDeleteImportConfig">Cancel</button>
+                    <button type="button" class="epi-button epi-button--danger" @onclick="ConfirmDeleteImportConfiguration">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Run Import Configuration Confirmation Modal *@
+    @if (ShowRunImportConfigConfirmation && ImportConfigToRun != null)
+    {
+        <div class="epi-modal-overlay" @onclick="CancelRunImportConfig">
+            <div class="epi-modal" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Run Import</h2>
+                    <button type="button" @onclick="CancelRunImportConfig" class="epi-modal-close"
+                        aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <div class="epi-info-box">
+                        <p><strong>Ready to run import: "@ImportConfigToRun.Name"</strong></p>
+                        <p>API URL: <strong>@ImportConfigToRun.ApiUrl</strong></p>
+                        <p>Target content type: <strong>@ImportConfigToRun.TargetContentType</strong></p>
+                        @if (ImportConfigToRun.LastImportAt.HasValue)
+                        {
+                            <p>Last import: <strong>@ImportConfigToRun.LastImportAt.Value.ToString("g")</strong>
+                                (@(ImportConfigToRun.LastImportCount ?? 0) items)</p>
+                        }
+                    </div>
+                    <p style="margin-top: 16px;">Do you want to proceed with the import?</p>
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary"
+                        @onclick="CancelRunImportConfig">Cancel</button>
+                    <button type="button" class="epi-button epi-button--primary" @onclick="ConfirmRunImportConfiguration">
+                        Run Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* API Schema Import Modal *@
+    @if (ShowApiSchemaImport)
+    {
+        <div class="epi-modal-overlay" @onclick="CloseApiSchemaImportDialog">
+            <div class="epi-modal epi-modal--large" @onclick:stopPropagation="true">
+                <div class="epi-modal-header">
+                    <h2 class="epi-h2">Import Schema from API</h2>
+                    <button type="button" @onclick="CloseApiSchemaImportDialog" class="epi-modal-close"
+                        aria-label="Close">×</button>
+                </div>
+                <div class="epi-modal-body">
+                    <p class="epi-help-text">
+                        Fetch JSON from an external API and automatically infer a content type schema from the response.
+                    </p>
+
+                    <div class="epi-form-field">
+                        <label class="epi-label">API URL *</label>
+                        <input type="url" class="epi-textbox" @bind="ApiSchemaUrl"
+                            placeholder="https://api.example.com/products" />
+                        <span class="epi-field-hint">Enter the URL of the API endpoint that returns JSON data</span>
+                    </div>
+
+                    <div class="epi-form-field">
+                        <label class="epi-label">Content Type Name *</label>
+                        <input type="text" class="epi-textbox" @bind="ApiSchemaContentTypeName" placeholder="Product" />
+                        <span class="epi-field-hint">Name for the content type to be created (will be converted to
+                            PascalCase)</span>
+                    </div>
+
+                    <div class="epi-form-field">
+                        <label class="epi-label">JSON Path (optional)</label>
+                        <input type="text" class="epi-textbox" @bind="ApiSchemaJsonPath" placeholder="data.items" />
+                        <span class="epi-field-hint">Path to the array of items in the response (e.g., "data.items",
+                            "results", "records")</span>
+                    </div>
+
+                    <div class="epi-form-field">
+                        <label class="epi-label">Custom Headers (optional)</label>
+                        <div class="epi-headers-list">
+                            @foreach (var header in ApiSchemaHeaders)
+                            {
+                                <div class="epi-header-item">
+                                    <span class="epi-header-key">@header.Key:</span>
+                                    <span class="epi-header-value">@(header.Key.ToLower().Contains("auth") ||
+                                                                        header.Key.ToLower().Contains("key") ? "***" : header.Value)</span>
+                                    <button type="button" class="epi-button epi-button--danger epi-button--small"
+                                        @onclick="@(() => RemoveApiHeader(header.Key))">Remove</button>
+                                </div>
+                            }
+                        </div>
+                        <div class="epi-header-add">
+                            <input type="text" class="epi-textbox epi-textbox--small" @bind="NewApiHeaderKey"
+                                placeholder="Header name" />
+                            <input type="text" class="epi-textbox epi-textbox--small" @bind="NewApiHeaderValue"
+                                placeholder="Header value" />
+                            <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                @onclick="AddApiHeader">Add Header</button>
+                        </div>
+                        <span class="epi-field-hint">Add headers like Authorization, API-Key, etc.</span>
+                    </div>
+
+                    @if (!ShowApiSchemaPreview)
+                    {
+                        <div class="epi-form-actions" style="margin-top: 16px;">
+                            <button type="button" class="epi-button epi-button--primary" @onclick="InferSchemaFromApi"
+                                disabled="@IsInferringSchema">
+                                @if (IsInferringSchema)
+                                {
+                                    <span class="epi-loader-small"></span>
+                                }
+                                Fetch & Infer Schema
+                            </button>
+                        </div>
+                    }
+
+                    @if (ShowApiSchemaPreview && ApiSchemaInferenceResult?.ContentType != null)
+                    {
+                        <div class="epi-schema-preview">
+                            <h3 class="epi-h3">Inferred Schema Preview</h3>
+
+                            <div class="epi-form-field">
+                                <label class="epi-label">Content Type Name</label>
+                                <input type="text" class="epi-textbox" @bind="ApiSchemaInferenceResult.ContentType.Name" />
+                            </div>
+
+                            <div class="epi-form-field">
+                                <label class="epi-label">Properties (@ApiSchemaInferenceResult.ContentType.Properties.Count
+                                    found)</label>
+                                @if (ApiSchemaInferenceResult.ContentType.Properties.Any())
+                                {
+                                    <div class="epi-table-container">
+                                        <table class="epi-table epi-table--compact">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Type</th>
+                                                    <th>Searchable</th>
+                                                    <th class="epi-align-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var prop in ApiSchemaInferenceResult.ContentType.Properties)
+                                                {
+                                                    <tr>
+                                                        <td><input type="text" class="epi-textbox epi-textbox--small"
+                                                                @bind="prop.Name" /></td>
+                                                        <td>
+                                                            <select class="epi-select epi-select--small" @bind="prop.Type">
+                                                                @foreach (var type in AvailablePropertyTypes)
+                                                                {
+                                                                    <option value="@type">@type</option>
+                                                                }
+                                                            </select>
+                                                        </td>
+                                                        <td class="epi-align-center">
+                                                            <input type="checkbox" checked="@prop.IsSearchable"
+                                                                @onchange="@(() => ToggleApiPropertySearchable(prop))" />
+                                                        </td>
+                                                        <td class="epi-align-right">
+                                                            <button type="button"
+                                                                class="epi-button epi-button--danger epi-button--small"
+                                                                @onclick="@(() => RemoveApiInferredProperty(prop))">Remove</button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (ApiSchemaInferenceResult.SampleData?.Any() == true)
+                            {
+                                <div class="epi-form-field">
+                                    <label class="epi-label">Sample Data (@ApiSchemaInferenceResult.SampleData.Count items)</label>
+                                    <pre
+                                        class="epi-code-preview">@System.Text.Json.JsonSerializer.Serialize(ApiSchemaInferenceResult.SampleData.Take(3), new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="epi-modal-footer">
+                    <button type="button" class="epi-button epi-button--secondary"
+                        @onclick="CloseApiSchemaImportDialog">Cancel</button>
+                    @if (ShowApiSchemaPreview && ApiSchemaInferenceResult?.ContentType != null)
+                    {
+                        <button type="button" class="epi-button epi-button--secondary" @onclick="InferSchemaFromApi"
+                            disabled="@IsInferringSchema">
+                            @if (IsInferringSchema)
+                            {
+                                <span class="epi-loader-small"></span>
+                            }
+                            Re-fetch
+                        </button>
+                        <button type="button" class="epi-button epi-button--primary" @onclick="ApplyApiSchemaToContentType">
+                            Apply to Schema
+                        </button>
+                    }
                 </div>
             </div>
         </div>
@@ -143,10 +395,12 @@
                 <h2 class="epi-h2">Custom Data Sources</h2>
                 <div class="epi-header-actions">
                     <span class="epi-badge">@AllSources.Count total sources</span>
-                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="LoadSources" disabled="@IsLoading">
+                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="LoadSources"
+                        disabled="@IsLoading">
                         Refresh
                     </button>
-                    <button type="button" class="epi-button epi-button--primary epi-button--small" @onclick="ShowCreateSchemaForm" disabled="@IsLoading">
+                    <button type="button" class="epi-button epi-button--primary epi-button--small"
+                        @onclick="ShowCreateSchemaForm" disabled="@IsLoading">
                         New Source
                     </button>
                 </div>
@@ -162,8 +416,10 @@
                 else
                 {
                     <div class="epi-info-box">
-                        <p><strong>Custom Data Sources</strong> allow you to define your own GraphQL schemas and sync external data to Optimizely Graph.</p>
-                        <p style="margin-bottom: 0;"><strong>Note:</strong> Source IDs must be 1-4 lowercase letters and/or numbers only.</p>
+                        <p><strong>Custom Data Sources</strong> allow you to define your own GraphQL schemas and sync external
+                            data to Optimizely Graph.</p>
+                        <p style="margin-bottom: 0;"><strong>Note:</strong> Source IDs must be 1-4 lowercase letters and/or
+                            numbers only.</p>
                     </div>
 
                     @if (AllSources.Any())
@@ -189,13 +445,17 @@
                                             <td>@source.ContentTypeCount type(s)</td>
                                             <td class="epi-align-right">
                                                 <div class="epi-button-group">
-                                                    <button type="button" class="epi-button epi-button--info epi-button--small" @onclick="@(() => ShowEditSchemaForm(source.SourceId))" title="Edit Schema">
+                                                    <button type="button" class="epi-button epi-button--info epi-button--small"
+                                                        @onclick="@(() => ShowEditSchemaForm(source.SourceId))" title="Edit Schema">
                                                         Schema
                                                     </button>
-                                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => ShowDataManagement(source.SourceId))" title="Manage Data">
+                                                    <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                                        @onclick="@(() => ShowDataManagement(source.SourceId))" title="Manage Data">
                                                         Data
                                                     </button>
-                                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => ShowDeleteConfirmationDialog(source.SourceId))" title="Delete Source">
+                                                    <button type="button" class="epi-button epi-button--danger epi-button--small"
+                                                        @onclick="@(() => ShowDeleteConfirmationDialog(source.SourceId))"
+                                                        title="Delete Source">
                                                         Delete
                                                     </button>
                                                 </div>
@@ -210,21 +470,24 @@
                         {
                             <div class="epi-pagination">
                                 <div class="epi-pagination-info">
-                                    Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, AllSources.Count) of @AllSources.Count sources
+                                    Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, AllSources.Count)
+                                    of @AllSources.Count sources
                                 </div>
                                 <div class="epi-pagination-controls">
-                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(CurrentPage <= 1)" @onclick="GoToPreviousPage">
+                                    <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                        disabled="@(CurrentPage <= 1)" @onclick="GoToPreviousPage">
                                         Previous
                                     </button>
                                     @for (int i = Math.Max(1, CurrentPage - 2); i <= Math.Min(TotalPages, CurrentPage + 2); i++)
                                     {
                                         var pageNumber = i;
                                         <button type="button" @onclick="@(() => GoToPage(pageNumber))"
-                                                class="epi-button epi-button--small @(CurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
+                                            class="epi-button epi-button--small @(CurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
                                             @pageNumber
                                         </button>
                                     }
-                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(CurrentPage >= TotalPages)" @onclick="GoToNextPage">
+                                    <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                        disabled="@(CurrentPage >= TotalPages)" @onclick="GoToNextPage">
                                         Next
                                     </button>
                                 </div>
@@ -256,9 +519,11 @@
             </div>
             <div class="epi-form">
                 @* Editor Mode Toggle *@
-                <div class="epi-tabs">
-                    <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")" @onclick="SwitchToVisualMode">Visual Builder</button>
-                    <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")" @onclick="SwitchToRawMode">Raw JSON</button>
+                    <div class="epi-tabs">
+                    <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")"
+                        @onclick="SwitchToVisualMode">Visual Builder</button>
+                    <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")"
+                        @onclick="SwitchToRawMode">Raw JSON</button>
                 </div>
 
                 @if (EditorMode == "visual")
@@ -271,14 +536,14 @@
                             <div class="epi-form-field epi-form-field--source-id">
                                 <label for="sourceId" class="epi-label">Source ID *</label>
                                 <input id="sourceId" type="text" class="epi-textbox" @bind="CurrentSchema.SourceId"
-                                       placeholder="e.g., prod" maxlength="4"
-                                       disabled="@IsEditingSchema"
-                                       pattern="[a-z0-9]{1,4}" />
+                                    placeholder="e.g., prod" maxlength="4" disabled="@IsEditingSchema"
+                                    pattern="[a-z0-9]{1,4}" />
                                 <span class="epi-field-help">1-4 lowercase letters and/or numbers</span>
                             </div>
                             <div class="epi-form-field epi-form-field--label">
                                 <label for="schemaLabel" class="epi-label">Label</label>
-                                <input id="schemaLabel" type="text" class="epi-textbox" @bind="CurrentSchema.Label" placeholder="Human-readable label" />
+                                <input id="schemaLabel" type="text" class="epi-textbox" @bind="CurrentSchema.Label"
+                                    placeholder="Human-readable label" />
                             </div>
                         </div>
                     </div>
@@ -292,22 +557,32 @@
                             {
                                 var index = i;
                                 <div class="epi-language-row">
-                                    <input type="text" class="epi-textbox epi-textbox--small" value="@CurrentSchema.Languages[index]"
-                                           @onchange="@(e => CurrentSchema.Languages[index] = e.Value?.ToString() ?? string.Empty)"
-                                           placeholder="e.g., en" />
-                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveLanguage(index))">Remove</button>
+                                    <input type="text" class="epi-textbox epi-textbox--small"
+                                        value="@CurrentSchema.Languages[index]"
+                                        @onchange="@(e => CurrentSchema.Languages[index] = e.Value?.ToString() ?? string.Empty)"
+                                        placeholder="e.g., en" />
+                                    <button type="button" class="epi-button epi-button--danger epi-button--small"
+                                        @onclick="@(() => RemoveLanguage(index))">Remove</button>
                                 </div>
                             }
                         </div>
-                        <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddLanguage">Add Language</button>
+                        <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                            @onclick="AddLanguage">Add Language</button>
                     </div>
 
                     <div class="epi-form-section">
                         <div class="epi-section-header">
                             <h3 class="epi-h3">Content Types</h3>
-                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddContentType">Add Content Type</button>
+                            <div class="epi-button-group">
+                                <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                    @onclick="AddContentType">Add Content Type</button>
+                                <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                    @onclick="ShowApiSchemaImportDialog" title="Infer schema from an external API">Import from
+                                    API</button>
+                            </div>
                         </div>
-                        <p class="epi-help-text">Define the content types and their properties that will be available in your custom data source.</p>
+                        <p class="epi-help-text">Define the content types and their properties that will be available in your
+                            custom data source.</p>
 
                         @foreach (var contentType in CurrentSchema.ContentTypes)
                         {
@@ -316,14 +591,17 @@
                                     <div class="epi-form-row">
                                         <div class="epi-form-field">
                                             <label class="epi-label">Type Name *</label>
-                                            <input type="text" class="epi-textbox" @bind="contentType.Name" placeholder="e.g., Product" />
+                                            <input type="text" class="epi-textbox" @bind="contentType.Name"
+                                                placeholder="e.g., Product" />
                                         </div>
                                         <div class="epi-form-field">
                                             <label class="epi-label">Label</label>
-                                            <input type="text" class="epi-textbox" @bind="contentType.Label" placeholder="Human-readable label" />
+                                            <input type="text" class="epi-textbox" @bind="contentType.Label"
+                                                placeholder="Human-readable label" />
                                         </div>
                                     </div>
-                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveContentType(contentType))">Remove Type</button>
+                                    <button type="button" class="epi-button epi-button--danger epi-button--small"
+                                        @onclick="@(() => RemoveContentType(contentType))">Remove Type</button>
                                 </div>
 
                                 <div class="epi-properties-section">
@@ -345,7 +623,8 @@
                                                     @foreach (var property in contentType.Properties)
                                                     {
                                                         <tr>
-                                                            <td><input type="text" class="epi-textbox epi-textbox--small" @bind="property.Name" placeholder="Property name" /></td>
+                                                            <td><input type="text" class="epi-textbox epi-textbox--small"
+                                                                    @bind="property.Name" placeholder="Property name" /></td>
                                                             <td>
                                                                 <select class="epi-select epi-select--small" @bind="property.Type">
                                                                     @foreach (var type in AvailablePropertyTypes)
@@ -354,10 +633,14 @@
                                                                     }
                                                                 </select>
                                                             </td>
-                                                            <td class="epi-align-center"><input type="checkbox" @bind="property.IsSearchable" /></td>
-                                                            <td class="epi-align-center"><input type="checkbox" @bind="property.IsRequired" /></td>
+                                                            <td class="epi-align-center"><input type="checkbox"
+                                                                    @bind="property.IsSearchable" /></td>
+                                                            <td class="epi-align-center"><input type="checkbox"
+                                                                    @bind="property.IsRequired" /></td>
                                                             <td class="epi-align-right">
-                                                                <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveProperty(contentType, property))">Remove</button>
+                                                                <button type="button"
+                                                                    class="epi-button epi-button--danger epi-button--small"
+                                                                    @onclick="@(() => RemoveProperty(contentType, property))">Remove</button>
                                                             </td>
                                                         </tr>
                                                     }
@@ -365,7 +648,8 @@
                                             </table>
                                         </div>
                                     }
-                                    <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => AddProperty(contentType))">Add Property</button>
+                                    <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                        @onclick="@(() => AddProperty(contentType))">Add Property</button>
                                 </div>
                             </div>
                         }
@@ -390,17 +674,27 @@
                 <div class="epi-form-actions">
                     @if (IsEditingSchema)
                     {
-                        <button type="button" class="epi-button epi-button--primary" @onclick="SaveSchemaPartialSync" disabled="@IsSyncing">
-                            @if (IsSyncing) { <span class="epi-loader-small"></span> }
+                        <button type="button" class="epi-button epi-button--primary" @onclick="SaveSchemaPartialSync"
+                            disabled="@IsSyncing">
+                            @if (IsSyncing)
+                            {
+                                <span class="epi-loader-small"></span>
+                            }
                             Save (Partial Sync)
                         </button>
                     }
-                    <button type="button" class="epi-button @(IsEditingSchema ? "epi-button--warning" : "epi-button--primary")" @onclick="SaveSchemaFullSync" disabled="@IsSyncing">
-                        @if (IsSyncing) { <span class="epi-loader-small"></span> }
+                    <button type="button"
+                        class="epi-button @(IsEditingSchema ? "epi-button--warning" : "epi-button--primary")"
+                        @onclick="SaveSchemaFullSync" disabled="@IsSyncing">
+                        @if (IsSyncing)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
                         @(IsEditingSchema ? "Save (Full Sync - Deletes Data)" : "Create Schema")
                     </button>
-                    <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList" disabled="@IsSyncing">
-                        Cancel
+                    <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList"
+                        disabled="@IsSyncing">
+                        Close
                     </button>
                 </div>
             </div>
@@ -415,7 +709,8 @@
                 <h2 class="epi-h2">Manage Data: @CurrentSourceId</h2>
                 <div class="epi-header-actions">
                     <span class="epi-badge">@DataItems.Count items</span>
-                    <button type="button" class="epi-button epi-button--info epi-button--small" @onclick="ToggleImportSection">
+                    <button type="button" class="epi-button epi-button--info epi-button--small"
+                        @onclick="ToggleImportSection">
                         @(ShowImportSection ? "Hide Import" : "Import")
                     </button>
                     <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="BackToList">
@@ -425,7 +720,7 @@
             </div>
             <div class="epi-form">
                 @* Import Section *@
-                @if (ShowImportSection)
+                    @if (ShowImportSection)
                 {
                     <div class="epi-form-section epi-import-section">
                         <h3 class="epi-h3">External Data Import</h3>
@@ -434,10 +729,11 @@
                         @if (EditingImportConfig == null)
                         {
                             @* Saved Configurations List *@
-                            <div class="epi-import-configs">
+                                        <div class="epi-import-configs">
                                 <div class="epi-section-header">
                                     <h4 class="epi-h4">Saved Configurations</h4>
-                                    <button type="button" class="epi-button epi-button--primary epi-button--small" @onclick="ShowNewImportConfigForm">
+                                    <button type="button" class="epi-button epi-button--primary epi-button--small"
+                                        @onclick="ShowNewImportConfigForm">
                                         New Import
                                     </button>
                                 </div>
@@ -462,14 +758,17 @@
                                                             <strong>@config.Name</strong>
                                                             @if (!string.IsNullOrEmpty(config.Description))
                                                             {
-                                                                <br /><small class="epi-muted">@config.Description</small>
+                                                                <br />
+                                        
+                                                                <small class="epi-muted">@config.Description</small>
                                                             }
                                                         </td>
                                                         <td><code class="epi-code epi-code--truncate">@config.ApiUrl</code></td>
                                                         <td>
                                                             @if (config.LastImportAt.HasValue)
                                                             {
-                                                                <span>@config.LastImportAt.Value.ToString("g") (@config.LastImportCount items)</span>
+                                                                <span>@config.LastImportAt.Value.ToString("g") (@config.LastImportCount
+                                                                    items)</span>
                                                             }
                                                             else
                                                             {
@@ -478,13 +777,19 @@
                                                         </td>
                                                         <td class="epi-align-right">
                                                             <div class="epi-button-group">
-                                                                <button type="button" class="epi-button epi-button--primary epi-button--small" @onclick="@(() => RunSavedImport(config))" disabled="@IsImporting">
+                                                                <button type="button"
+                                                                    class="epi-button epi-button--primary epi-button--small"
+                                                                    @onclick="@(() => ShowRunImportConfigDialog(config))" disabled="@IsImporting">
                                                                     Run
                                                                 </button>
-                                                                <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => EditImportConfig(config))">
+                                                                <button type="button"
+                                                                    class="epi-button epi-button--secondary epi-button--small"
+                                                                    @onclick="@(() => EditImportConfig(config))">
                                                                     Edit
                                                                 </button>
-                                                                <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => DeleteImportConfiguration(config.Id!.Value))">
+                                                                <button type="button"
+                                                                    class="epi-button epi-button--danger epi-button--small"
+                                                                    @onclick="@(() => ShowDeleteImportConfigDialog(config))">
                                                                     Delete
                                                                 </button>
                                                             </div>
@@ -506,38 +811,51 @@
                         else
                         {
                             @* Import Configuration Form *@
-                            <div class="epi-import-form">
+                                        <div class="epi-import-form">
                                 <h4 class="epi-h4">@(EditingImportConfig.Id.HasValue ? "Edit Import Configuration" : "New Import Configuration")</h4>
 
                                 @* Basic Info *@
-                                <div class="epi-form-row">
+                                            <div class="epi-form-row">
                                     <div class="epi-form-field">
                                         <label class="epi-label">Name *</label>
-                                        <input type="text" class="epi-textbox" @bind="EditingImportConfig.Name" placeholder="e.g., Product API Import" />
+                                        <input type="text" class="epi-textbox" @bind="EditingImportConfig.Name"
+                                            placeholder="e.g., Product API Import" />
                                     </div>
                                     <div class="epi-form-field">
                                         <label class="epi-label">Description</label>
-                                        <input type="text" class="epi-textbox" @bind="EditingImportConfig.Description" placeholder="Optional description" />
+                                        <input type="text" class="epi-textbox" @bind="EditingImportConfig.Description"
+                                            placeholder="Optional description" />
                                     </div>
                                 </div>
 
                                 @* API Settings *@
-                                <div class="epi-form-row">
+                                            <div class="epi-form-row">
                                     <div class="epi-form-field" style="flex: 2;">
                                         <label class="epi-label">API URL *</label>
-                                        <input type="url" class="epi-textbox" @bind="EditingImportConfig.ApiUrl" placeholder="https://api.example.com/data" />
+                                        <input type="text" class="epi-textbox" name="import_api_url" autocomplete="off"
+                                            @bind="EditingImportConfig.ApiUrl" placeholder="https://api.example.com/data" />
                                     </div>
                                     <div class="epi-form-field" style="flex: 0 0 150px;">
                                         <label class="epi-label">HTTP Method</label>
-                                        <select class="epi-select" @bind="EditingImportConfig.HttpMethod">
+                                        <select class="epi-select" name="import_http_method" @bind="EditingImportConfig.HttpMethod">
                                             <option value="GET">GET</option>
                                             <option value="POST">POST</option>
                                         </select>
                                     </div>
                                 </div>
 
+                                <div class="epi-form-row">
+                                    <div class="epi-form-field">
+                                        <label class="epi-label">JSON Path (optional)</label>
+                                        <input type="text" class="epi-textbox" name="import_json_path" autocomplete="off"
+                                            @bind="EditingImportConfig.JsonPath" placeholder="products" />
+                                        <span class="epi-field-hint">Path to the data array within the response (e.g., "products",
+                                            "data", "results", "items")</span>
+                                    </div>
+                                </div>
+
                                 @* Authentication *@
-                                <div class="epi-form-subsection">
+                                            <div class="epi-form-subsection">
                                     <h5 class="epi-h5">Authentication</h5>
                                     <div class="epi-form-row">
                                         <div class="epi-form-field" style="flex: 0 0 200px;">
@@ -553,45 +871,54 @@
                                         {
                                             <div class="epi-form-field">
                                                 <label class="epi-label">Header Name</label>
-                                                <input type="text" class="epi-textbox" @bind="EditingImportConfig.AuthKeyOrUsername" placeholder="X-API-Key" />
+                                                <input type="text" class="epi-textbox" @bind="EditingImportConfig.AuthKeyOrUsername"
+                                                    placeholder="X-API-Key" />
                                             </div>
                                             <div class="epi-form-field">
                                                 <label class="epi-label">API Key</label>
-                                                <input type="password" class="epi-textbox" @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Your API key" />
+                                                <input type="password" class="epi-textbox"
+                                                    @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Your API key" />
                                             </div>
                                         }
                                         @if (EditingImportConfig.AuthType == AuthenticationType.Basic)
                                         {
                                             <div class="epi-form-field">
                                                 <label class="epi-label">Username</label>
-                                                <input type="text" class="epi-textbox" @bind="EditingImportConfig.AuthKeyOrUsername" placeholder="Username" />
+                                                <input type="text" class="epi-textbox" @bind="EditingImportConfig.AuthKeyOrUsername"
+                                                    placeholder="Username" />
                                             </div>
                                             <div class="epi-form-field">
                                                 <label class="epi-label">Password</label>
-                                                <input type="password" class="epi-textbox" @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Password" />
+                                                <input type="password" class="epi-textbox"
+                                                    @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Password" />
                                             </div>
                                         }
                                         @if (EditingImportConfig.AuthType == AuthenticationType.Bearer)
                                         {
                                             <div class="epi-form-field" style="flex: 2;">
                                                 <label class="epi-label">Bearer Token</label>
-                                                <input type="password" class="epi-textbox" @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Your bearer token" />
+                                                <input type="password" class="epi-textbox"
+                                                    @bind="EditingImportConfig.AuthValueOrPassword" placeholder="Your bearer token" />
                                             </div>
                                         }
                                     </div>
                                 </div>
 
                                 @* Test Connection *@
-                                <div class="epi-form-actions epi-form-actions--inline">
-                                    <button type="button" class="epi-button epi-button--secondary" @onclick="TestConnection" disabled="@IsTestingConnection">
-                                        @if (IsTestingConnection) { <span class="epi-loader-small"></span> }
+                                            <div class="epi-form-actions epi-form-actions--inline">
+                                    <button type="button" class="epi-button epi-button--secondary" @onclick="TestConnection"
+                                        disabled="@IsTestingConnection">
+                                        @if (IsTestingConnection)
+                                        {
+                                            <span class="epi-loader-small"></span>
+                                        }
                                         Test Connection
                                     </button>
                                 </div>
 
                                 @if (TestConnectionResult != null)
                                 {
-                                    <div class="@(TestConnectionSuccess ? "epi-info-box epi-info-box--success" : "epi-warning-box")">
+                                    <div class="@(TestConnectionSuccess ? "epi-info-box epi-info-box--success" : "epi-warning-box")" style="margin-top: 12px;">
                                         <p><strong>@(TestConnectionSuccess ? "Success:" : "Error:")</strong> @TestConnectionResult</p>
                                         @if (!string.IsNullOrEmpty(TestConnectionSample))
                                         {
@@ -607,17 +934,20 @@
                                 <div class="epi-form-subsection">
                                     <div class="epi-section-header">
                                         <h5 class="epi-h5">Field Mappings</h5>
-                                        <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddFieldMapping">
+                                        <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                            @onclick="AddFieldMapping">
                                             Add Mapping
                                         </button>
                                     </div>
-                                    <p class="epi-help-text">Map fields from the external API to your content type properties. Use dot notation for nested fields (e.g., "data.product.name").</p>
+                                    <p class="epi-help-text">Map fields from the external API to your content type properties. Use
+                                        dot notation for nested fields (e.g., "data.product.name").</p>
 
                                     @* ID Field Mapping (Required) *@
-                                    <div class="epi-form-row epi-form-row--highlight">
+                                                <div class="epi-form-row epi-form-row--highlight">
                                         <div class="epi-form-field">
                                             <label class="epi-label">ID Field *</label>
-                                            <input type="text" class="epi-textbox" @bind="EditingImportConfig.IdFieldMapping" placeholder="e.g., id or data.id" />
+                                            <input type="text" class="epi-textbox" @bind="EditingImportConfig.IdFieldMapping"
+                                                placeholder="e.g., id or data.id" />
                                             <span class="epi-field-help">Required. Maps to the unique item ID.</span>
                                         </div>
                                         <div class="epi-form-field">
@@ -632,7 +962,7 @@
                                     </div>
 
                                     @* Property Mappings Table *@
-                                    @if (EditingImportConfig.FieldMappings.Any())
+                                                @if (EditingImportConfig.FieldMappings.Any())
                                     {
                                         <div class="epi-table-container">
                                             <table class="epi-table epi-table--compact">
@@ -650,7 +980,8 @@
                                                     {
                                                         <tr>
                                                             <td>
-                                                                <input type="text" class="epi-textbox epi-textbox--small" @bind="mapping.SourcePath" placeholder="e.g., name" />
+                                                                <input type="text" class="epi-textbox epi-textbox--small"
+                                                                    @bind="mapping.SourcePath" placeholder="e.g., name" />
                                                             </td>
                                                             <td>
                                                                 <select class="epi-select epi-select--small" @bind="mapping.TargetProperty">
@@ -676,10 +1007,13 @@
                                                                 </select>
                                                             </td>
                                                             <td>
-                                                                <input type="text" class="epi-textbox epi-textbox--small" @bind="mapping.DefaultValue" placeholder="Optional" />
+                                                                <input type="text" class="epi-textbox epi-textbox--small"
+                                                                    @bind="mapping.DefaultValue" placeholder="Optional" />
                                                             </td>
                                                             <td class="epi-align-right">
-                                                                <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveFieldMapping(mapping))">
+                                                                <button type="button"
+                                                                    class="epi-button epi-button--danger epi-button--small"
+                                                                    @onclick="@(() => RemoveFieldMapping(mapping))">
                                                                     Remove
                                                                 </button>
                                                             </td>
@@ -692,12 +1026,13 @@
                                 </div>
 
                                 @* Custom Headers (Collapsible) *@
-                                <details class="epi-collapsible">
+                                            <details class="epi-collapsible">
                                     <summary>Custom Headers (Optional)</summary>
                                     <div class="epi-form-subsection">
                                         <div class="epi-section-header">
                                             <span></span>
-                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="AddCustomHeader">
+                                            <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                                @onclick="AddCustomHeader">
                                                 Add Header
                                             </button>
                                         </div>
@@ -707,14 +1042,17 @@
                                             {
                                                 <div class="epi-form-row">
                                                     <div class="epi-form-field">
-                                                        <input type="text" class="epi-textbox epi-textbox--small" value="@header.Key" placeholder="Header name"
-                                                               @onchange="@(e => { EditingImportConfig.CustomHeaders.Remove(header.Key); EditingImportConfig.CustomHeaders[e.Value?.ToString() ?? ""] = header.Value; })" />
+                                                        <input type="text" class="epi-textbox epi-textbox--small" value="@header.Key"
+                                                            placeholder="Header name"
+                                                            @onchange="@(e => { EditingImportConfig.CustomHeaders.Remove(header.Key); EditingImportConfig.CustomHeaders[e.Value?.ToString() ?? ""] = header.Value; })" />
                                                     </div>
                                                     <div class="epi-form-field">
-                                                        <input type="text" class="epi-textbox epi-textbox--small" value="@header.Value" placeholder="Header value"
-                                                               @onchange="@(e => EditingImportConfig.CustomHeaders[header.Key] = e.Value?.ToString() ?? "")" />
+                                                        <input type="text" class="epi-textbox epi-textbox--small" value="@header.Value"
+                                                            placeholder="Header value"
+                                                            @onchange="@(e => EditingImportConfig.CustomHeaders[header.Key] = e.Value?.ToString() ?? "")" />
                                                     </div>
-                                                    <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveCustomHeader(header.Key))">
+                                                    <button type="button" class="epi-button epi-button--danger epi-button--small"
+                                                        @onclick="@(() => RemoveCustomHeader(header.Key))">
                                                         Remove
                                                     </button>
                                                 </div>
@@ -724,25 +1062,36 @@
                                 </details>
 
                                 @* Import Form Actions *@
-                                <div class="epi-form-actions">
-                                    <button type="button" class="epi-button epi-button--info" @onclick="PreviewImport" disabled="@IsImporting">
-                                        @if (IsImporting) { <span class="epi-loader-small"></span> }
+                                            <div class="epi-form-actions">
+                                    <button type="button" class="epi-button epi-button--info" @onclick="PreviewImport"
+                                        disabled="@IsImporting">
+                                        @if (IsImporting)
+                                        {
+                                            <span class="epi-loader-small"></span>
+                                        }
                                         Preview
                                     </button>
-                                    <button type="button" class="epi-button epi-button--primary" @onclick="ShowImportConfirmationDialog" disabled="@(IsImporting || !ImportPreviewItems.Any())">
+                                    <button type="button" class="epi-button epi-button--primary"
+                                        @onclick="ShowImportConfirmationDialog"
+                                        disabled="@(IsImporting || !ImportPreviewItems.Any())">
                                         Import to Graph
                                     </button>
-                                    <button type="button" class="epi-button epi-button--secondary" @onclick="SaveImportConfiguration" disabled="@IsLoading">
-                                        @if (IsLoading) { <span class="epi-loader-small"></span> }
+                                    <button type="button" class="epi-button epi-button--secondary"
+                                        @onclick="SaveImportConfiguration" disabled="@IsLoading">
+                                        @if (IsLoading)
+                                        {
+                                            <span class="epi-loader-small"></span>
+                                        }
                                         Save Configuration
                                     </button>
-                                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelEditImportConfig">
+                                    <button type="button" class="epi-button epi-button--secondary"
+                                        @onclick="CancelEditImportConfig">
                                         Cancel
                                     </button>
                                 </div>
 
                                 @* Preview Results *@
-                                @if (ShowImportPreview && ImportPreviewItems.Any())
+                                            @if (ShowImportPreview && ImportPreviewItems.Any())
                                 {
                                     <div class="epi-form-section">
                                         <h5 class="epi-h5">Preview (@ImportPreviewItems.Count items)</h5>
@@ -787,7 +1136,8 @@
                                                             {
                                                                 @foreach (var prop in SelectedContentType.Properties.Take(4))
                                                                 {
-                                                                    <td>@(item.Properties.TryGetValue(prop.Name, out var val) ? val?.ToString() ?? "-" : "-")</td>
+                                                                    <td>@(item.Properties.TryGetValue(prop.Name, out var val) ? val?.ToString() ??
+                                                                                                                    "-" : "-")</td>
                                                                 }
                                                             }
                                                         </tr>
@@ -802,7 +1152,8 @@
 
                                         @* NdJSON Preview Toggle *@
                                         <div class="epi-ndjson-preview-section">
-                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="ToggleNdJsonPreview">
+                                            <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                                @onclick="ToggleNdJsonPreview">
                                                 @(ShowNdJsonPreview ? "Hide NdJSON Preview" : "Show NdJSON Preview")
                                             </button>
                                             @if (ShowNdJsonPreview && !string.IsNullOrEmpty(ImportNdJsonPreview))
@@ -822,7 +1173,8 @@
                                     <div class="@(LastImportResult.Success ? "epi-info-box epi-info-box--success" : "epi-warning-box")">
                                         <h5 class="epi-h5">Import Results</h5>
                                         <p><strong>Status:</strong> @(LastImportResult.Success ? "Success" : "Failed")</p>
-                                        <p><strong>Items Imported:</strong> @LastImportResult.ItemsImported of @LastImportResult.TotalItemsReceived</p>
+                                        <p><strong>Items Imported:</strong> @LastImportResult.ItemsImported of
+                                            @LastImportResult.TotalItemsReceived</p>
                                         <p><strong>Duration:</strong> @LastImportResult.Duration.TotalSeconds.ToString("F2") seconds</p>
                                         @if (LastImportResult.Errors.Any())
                                         {
@@ -847,211 +1199,246 @@
                     <div class="epi-manual-data-section">
                         <div class="epi-manual-data-header">
                             <h3 class="epi-h3">Manual Data Entry</h3>
-                            <p class="epi-help-text">Add and edit data items manually using the visual builder or raw NdJSON editor.</p>
+                            <p class="epi-help-text">Add and edit data items manually using the visual builder or raw NdJSON
+                                editor.</p>
                         </div>
 
                         @* Editor Mode Toggle *@
-                        <div class="epi-tabs">
-                        <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")" @onclick="SwitchToVisualMode">Visual Builder</button>
-                        <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")" @onclick="SwitchToRawMode">Raw NdJSON</button>
-                    </div>
-
-                @if (EditorMode == "visual")
-                {
-                    @if (IsLoadingSchema)
-                    {
-                        <div class="epi-loading">
-                            <div class="epi-loader"></div>
-                            <p>Loading schema...</p>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="epi-form-section">
-                            <h3 class="epi-h3">Content Type</h3>
-                            <p class="epi-help-text">Select the content type to add data items.</p>
-                            <div class="epi-form-row">
-                                <div class="epi-form-field">
-                                    <label for="contentTypeSelect" class="epi-label">Content Type</label>
-                                    <select id="contentTypeSelect" class="epi-select" @onchange="OnContentTypeSelected">
-                                        @foreach (var ct in CurrentSchema.ContentTypes)
-                                        {
-                                            <option value="@ct.Name" selected="@(SelectedContentType?.Name == ct.Name)">@ct.Name</option>
-                                        }
-                                    </select>
-                                </div>
-                            </div>
+                                <div class="epi-tabs">
+                            <button type="button" class="epi-tab @(EditorMode == "visual" ? "epi-tab--active" : "")"
+                                @onclick="SwitchToVisualMode">Visual Builder</button>
+                            <button type="button" class="epi-tab @(EditorMode == "raw" ? "epi-tab--active" : "")"
+                                @onclick="SwitchToRawMode">Raw NdJSON</button>
                         </div>
 
-                        @* Add/Edit Item Form *@
-                        @if (EditingItem != null)
+                        @if (EditorMode == "visual")
                         {
-                            <div class="epi-form-section epi-form-section--highlight">
-                                <h3 class="epi-h3">@(DataItems.Any(i => i.Id == EditingItem.Id) ? "Edit Item" : "New Item")</h3>
-
-                                <div class="epi-form-row">
-                                    <div class="epi-form-field">
-                                        <label for="itemId" class="epi-label">Item ID *</label>
-                                        <input id="itemId" type="text" class="epi-textbox" @bind="EditingItem.Id" placeholder="Unique identifier" />
-                                    </div>
-                                    <div class="epi-form-field">
-                                        <label for="itemLanguage" class="epi-label">Language</label>
-                                        <select id="itemLanguage" class="epi-select" @bind="EditingItem.LanguageRouting">
-                                            @foreach (var lang in CurrentSchema.Languages)
-                                            {
-                                                <option value="@lang">@lang</option>
-                                            }
-                                        </select>
+                            @if (IsLoadingSchema)
+                            {
+                                <div class="epi-loading">
+                                    <div class="epi-loader"></div>
+                                    <p>Loading schema...</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="epi-form-section">
+                                    <h3 class="epi-h3">Content Type</h3>
+                                    <p class="epi-help-text">Select the content type to add data items.</p>
+                                    <div class="epi-form-row">
+                                        <div class="epi-form-field">
+                                            <label for="contentTypeSelect" class="epi-label">Content Type</label>
+                                            <select id="contentTypeSelect" class="epi-select" @onchange="OnContentTypeSelected">
+                                                @foreach (var ct in CurrentSchema.ContentTypes)
+                                                {
+                                                    <option value="@ct.Name" selected="@(SelectedContentType?.Name == ct.Name)">@ct.Name
+                                                    </option>
+                                                }
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
-                                @if (SelectedContentType != null)
+                                @* Add/Edit Item Form *@
+                                        @if (EditingItem != null)
                                 {
-                                    <div class="epi-properties-form">
-                                        @foreach (var property in SelectedContentType.Properties)
-                                        {
+                                    <div class="epi-form-section epi-form-section--highlight">
+                                        <h3 class="epi-h3">@(DataItems.Any(i => i.Id == EditingItem.Id) ? "Edit Item" : "New Item")</h3>
+
+                                        <div class="epi-form-row">
                                             <div class="epi-form-field">
-                                                <label class="epi-label">
-                                                    @property.Name
-                                                    @if (property.IsRequired) { <span class="epi-required">*</span> }
-                                                </label>
-                                                @if (property.Type == "Boolean")
+                                                <label for="itemId" class="epi-label">Item ID *</label>
+                                                <input id="itemId" type="text" class="epi-textbox" @bind="EditingItem.Id"
+                                                    placeholder="Unique identifier" />
+                                            </div>
+                                            <div class="epi-form-field">
+                                                <label for="itemLanguage" class="epi-label">Language</label>
+                                                <select id="itemLanguage" class="epi-select" @bind="EditingItem.LanguageRouting">
+                                                    @foreach (var lang in CurrentSchema.Languages)
+                                                    {
+                                                        <option value="@lang">@lang</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        @if (SelectedContentType != null)
+                                        {
+                                            <div class="epi-properties-form">
+                                                @foreach (var property in SelectedContentType.Properties)
                                                 {
-                                                    <div class="epi-checkbox-wrapper">
-                                                        <input type="checkbox" id="prop_@property.Name" checked="@((bool?)GetPropertyValue(property.Name) ?? false)"
-                                                               @onchange="@(e => SetPropertyValue(property.Name, e.Value))" />
-                                                        <label for="prop_@property.Name">@property.Name</label>
+                                                    <div class="epi-form-field">
+                                                        <label class="epi-label">
+                                                            @property.Name
+                                                            @if (property.IsRequired)
+                                                            {
+                                                                <span class="epi-required">*</span>
+                                                            }
+                                                        </label>
+                                                        @if (property.Type == "Boolean")
+                                                        {
+                                                            <div class="epi-checkbox-wrapper">
+                                                                <input type="checkbox" id="prop_@property.Name"
+                                                                    checked="@((bool?)GetPropertyValue(property.Name) ?? false)"
+                                                                    @onchange="@(e => SetPropertyValue(property.Name, e.Value))" />
+                                                                <label for="prop_@property.Name">@property.Name</label>
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <input type="@GetInputType(property.Type)" class="epi-textbox"
+                                                                value="@GetPropertyValue(property.Name)?.ToString()"
+                                                                @onchange="@(e => SetPropertyValue(property.Name, e.Value))"
+                                                                placeholder="@property.Name" />
+                                                        }
                                                     </div>
                                                 }
-                                                else
-                                                {
-                                                    <input type="@GetInputType(property.Type)" class="epi-textbox"
-                                                           value="@GetPropertyValue(property.Name)?.ToString()"
-                                                           @onchange="@(e => SetPropertyValue(property.Name, e.Value))"
-                                                           placeholder="@property.Name" />
-                                                }
+                                            </div>
+                                        }
+
+                                        <div class="epi-form-actions">
+                                            <button type="button" class="epi-button epi-button--primary" @onclick="SaveDataItem">Save
+                                                Item</button>
+                                            <button type="button" class="epi-button epi-button--secondary"
+                                                @onclick="CancelEditItem">Cancel</button>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="epi-form-section">
+                                        <button type="button" class="epi-button epi-button--secondary" @onclick="AddDataItem">Add
+                                            Item</button>
+                                    </div>
+                                }
+
+                                @* Data Items Table *@
+                                        @if (DataItems.Any())
+                                {
+                                    <div class="epi-form-section">
+                                        <h3 class="epi-h3">Data Items (@DataItems.Count)</h3>
+                                        <div class="epi-table-container">
+                                            <table class="epi-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>ID</th>
+                                                        <th>Content Type</th>
+                                                        <th>Language</th>
+                                                        <th>Properties</th>
+                                                        <th class="epi-align-right">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var item in DataPaginationResult?.Items ?? DataItems)
+                                                    {
+                                                        <tr>
+                                                            <td><code class="epi-code">@item.Id</code></td>
+                                                            <td>@item.ContentType</td>
+                                                            <td>@(item.LanguageRouting ?? "-")</td>
+                                                            <td>@item.Properties.Count properties</td>
+                                                            <td class="epi-align-right">
+                                                                <div class="epi-button-group">
+                                                                    <button type="button"
+                                                                        class="epi-button epi-button--secondary epi-button--small"
+                                                                        @onclick="@(() => EditDataItem(item))">Edit</button>
+                                                                    <button type="button"
+                                                                        class="epi-button epi-button--danger epi-button--small"
+                                                                        @onclick="@(() => RemoveDataItem(item))">Remove</button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        @if (DataTotalPages > 1)
+                                        {
+                                            <div class="epi-pagination">
+                                                <div class="epi-pagination-info">
+                                                    Showing @((DataCurrentPage - 1) * DataPageSize + 1) to @Math.Min(DataCurrentPage *
+                                                                                DataPageSize, DataItems.Count) of @DataItems.Count items
+                        </div>
+                        <div class="epi-pagination-controls">
+                            <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                disabled="@(DataCurrentPage <= 1)" @onclick="DataGoToPreviousPage">Previous</button>
+                            @for (int i = Math.Max(1, DataCurrentPage - 2); i <= Math.Min(DataTotalPages,
+                                                        DataCurrentPage + 2); i++)
+                                                    {
+                                                        var pageNumber = i;
+                                                        <button type="button" @onclick="@(() => DataGoToPage(pageNumber))"
+                                                            class="epi-button epi-button--small @(DataCurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
+                                                            @pageNumber
+                                                        </button>
+                                                    }
+                                                    <button type="button" class="epi-button epi-button--secondary epi-button--small"
+                                                        disabled="@(DataCurrentPage >= DataTotalPages)"
+                                                        @onclick="DataGoToNextPage">Next</button>
+                                                </div>
                                             </div>
                                         }
                                     </div>
                                 }
-
-                                <div class="epi-form-actions">
-                                    <button type="button" class="epi-button epi-button--primary" @onclick="SaveDataItem">Save Item</button>
-                                    <button type="button" class="epi-button epi-button--secondary" @onclick="CancelEditItem">Cancel</button>
-                                </div>
-                            </div>
+                            }
                         }
                         else
                         {
                             <div class="epi-form-section">
-                                <button type="button" class="epi-button epi-button--secondary" @onclick="AddDataItem">Add Item</button>
-                            </div>
-                        }
+                                <h3 class="epi-h3">NdJSON Data</h3>
+                                <p class="epi-help-text">Edit the data directly in NdJSON format. Each item requires two lines: an
+                                    action line and a data line.</p>
+                                <textarea class="epi-textarea epi-textarea--code" rows="20" @bind="RawNdJson"></textarea>
 
-                        @* Data Items Table *@
-                        @if (DataItems.Any())
-                        {
-                            <div class="epi-form-section">
-                                <h3 class="epi-h3">Data Items (@DataItems.Count)</h3>
-                                <div class="epi-table-container">
-                                    <table class="epi-table">
-                                        <thead>
-                                            <tr>
-                                                <th>ID</th>
-                                                <th>Content Type</th>
-                                                <th>Language</th>
-                                                <th>Properties</th>
-                                                <th class="epi-align-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var item in DataPaginationResult?.Items ?? DataItems)
-                                            {
-                                                <tr>
-                                                    <td><code class="epi-code">@item.Id</code></td>
-                                                    <td>@item.ContentType</td>
-                                                    <td>@(item.LanguageRouting ?? "-")</td>
-                                                    <td>@item.Properties.Count properties</td>
-                                                    <td class="epi-align-right">
-                                                        <div class="epi-button-group">
-                                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" @onclick="@(() => EditDataItem(item))">Edit</button>
-                                                            <button type="button" class="epi-button epi-button--danger epi-button--small" @onclick="@(() => RemoveDataItem(item))">Remove</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
+                                <div class="epi-info-box" style="margin-top: 16px;">
+                                    <p><strong>NdJSON Format Example:</strong></p>
+                                    <pre class="epi-json-body">{"index": {"_id": "1", "language_routing": "en"}}
+            {"Name": "Item 1", "Description": "..."}</pre>
                                 </div>
-
-                                @if (DataTotalPages > 1)
-                                {
-                                    <div class="epi-pagination">
-                                        <div class="epi-pagination-info">
-                                            Showing @((DataCurrentPage - 1) * DataPageSize + 1) to @Math.Min(DataCurrentPage * DataPageSize, DataItems.Count) of @DataItems.Count items
-                                        </div>
-                                        <div class="epi-pagination-controls">
-                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(DataCurrentPage <= 1)" @onclick="DataGoToPreviousPage">Previous</button>
-                                            @for (int i = Math.Max(1, DataCurrentPage - 2); i <= Math.Min(DataTotalPages, DataCurrentPage + 2); i++)
-                                            {
-                                                var pageNumber = i;
-                                                <button type="button" @onclick="@(() => DataGoToPage(pageNumber))"
-                                                        class="epi-button epi-button--small @(DataCurrentPage == pageNumber ? "epi-button--primary" : "epi-button--secondary")">
-                                                    @pageNumber
-                                                </button>
-                                            }
-                                            <button type="button" class="epi-button epi-button--secondary epi-button--small" disabled="@(DataCurrentPage >= DataTotalPages)" @onclick="DataGoToNextPage">Next</button>
-                                        </div>
-                                    </div>
-                                }
                             </div>
                         }
-                    }
-                }
-                else
-                {
-                    <div class="epi-form-section">
-                        <h3 class="epi-h3">NdJSON Data</h3>
-                        <p class="epi-help-text">Edit the data directly in NdJSON format. Each item requires two lines: an action line and a data line.</p>
-                        <textarea class="epi-textarea epi-textarea--code" rows="20" @bind="RawNdJson"></textarea>
 
-                        <div class="epi-info-box" style="margin-top: 16px;">
-                            <p><strong>NdJSON Format Example:</strong></p>
-                            <pre class="epi-json-body">{"index": {"_id": "1", "language_routing": "en"}}
-{"Name": "Item 1", "Description": "..."}</pre>
+                        <div class="epi-form-actions">
+                            <button type="button" class="epi-button epi-button--primary" @onclick="SyncDataToGraph"
+                                disabled="@(IsSyncing || IsLoadingSchema || !DataItems.Any())">
+                                @if (IsSyncing)
+                                {
+                                    <span class="epi-loader-small"></span>
+                                }
+                                Sync to Graph (@DataItems.Count items)
+                            </button>
+                            <button type="button" class="epi-button epi-button--info" @onclick="LoadDataFromGraph"
+                                disabled="@(IsSyncing || IsLoadingSchema || SelectedContentType == null)">
+                                @if (IsLoadingSchema)
+                                {
+                                    <span class="epi-loader-small"></span>
+                                }
+                                Refresh from Graph
+                            </button>
+                            <button type="button" class="epi-button epi-button--danger"
+                                @onclick="ShowClearDataConfirmationDialog" disabled="@(IsSyncing || IsLoadingSchema)">
+                                Clear All Data
+                            </button>
+                            <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList"
+                                disabled="@(IsSyncing || IsLoadingSchema)">
+                                Cancel
+                            </button>
+                            <button type="button" class="epi-button epi-button--small" style="margin-left: auto;"
+                                @onclick="ToggleDebugInfo">
+                                @(ShowDebugInfo ? "Hide Debug" : "Show Debug")
+                            </button>
                         </div>
-                    </div>
-                }
 
-                <div class="epi-form-actions">
-                    <button type="button" class="epi-button epi-button--primary" @onclick="SyncDataToGraph" disabled="@(IsSyncing || IsLoadingSchema || !DataItems.Any())">
-                        @if (IsSyncing) { <span class="epi-loader-small"></span> }
-                        Sync to Graph (@DataItems.Count items)
-                    </button>
-                    <button type="button" class="epi-button epi-button--info" @onclick="LoadDataFromGraph" disabled="@(IsSyncing || IsLoadingSchema || SelectedContentType == null)">
-                        @if (IsLoadingSchema) { <span class="epi-loader-small"></span> }
-                        Refresh from Graph
-                    </button>
-                    <button type="button" class="epi-button epi-button--danger" @onclick="ShowClearDataConfirmationDialog" disabled="@(IsSyncing || IsLoadingSchema)">
-                        Clear All Data
-                    </button>
-                    <button type="button" class="epi-button epi-button--secondary" @onclick="BackToList" disabled="@(IsSyncing || IsLoadingSchema)">
-                        Cancel
-                    </button>
-                    <button type="button" class="epi-button epi-button--small" style="margin-left: auto;" @onclick="ToggleDebugInfo">
-                        @(ShowDebugInfo ? "Hide Debug" : "Show Debug")
-                    </button>
-                </div>
-
-                @if (ShowDebugInfo && !string.IsNullOrEmpty(DebugInfo))
-                {
-                    <div class="epi-debug-panel" style="margin-top: 16px; padding: 16px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
-                        <h4 style="margin: 0 0 8px 0;">Debug Information</h4>
-                        <pre style="margin: 0; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto;">@DebugInfo</pre>
-                    </div>
-                }
+                        @if (ShowDebugInfo && !string.IsNullOrEmpty(DebugInfo))
+                        {
+                            <div class="epi-debug-panel"
+                                style="margin-top: 16px; padding: 16px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;">
+                                <h4 style="margin: 0 0 8px 0;">Debug Information</h4>
+                                <pre
+                                    style="margin: 0; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto;">@DebugInfo</pre>
+                            </div>
+                        }
                     </div> @* End of epi-manual-data-section *@
-                } @* End of !ShowImportSection *@
+                    } @* End of !ShowImportSection *@
             </div>
         </div>
     }
@@ -1136,7 +1523,8 @@
         flex-wrap: wrap;
     }
 
-    .epi-content, .epi-form {
+    .epi-content,
+    .epi-form {
         padding: 20px;
     }
 
@@ -1521,8 +1909,13 @@
     }
 
     @@keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
     }
 
     .epi-empty-state {
@@ -1629,6 +2022,80 @@
         justify-content: flex-end;
         gap: 8px;
         background: #f9f9f9;
+    }
+
+    .epi-modal--large {
+        max-width: 800px;
+    }
+
+    /* Button group */
+    .epi-button-group {
+        display: flex;
+        gap: 8px;
+    }
+
+    /* API Headers list */
+    .epi-headers-list {
+        margin-bottom: 8px;
+    }
+
+    .epi-header-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        background: #f5f5f5;
+        border-radius: 4px;
+        margin-bottom: 4px;
+    }
+
+    .epi-header-key {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .epi-header-value {
+        flex: 1;
+        color: #666;
+        font-family: monospace;
+    }
+
+    .epi-header-add {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .epi-header-add .epi-textbox--small {
+        flex: 1;
+    }
+
+    /* Schema preview */
+    .epi-schema-preview {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #ddd;
+    }
+
+    .epi-code-preview {
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 12px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        overflow-x: auto;
+        max-height: 200px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    /* Field hint */
+    .epi-field-hint {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
     }
 
     /* Languages list */
