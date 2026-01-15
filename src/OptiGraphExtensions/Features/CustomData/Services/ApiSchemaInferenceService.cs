@@ -92,8 +92,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                     return new ApiSchemaInferenceResult
                     {
                         Success = false,
-                        ErrorMessage = $"API returned error: {response.StatusCode}",
-                        DebugInfo = debugInfo.ToString()
+                        ErrorMessage = $"API returned error: {response.StatusCode}"
                     };
                 }
 
@@ -102,8 +101,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                     return new ApiSchemaInferenceResult
                     {
                         Success = false,
-                        ErrorMessage = "API returned empty response",
-                        DebugInfo = debugInfo.ToString()
+                        ErrorMessage = "API returned empty response"
                     };
                 }
 
@@ -123,8 +121,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                         return new ApiSchemaInferenceResult
                         {
                             Success = false,
-                            ErrorMessage = $"JSON path '{jsonPath}' not found in response",
-                            DebugInfo = debugInfo.ToString()
+                            ErrorMessage = $"JSON path '{jsonPath}' not found in response"
                         };
                     }
                     root = navigated.Value;
@@ -145,8 +142,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                         return new ApiSchemaInferenceResult
                         {
                             Success = false,
-                            ErrorMessage = "Could not find an array of objects in the API response. Try specifying a JSON path.",
-                            DebugInfo = debugInfo.ToString()
+                            ErrorMessage = "Could not find an array of objects in the API response. Try specifying a JSON path."
                         };
                     }
                 }
@@ -161,8 +157,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                     return new ApiSchemaInferenceResult
                     {
                         Success = false,
-                        ErrorMessage = "Could not infer any properties from the API response",
-                        DebugInfo = debugInfo.ToString()
+                        ErrorMessage = "Could not infer any properties from the API response"
                     };
                 }
 
@@ -187,8 +182,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 {
                     Success = true,
                     ContentType = contentType,
-                    SampleData = sampleData,
-                    DebugInfo = debugInfo.ToString()
+                    SampleData = sampleData
                 };
             }
             catch (HttpRequestException ex)
@@ -196,8 +190,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 return new ApiSchemaInferenceResult
                 {
                     Success = false,
-                    ErrorMessage = $"Network error: {ex.Message}",
-                    DebugInfo = debugInfo.ToString()
+                    ErrorMessage = $"Network error: {ex.Message}"
                 };
             }
             catch (JsonException ex)
@@ -205,8 +198,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 return new ApiSchemaInferenceResult
                 {
                     Success = false,
-                    ErrorMessage = $"Invalid JSON response: {ex.Message}",
-                    DebugInfo = debugInfo.ToString()
+                    ErrorMessage = $"Invalid JSON response: {ex.Message}"
                 };
             }
             catch (Exception ex)
@@ -214,8 +206,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 return new ApiSchemaInferenceResult
                 {
                     Success = false,
-                    ErrorMessage = $"Error: {ex.Message}",
-                    DebugInfo = debugInfo.ToString()
+                    ErrorMessage = $"Error: {ex.Message}"
                 };
             }
         }

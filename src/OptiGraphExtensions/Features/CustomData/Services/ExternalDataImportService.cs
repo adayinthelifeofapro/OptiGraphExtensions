@@ -162,7 +162,6 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 {
                     stopwatch.Stop();
                     var failedResult = ImportResult.Failed(errorMessage ?? "Failed to fetch data from external API", stopwatch.Elapsed);
-                    failedResult.DebugInfo = debugInfo.ToString();
                     return failedResult;
                 }
 
@@ -190,8 +189,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                         ItemsImported = 0,
                         Duration = stopwatch.Elapsed,
                         Errors = new List<string> { "No items could be mapped from the external data" },
-                        Warnings = warnings,
-                        DebugInfo = debugInfo.ToString()
+                        Warnings = warnings
                     };
                 }
 
@@ -223,8 +221,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                     ItemsSkipped = 0,
                     ItemsFailed = 0,
                     Duration = stopwatch.Elapsed,
-                    Warnings = warnings,
-                    DebugInfo = debugInfo.ToString()
+                    Warnings = warnings
                 };
             }
             catch (Exception ex)
@@ -234,7 +231,6 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 debugInfo.AppendLine($"Stack trace: {ex.StackTrace}");
 
                 var errorResult = ImportResult.Failed(ex.Message, stopwatch.Elapsed);
-                errorResult.DebugInfo = debugInfo.ToString();
                 return errorResult;
             }
         }
