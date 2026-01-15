@@ -62,6 +62,9 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - `Entities/SynonymSlot.cs`: Enum defining synonym slots (ONE, TWO) for Optimizely Graph API
 - `Entities/PinnedResult.cs`: Pinned result entity model with collection relationships
 - `Entities/PinnedResultsCollection.cs`: Pinned results collection entity with Graph integration
+- `Entities/ImportConfiguration.cs`: External data import configuration with scheduling
+- `Entities/ImportExecutionHistory.cs`: Import execution history tracking
+- `Entities/ScheduleFrequency.cs`: Enum for schedule frequencies (None, Hourly, Daily, Weekly, Monthly)
 - Uses Entity Framework migrations for database management
 - SQL Server as the database provider
 
@@ -201,7 +204,6 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `ICustomDataService` / `CustomDataService`: Data synchronization and retrieval
     - NdJSON-based data sync to Graph
     - GraphQL queries to retrieve synced data
-    - Debug methods for troubleshooting
   - `ICustomDataValidationService` / `CustomDataValidationService`: Schema and data validation
     - Source ID validation (1-4 lowercase alphanumeric characters)
     - Content type and property validation
@@ -212,6 +214,26 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `ISchemaParserService` / `SchemaParserService`: JSON schema conversion
     - Convert between API format and internal models
     - Display JSON generation for UI
+  - `IExternalDataImportService` / `ExternalDataImportService`: External API data import
+    - Test connection to external APIs
+    - Fetch and preview external data
+    - Map external JSON fields to custom data properties
+    - Execute full import with sync to Graph
+  - `IApiSchemaInferenceService` / `ApiSchemaInferenceService`: Schema inference from APIs
+    - Infer content type schemas from external API responses
+    - Support for JSON path navigation in nested responses
+    - Sample data extraction for preview
+  - `IScheduledImportService` / `ScheduledImportService`: Scheduled import management
+    - Calculate next scheduled run times
+    - Exponential backoff retry logic (1, 5, 15, 30 min)
+    - Record execution history
+    - Update configuration after execution
+  - `IImportNotificationService` / `ImportNotificationService`: Import notifications
+    - Email notifications on import failures
+    - Recovery notifications when previously failing imports succeed
+- **Repositories**:
+  - `IImportConfigurationRepository` / `ImportConfigurationRepository`: Import configuration data access
+  - `IImportExecutionHistoryRepository` / `ImportExecutionHistoryRepository`: Execution history data access
 - **Models**:
   - `CustomDataSourceModel`: Source with content types, properties, languages
   - `CustomDataItemModel`: Data item with properties and language routing
@@ -220,17 +242,52 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `CreateSchemaRequest` / `UpdateSchemaRequest`: Schema operation DTOs
   - `SyncDataRequest`: Data sync request with items and job ID
   - `GraphSchemaResponse`: API response model for schema retrieval
+  - `ImportConfigurationModel`: Import configuration with API settings and field mappings
+  - `ImportResult`: Import execution result with counts and errors
+  - `FieldMapping`: Maps external field paths to custom data properties
+- **Entities**:
+  - `ImportConfiguration`: Saved import configuration entity
+    - API URL, HTTP method, authentication settings
+    - Field mappings and JSON path configuration
+    - Scheduling settings (frequency, time, day)
+    - Retry configuration and failure tracking
+    - Notification email settings
+  - `ImportExecutionHistory`: Execution history records
+    - Success/failure status
+    - Items received, imported, skipped, failed counts
+    - Duration, error messages, warnings
+    - Retry attempt tracking
+  - `ScheduleFrequency`: Enum (None, Hourly, Daily, Weekly, Monthly)
+- **Scheduled Job**:
+  - `ExternalDataImportScheduledJob`: Optimizely CMS scheduled job
+    - Processes all due import configurations
+    - Integrates with Optimizely CMS scheduled jobs system
+    - Supports stopping mid-execution
+    - Logs execution details for monitoring
 - **Components**:
-  - `CustomDataManagementComponentBase`: Main component with schema and data management
+  - `CustomDataManagementComponentBase`: Main component with schema, data, and import management
   - Dual-mode UI: Visual builder and Raw JSON/NdJSON editor
-  - Debug panel for troubleshooting sync and query operations
+  - Import configuration UI with field mapping
 - **Custom Data Features**:
   - **Schema Management**: Create/edit content types with properties
   - **Property Types**: String, Int, Float, Boolean, Date, DateTime, arrays
   - **Language Support**: Multi-language data with language routing
   - **Visual Builder**: Intuitive interface for schema and data entry
   - **Raw Mode**: JSON/NdJSON editors for advanced users
-  - **Debug Tools**: View payloads, queries, and API responses
+  - **External Data Import**: Import data from REST APIs
+    - Authentication: None, API Key, Basic Auth, Bearer Token
+    - Field mapping with JSON path support
+    - Schema inference from API responses
+    - Preview imports before execution
+  - **Scheduled Imports**: Automate data imports
+    - Schedule frequencies: Hourly, Daily, Weekly, Monthly
+    - Configurable time of day and day of week/month
+    - Automatic retry with exponential backoff
+    - Email notifications on failures
+  - **Execution History**: Track import runs
+    - Success/failure status with item counts
+    - Duration and error details
+    - Retry attempt tracking
 - **API Endpoints Used**:
   - `GET /api/content/v3/sources`: List all data sources
   - `GET /api/content/v3/types?id={sourceId}`: Get schema
@@ -354,6 +411,8 @@ All new services are automatically registered via `OptiGraphExtensionsServiceExt
 - Query library services for GraphQL query building and execution
 - Request log services for API monitoring
 - Custom data services for schema and data management
+- External data import services (import, scheduling, notifications)
+- Import configuration and execution history repositories
 - Component base classes
 - Cached repository decorators
 

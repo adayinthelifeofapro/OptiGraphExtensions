@@ -100,10 +100,27 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, p
   - Edit existing schemas (partial or full sync)
   - Delete sources with confirmation
   - View all custom data sources in your Graph instance
-- **Debug Tools**: Built-in debugging for troubleshooting
-  - View NdJSON payloads before sync
-  - GraphQL query inspection
-  - API response monitoring
+- **External Data Import**: Import data from REST APIs
+  - Connect to any REST API endpoint
+  - Authentication support: None, API Key, Basic Auth, Bearer Token
+  - Field mapping from external JSON to custom data properties
+  - JSON path support for navigating nested response structures
+  - Schema inference from API responses
+  - Preview imports before execution
+  - Test connection functionality
+- **Scheduled Imports**: Automate recurring data imports
+  - Schedule frequencies: Hourly, Daily, Weekly, Monthly
+  - Configurable time of day and day of week/month
+  - Integrates with Optimizely CMS Scheduled Jobs
+  - Automatic retry with exponential backoff (1, 5, 15, 30 minutes)
+  - Email notifications on import failures
+  - Recovery notifications when failed imports succeed
+- **Execution History**: Track and audit import runs
+  - Success/failure status with detailed counts
+  - Items received, imported, skipped, and failed
+  - Duration and error message tracking
+  - Retry attempt tracking
+  - Scheduled vs manual execution tracking
 
 ### 🎨 Administration Interface
 - Clean, intuitive admin interface integrated with Optimizely CMS
@@ -246,8 +263,10 @@ src/
 │   │   │   ├── Services/           # Log retrieval and export services
 │   │   │   └── Models/             # Log models and filter options
 │   │   └── CustomData/             # Custom data management feature
-│   │       ├── Services/           # Schema, data sync, validation services
-│   │       └── Models/             # Schema and data item models
+│   │       ├── Services/           # Schema, data sync, import, scheduling services
+│   │       ├── Repositories/       # Import configuration and history data access
+│   │       ├── ScheduledJobs/      # Optimizely CMS scheduled job for imports
+│   │       └── Models/             # Schema, data item, and import models
 │   ├── Menus/                      # CMS menu integration
 │   └── Views/                      # Razor views and layouts
 ├── OptiGraphExtensions.Tests/       # NUnit test project
@@ -352,6 +371,10 @@ The AddOn creates the following database tables:
   - Columns: Id, Title, IsActive, GraphCollectionId, CreatedAt, CreatedBy
 - `tbl_OptiGraphExtensions_PinnedResults`: Stores individual pinned results
   - Columns: Id, CollectionId, Phrases, TargetKey (GUID), TargetName (display name), Language, Priority, IsActive, GraphId, CreatedAt, CreatedBy
+- `tbl_OptiGraphExtensions_ImportConfigurations`: Stores external data import configurations
+  - Columns: Id, Name, Description, TargetSourceId, TargetContentType, ApiUrl, HttpMethod, AuthType, AuthKeyOrUsername, AuthValueOrPassword, FieldMappingsJson, IdFieldMapping, LanguageRouting, JsonPath, CustomHeadersJson, IsActive, LastImportAt, LastImportCount, ScheduleFrequency, ScheduleIntervalValue, ScheduleTimeOfDay, ScheduleDayOfWeek, ScheduleDayOfMonth, NextScheduledRunAt, MaxRetries, ConsecutiveFailures, NextRetryAt, LastImportSuccess, LastImportError, NotificationEmail, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
+- `tbl_OptiGraphExtensions_ImportExecutionHistory`: Stores import execution history
+  - Columns: Id, ImportConfigurationId, ExecutedAt, Success, ItemsReceived, ItemsImported, ItemsSkipped, ItemsFailed, DurationTicks, ErrorMessage, Warnings, WasRetry, RetryAttempt, WasScheduled
 
 ## Optimizely Graph Integration
 
@@ -443,7 +466,9 @@ Custom Data allows you to define schemas and sync external data to Optimizely Gr
 | Schema Builder | Visual interface for defining content types and properties |
 | Data Sync | NdJSON-based synchronization with language routing |
 | Source Management | Create, edit, and delete custom data sources |
-| Debug Tools | View payloads, queries, and API responses |
+| External Import | Import data from REST APIs with field mapping |
+| Scheduled Imports | Automate imports with configurable schedules |
+| Execution History | Track import runs with detailed metrics |
 
 **Schema API Endpoints:**
 | Method | Endpoint | Description |
@@ -469,6 +494,32 @@ Custom Data allows you to define schemas and sync external data to Optimizely Gr
 - `String`, `Int`, `Float`, `Boolean`
 - `Date`, `DateTime`
 - `StringArray`, `IntArray`, `FloatArray`
+
+**External Data Import:**
+
+Import configurations support the following authentication methods:
+
+| Auth Type | Configuration |
+|-----------|---------------|
+| None | No authentication required |
+| API Key | Header name + API key value |
+| Basic | Username + Password |
+| Bearer | Bearer token |
+
+**Scheduled Import Options:**
+
+| Frequency | Configuration |
+|-----------|---------------|
+| Hourly | Run every N hours (configurable interval) |
+| Daily | Run at specific time each day |
+| Weekly | Run on specific day of week at specific time |
+| Monthly | Run on specific day of month at specific time |
+
+**Retry Behavior:**
+- Automatic retry with exponential backoff
+- Retry delays: 1 minute, 5 minutes, 15 minutes, 30 minutes (max)
+- Configurable maximum retry attempts
+- Email notifications after max retries reached
 
 ## Authorization
 
