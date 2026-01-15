@@ -113,6 +113,7 @@ namespace OptiGraphExtensions.Features.CustomData
         protected bool ShowImportPreview { get; set; }
         protected bool ShowImportConfirmation { get; set; }
         protected bool ShowImportSection { get; set; }
+        protected bool ShowManualSection { get; set; }
         protected string ImportNdJsonPreview { get; set; } = string.Empty;
         protected bool ShowNdJsonPreview { get; set; }
         protected ImportConfigurationModel? ImportConfigToDelete { get; set; }
@@ -282,8 +283,7 @@ namespace OptiGraphExtensions.Features.CustomData
                 if (source.ContentTypes.Any())
                 {
                     SelectedContentType = source.ContentTypes.First();
-                    // Automatically load data from Graph for the first content type
-                    await LoadDataFromGraph();
+                    // Data is NOT automatically loaded - user must click "Refresh from Graph" button
                 }
 
                 ClearMessages();
@@ -716,20 +716,15 @@ namespace OptiGraphExtensions.Features.CustomData
 
         #region Data Editor Methods
 
-        protected async Task OnContentTypeSelected(ChangeEventArgs e)
+        protected void OnContentTypeSelected(ChangeEventArgs e)
         {
             var typeName = e.Value?.ToString();
             SelectedContentType = CurrentSchema.ContentTypes.FirstOrDefault(ct => ct.Name == typeName);
             DataItems.Clear();
             EditingItem = null;
             UpdateDataPagination();
+            // Data is NOT automatically loaded - user must click "Refresh from Graph" button
             StateHasChanged();
-
-            // Load data for the selected content type
-            if (SelectedContentType != null)
-            {
-                await LoadDataFromGraph();
-            }
         }
 
         protected void AddDataItem()
@@ -1093,6 +1088,12 @@ namespace OptiGraphExtensions.Features.CustomData
                 ShowImportPreview = false;
                 LastImportResult = null;
             }
+            StateHasChanged();
+        }
+
+        protected void ToggleManualSection()
+        {
+            ShowManualSection = !ShowManualSection;
             StateHasChanged();
         }
 

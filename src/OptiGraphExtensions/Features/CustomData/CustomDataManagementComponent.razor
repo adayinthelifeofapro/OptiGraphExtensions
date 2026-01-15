@@ -830,6 +830,10 @@
                 <div class="epi-header-actions">
                     <span class="epi-badge">@DataItems.Count items</span>
                     <button type="button" class="epi-button epi-button--info epi-button--small"
+                        @onclick="ToggleManualSection">
+                        @(ShowManualSection ? "Hide Manual" : "Manual")
+                    </button>
+                    <button type="button" class="epi-button epi-button--info epi-button--small"
                         @onclick="ToggleImportSection">
                         @(ShowImportSection ? "Hide Import" : "Import")
                     </button>
@@ -843,8 +847,39 @@
                 </div>
             </div>
             <div class="epi-form">
+                @* Default state - show explanatory text when no section is active *@
+                @if (!ShowImportSection && !ShowManualSection)
+                {
+                    <div class="epi-info-section">
+                        <h3 class="epi-h3">Data Management Options</h3>
+                        <p class="epi-help-text">Choose how you want to manage data for this custom data source:</p>
+
+                        <div class="epi-options-grid">
+                            <div class="epi-option-card">
+                                <h4 class="epi-h4">Manual Data Entry</h4>
+                                <p>Create, edit, and delete individual data items using a visual form builder or raw NdJSON editor. Ideal for small datasets or making quick updates.</p>
+                                <p><strong>Click the "Manual" button</strong> in the header to get started.</p>
+                            </div>
+
+                            <div class="epi-option-card">
+                                <h4 class="epi-h4">External Data Import</h4>
+                                <p>Import data from external REST APIs with configurable field mappings. Supports authentication, scheduling, and automatic retries.</p>
+                                <p><strong>Click the "Import" button</strong> in the header to configure imports.</p>
+                            </div>
+                        </div>
+
+                        <div class="epi-additional-actions">
+                            <h4 class="epi-h4">Other Actions</h4>
+                            <ul class="epi-action-list">
+                                <li><strong>Clear All Data:</strong> Removes all data items from this source in Optimizely Graph. Use with caution.</li>
+                                <li><strong>Back to List:</strong> Return to the list of all custom data sources.</li>
+                            </ul>
+                        </div>
+                    </div>
+                }
+
                 @* Import Section *@
-                    @if (ShowImportSection)
+                @if (ShowImportSection)
                 {
                     <div class="epi-form-section epi-import-section">
                         <h3 class="epi-h3">External Data Import</h3>
@@ -1465,8 +1500,8 @@
                     </div>
                 }
 
-                @* Hide visual builder and raw NdJSON when import section is visible *@
-                @if (!ShowImportSection)
+                @* Manual data entry section - toggled by the Manual button *@
+                @if (ShowManualSection)
                 {
                     <div class="epi-manual-data-section">
                         <div class="epi-manual-data-header">
@@ -1805,6 +1840,67 @@
     .epi-form-section:first-child {
         padding-top: 0;
         border-top: none;
+    }
+
+    /* Info section styles for default state */
+    .epi-info-section {
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .epi-options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+
+    .epi-option-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 20px;
+    }
+
+    .epi-option-card h4 {
+        color: #0078d4;
+        margin-bottom: 12px;
+    }
+
+    .epi-option-card p {
+        font-size: 14px;
+        color: #555;
+        margin: 0 0 12px 0;
+        line-height: 1.5;
+    }
+
+    .epi-option-card p:last-child {
+        margin-bottom: 0;
+    }
+
+    .epi-additional-actions {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #ddd;
+    }
+
+    .epi-action-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .epi-action-list li {
+        font-size: 14px;
+        color: #555;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .epi-action-list li:last-child {
+        border-bottom: none;
     }
 
     .epi-form-section--highlight {
