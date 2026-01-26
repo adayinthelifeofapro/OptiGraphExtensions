@@ -1,19 +1,12 @@
-using EPiServer.Cms.Shell;
 using EPiServer.Cms.Shell.UI;
 using EPiServer.Cms.UI.AspNetIdentity;
-using EPiServer.ContentApi.Core.DependencyInjection;
+using EPiServer.Data;
 using EPiServer.DependencyInjection;
 using EPiServer.Scheduler;
-using EPiServer.ServiceLocation;
 using EPiServer.Web.Routing;
-
-using Geta.Optimizely.Sitemaps;
 
 using OptiGraphExtensions.Common;
 using OptiGraphExtensions.Features.Configuration;
-
-using Stott.Optimizely.RobotsHandler.Configuration;
-using Stott.Security.Optimizely.Features.Configuration;
 
 namespace SampleCms;
 
@@ -38,30 +31,16 @@ public class Startup
         services.AddCmsAspNetIdentity<ApplicationUser>()
                 .AddCms()
                 .AddAdminUserRegistration(x => x.Behavior = RegisterAdminUserBehaviors.Enabled | RegisterAdminUserBehaviors.LocalRequestsOnly)
+                .AddVisitorGroups()              
                 .AddEmbeddedLocalization<Startup>();
+
+        services.Configure<DataAccessOptions>(options =>
+        {
+            options.UpdateDatabaseCompatibilityLevel = true;
+        });
 
         services.AddServerSideBlazor();
 
-        services.AddSitemaps(x =>
-        {
-            x.EnableRealtimeSitemap = false;
-            x.EnableRealtimeCaching = true;
-            x.RealtimeCacheExpirationInMinutes = 60;
-        });
-
-        services.ConfigureContentApiOptions(o =>
-        {
-            o.IncludeInternalContentRoots = true;
-            o.IncludeSiteHosts = true;
-            // o.EnablePreviewFeatures = true; // optional
-        });
-
-        services.AddContentDeliveryApi();
-
-        services.AddContentGraph();
-
-        services.AddStottSecurity();
-        services.AddRobotsHandler();
         services.AddOptiGraphExtensions(optiGraphExtensionsSetupOptions =>
         {
             optiGraphExtensionsSetupOptions.ConnectionStringName = "EPiServerDB";
@@ -87,7 +66,6 @@ public class Startup
         app.UseAuthentication();
         app.UseAuthorization();
 
-        app.UseStottSecurity();
         app.UseOptiGraphExtensions();
 
         app.UseEndpoints(endpoints =>

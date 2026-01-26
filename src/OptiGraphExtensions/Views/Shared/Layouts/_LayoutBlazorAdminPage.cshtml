@@ -1,5 +1,10 @@
 ﻿@using EPiServer.Framework.Web.Resources
 @using EPiServer.Shell.Navigation
+@using EPiServer.Shell.UI.Helpers.Internal
+
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, EPiServer.Shell.UI
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,6 +17,10 @@
     @ClientResources.RenderResources("ShellCoreLightTheme")
     
     <style>
+        html, body {
+            overflow: auto !important;
+            height: auto !important;
+        }
         main {
             display: flex;
             flex-direction: column;
@@ -31,13 +40,12 @@
     <base href="~/" />
 </head>
 <body>
-    @Html.AntiForgeryToken() <!-- Thanks to: https://world.optimizely.com/blogs/matthew-slim/dates/2023/6/new-menu-system-released/ -->
-    @Html.CreatePlatformNavigationMenu()
-    <div @Html.ApplyPlatformNavigation() style="padding-left: 10px;background: white;padding: 1rem;">
-
-    @RenderBody()
-
+    @Html.AntiForgeryToken()
+    <platform-navigation />
+    <div style="padding-top: 56px; padding-left: 10px; padding-right: 10px; background: white;">
+        @RenderBody()
     </div>
+
     <script src="_framework/blazor.server.js"></script>
     <script>
         // CSV download function for Query Library
