@@ -375,7 +375,6 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                 {
                     Name = sanitizedName,
                     Type = graphType,
-                    IsSearchable = graphType == "String" || graphType == "[String]",
                     IsRequired = false
                 });
             }

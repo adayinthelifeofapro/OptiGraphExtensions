@@ -25,7 +25,7 @@ namespace OptiGraphExtensions.Features.CustomData.Models
         /// <summary>
         /// Whether the property should be searchable in Graph queries.
         /// </summary>
-        public bool IsSearchable { get; set; } = true;
+        public bool IsSearchable { get; set; } = false;
 
         /// <summary>
         /// Whether the property is required when creating data items.

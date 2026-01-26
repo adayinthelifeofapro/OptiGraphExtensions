@@ -439,7 +439,6 @@
                                                 <tr>
                                                     <th>Name</th>
                                                     <th>Type</th>
-                                                    <th>Searchable</th>
                                                     <th class="epi-align-right">Actions</th>
                                                 </tr>
                                             </thead>
@@ -456,10 +455,6 @@
                                                                     <option value="@type">@type</option>
                                                                 }
                                                             </select>
-                                                        </td>
-                                                        <td class="epi-align-center">
-                                                            <input type="checkbox" checked="@prop.IsSearchable"
-                                                                @onchange="@(() => ToggleApiPropertySearchable(prop))" />
                                                         </td>
                                                         <td class="epi-align-right">
                                                             <button type="button"
@@ -734,7 +729,6 @@
                                                     <tr>
                                                         <th>Name</th>
                                                         <th>Type</th>
-                                                        <th>Searchable</th>
                                                         <th>Required</th>
                                                         <th class="epi-align-right">Actions</th>
                                                     </tr>
@@ -753,8 +747,6 @@
                                                                     }
                                                                 </select>
                                                             </td>
-                                                            <td class="epi-align-center"><input type="checkbox"
-                                                                    @bind="property.IsSearchable" /></td>
                                                             <td class="epi-align-center"><input type="checkbox"
                                                                     @bind="property.IsRequired" /></td>
                                                             <td class="epi-align-right">

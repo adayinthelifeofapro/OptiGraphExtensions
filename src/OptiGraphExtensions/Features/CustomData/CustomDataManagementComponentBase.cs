@@ -192,17 +192,7 @@ namespace OptiGraphExtensions.Features.CustomData
             CurrentSchema = new CreateSchemaRequest
             {
                 Languages = new List<string> { "en" },
-                ContentTypes = new List<ContentTypeSchemaModel>
-                {
-                    new ContentTypeSchemaModel
-                    {
-                        Name = "Item",
-                        Properties = new List<PropertyTypeModel>
-                        {
-                            new PropertyTypeModel { Name = "Name", Type = "String", IsSearchable = true }
-                        }
-                    }
-                }
+                ContentTypes = new List<ContentTypeSchemaModel>()
             };
             RawSchemaJson = SchemaParser.ModelToDisplayJson(CurrentSchema);
             ShowFullSyncWarning = false;
@@ -320,7 +310,7 @@ namespace OptiGraphExtensions.Features.CustomData
                     SelectedContentType.Name,
                     propertyNames,
                     language,
-                    10000); // Max limit - will fetch all pages up to this amount
+                    100); // Max limit - will fetch all pages up to this amount
 
                 DataItems = items.ToList();
                 UpdateDataPagination();
@@ -401,10 +391,7 @@ namespace OptiGraphExtensions.Features.CustomData
             CurrentSchema.ContentTypes.Add(new ContentTypeSchemaModel
             {
                 Name = $"Type{CurrentSchema.ContentTypes.Count + 1}",
-                Properties = new List<PropertyTypeModel>
-                {
-                    new PropertyTypeModel { Name = "Name", Type = "String", IsSearchable = true }
-                }
+                Properties = new List<PropertyTypeModel>()
             });
             StateHasChanged();
         }
@@ -420,8 +407,7 @@ namespace OptiGraphExtensions.Features.CustomData
             contentType.Properties.Add(new PropertyTypeModel
             {
                 Name = $"Property{contentType.Properties.Count + 1}",
-                Type = "String",
-                IsSearchable = true
+                Type = "String"
             });
             StateHasChanged();
         }
@@ -533,12 +519,6 @@ namespace OptiGraphExtensions.Features.CustomData
 
             // Close the dialog
             CloseApiSchemaImportDialog();
-        }
-
-        protected void ToggleApiPropertySearchable(PropertyTypeModel property)
-        {
-            property.IsSearchable = !property.IsSearchable;
-            StateHasChanged();
         }
 
         protected void RemoveApiInferredProperty(PropertyTypeModel property)
@@ -698,10 +678,28 @@ namespace OptiGraphExtensions.Features.CustomData
                 await ExecuteWithLoadingAndErrorHandlingAsync(async () =>
                 {
                     var sourceId = SourceIdToDelete!;
+
+                    // Delete associated import configurations and their execution history first
+                    var deletedImportConfigs = await ImportConfigRepository.DeleteBySourceIdAsync(sourceId);
+
+                    // Delete the source from Optimizely Graph
                     await SchemaService.DeleteSourceAsync(sourceId);
-                    SetSuccessMessage($"Source '{sourceId}' deleted successfully.");
+
+                    var message = deletedImportConfigs > 0
+                        ? $"Source '{sourceId}' deleted successfully. Also removed {deletedImportConfigs} import configuration(s)."
+                        : $"Source '{sourceId}' deleted successfully.";
+                    SetSuccessMessage(message);
                     ShowDeleteConfirmation = false;
                     SourceIdToDelete = null;
+
+                    // Reset import interface state
+                    ImportConfigurations.Clear();
+                    EditingImportConfig = null;
+                    ImportConfigToDelete = null;
+                    ShowDeleteImportConfigConfirmation = false;
+                    ImportConfigToRun = null;
+                    ShowRunImportConfigConfirmation = false;
+
                     await LoadSources();
                 }, "deleting source");
             }

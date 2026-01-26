@@ -335,10 +335,8 @@ namespace OptiGraphExtensions.Features.CustomData.Services
                         {
                             ["type"] = prop.Type
                         };
-                        if (prop.IsSearchable)
-                        {
-                            propDef["searchable"] = true;
-                        }
+                        // Note: searchable functionality disabled due to Optimizely Graph issues
+                        // where searchable fields return null values. Can be re-enabled when resolved.
                         if (!string.IsNullOrEmpty(prop.IndexType))
                         {
                             propDef["index"] = prop.IndexType;
@@ -445,7 +443,7 @@ namespace OptiGraphExtensions.Features.CustomData.Services
             {
                 Name = response.Name ?? string.Empty,
                 Type = response.Type ?? "String",
-                IsSearchable = response.Searchable ?? true,
+                IsSearchable = response.Searchable ?? false,
                 IndexType = response.Index
             };
         }
@@ -485,5 +483,6 @@ namespace OptiGraphExtensions.Features.CustomData.Services
 
             return value;
         }
+
     }
 }

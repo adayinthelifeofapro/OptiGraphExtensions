@@ -115,9 +115,48 @@ namespace OptiGraphExtensions.Features.CustomData.Repositories
                 return false;
             }
 
+            // Delete associated execution history records first
+            var historyRecords = await _dataContext.ImportExecutionHistories
+                .Where(h => h.ImportConfigurationId == id)
+                .ToListAsync();
+            _dataContext.ImportExecutionHistories.RemoveRange(historyRecords);
+
             _dataContext.ImportConfigurations.Remove(config);
             await _dataContext.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<int> DeleteBySourceIdAsync(string sourceId)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                return 0;
+            }
+
+            // Get all configurations for this source
+            var configs = await _dataContext.ImportConfigurations
+                .Where(c => c.TargetSourceId == sourceId)
+                .ToListAsync();
+
+            if (!configs.Any())
+            {
+                return 0;
+            }
+
+            // Get all config IDs for deletion
+            var configIds = configs.Select(c => c.Id).ToList();
+
+            // Delete associated execution history records first
+            var historyRecords = await _dataContext.ImportExecutionHistories
+                .Where(h => configIds.Contains(h.ImportConfigurationId))
+                .ToListAsync();
+            _dataContext.ImportExecutionHistories.RemoveRange(historyRecords);
+
+            // Delete the configurations
+            _dataContext.ImportConfigurations.RemoveRange(configs);
+            await _dataContext.SaveChangesAsync();
+
+            return configs.Count;
         }
 
         public async Task<bool> ExistsAsync(Guid id)

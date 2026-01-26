@@ -38,6 +38,14 @@ namespace OptiGraphExtensions.Features.CustomData.Repositories
         Task<bool> DeleteAsync(Guid id);
 
         /// <summary>
+        /// Deletes all import configurations for a specific source ID.
+        /// Also deletes associated execution history records.
+        /// </summary>
+        /// <param name="sourceId">The source ID to delete configurations for.</param>
+        /// <returns>The number of configurations deleted.</returns>
+        Task<int> DeleteBySourceIdAsync(string sourceId);
+
+        /// <summary>
         /// Checks if an import configuration exists.
         /// </summary>
         Task<bool> ExistsAsync(Guid id);
