@@ -13,7 +13,17 @@
       "Bash(Remove-Item -Recurse -Force \"D:\\Projects\\Optimizely\\OptiGraphExtensions\\src\\OptiGraphExtensions\\Views\\OptiGraphExtensions\\Administration\\StopWords\")",
       "Bash(dotnet restore:*)",
       "Bash(findstr:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(cd:*)",
+      "Bash(dotnet ef database update:*)",
+      "Bash(dotnet ef:*)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet tool install:*)",
+      "Bash(dotnet dotnet-ef migrations add:*)",
+      "Bash(dotnet tool run dotnet-ef:*)",
+      "Bash(dotnet tool:*)",
+      "Bash(dotnet --list-sdks:*)",
+      "Bash(dotnet nuget:*)"
     ],
     "deny": [],
     "ask": []

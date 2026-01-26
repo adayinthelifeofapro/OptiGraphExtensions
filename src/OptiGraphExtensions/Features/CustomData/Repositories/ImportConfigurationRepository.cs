@@ -1,0 +1,167 @@
+using Microsoft.EntityFrameworkCore;
+using OptiGraphExtensions.Entities;
+
+namespace OptiGraphExtensions.Features.CustomData.Repositories
+{
+    /// <summary>
+    /// Repository implementation for managing import configurations.
+    /// </summary>
+    public class ImportConfigurationRepository : IImportConfigurationRepository
+    {
+        private readonly IOptiGraphExtensionsDataContext _dataContext;
+
+        public ImportConfigurationRepository(IOptiGraphExtensionsDataContext dataContext)
+        {
+            _dataContext = dataContext ?? throw new ArgumentNullException(nameof(dataContext));
+        }
+
+        public async Task<IEnumerable<ImportConfiguration>> GetAllAsync()
+        {
+            return await _dataContext.ImportConfigurations
+                .AsNoTracking()
+                .OrderByDescending(c => c.UpdatedAt ?? c.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<ImportConfiguration>> GetBySourceIdAsync(string sourceId)
+        {
+            return await _dataContext.ImportConfigurations
+                .AsNoTracking()
+                .Where(c => c.TargetSourceId == sourceId)
+                .OrderByDescending(c => c.UpdatedAt ?? c.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<ImportConfiguration?> GetByIdAsync(Guid id)
+        {
+            return await _dataContext.ImportConfigurations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == id);
+        }
+
+        public async Task<ImportConfiguration> CreateAsync(ImportConfiguration config)
+        {
+            ArgumentNullException.ThrowIfNull(config);
+
+            config.Id = Guid.NewGuid();
+            config.CreatedAt = DateTime.UtcNow;
+
+            _dataContext.ImportConfigurations.Add(config);
+            await _dataContext.SaveChangesAsync();
+            return config;
+        }
+
+        public async Task<ImportConfiguration> UpdateAsync(ImportConfiguration config)
+        {
+            ArgumentNullException.ThrowIfNull(config);
+
+            // Get the existing entity from database
+            var existing = await _dataContext.ImportConfigurations.FindAsync(config.Id);
+            if (existing == null)
+            {
+                throw new InvalidOperationException($"ImportConfiguration with ID {config.Id} not found.");
+            }
+
+            // Update the existing entity's properties
+            existing.Name = config.Name;
+            existing.Description = config.Description;
+            existing.TargetSourceId = config.TargetSourceId;
+            existing.TargetContentType = config.TargetContentType;
+            existing.ApiUrl = config.ApiUrl;
+            existing.HttpMethod = config.HttpMethod;
+            existing.AuthType = config.AuthType;
+            existing.AuthKeyOrUsername = config.AuthKeyOrUsername;
+            existing.AuthValueOrPassword = config.AuthValueOrPassword;
+            existing.FieldMappingsJson = config.FieldMappingsJson;
+            existing.IdFieldMapping = config.IdFieldMapping;
+            existing.LanguageRouting = config.LanguageRouting;
+            existing.JsonPath = config.JsonPath;
+            existing.CustomHeadersJson = config.CustomHeadersJson;
+            existing.IsActive = config.IsActive;
+            existing.LastImportAt = config.LastImportAt;
+            existing.LastImportCount = config.LastImportCount;
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.UpdatedBy = config.UpdatedBy;
+
+            // Scheduling properties
+            existing.ScheduleFrequency = config.ScheduleFrequency;
+            existing.ScheduleIntervalValue = config.ScheduleIntervalValue;
+            existing.ScheduleTimeOfDay = config.ScheduleTimeOfDay;
+            existing.ScheduleDayOfWeek = config.ScheduleDayOfWeek;
+            existing.ScheduleDayOfMonth = config.ScheduleDayOfMonth;
+            existing.NextScheduledRunAt = config.NextScheduledRunAt;
+
+            // Retry properties
+            existing.MaxRetries = config.MaxRetries;
+            existing.ConsecutiveFailures = config.ConsecutiveFailures;
+            existing.NextRetryAt = config.NextRetryAt;
+
+            // Status properties
+            existing.LastImportSuccess = config.LastImportSuccess;
+            existing.LastImportError = config.LastImportError;
+
+            // Notification
+            existing.NotificationEmail = config.NotificationEmail;
+
+            await _dataContext.SaveChangesAsync();
+            return existing;
+        }
+
+        public async Task<bool> DeleteAsync(Guid id)
+        {
+            var config = await _dataContext.ImportConfigurations.FindAsync(id);
+            if (config == null)
+            {
+                return false;
+            }
+
+            // Delete associated execution history records first
+            var historyRecords = await _dataContext.ImportExecutionHistories
+                .Where(h => h.ImportConfigurationId == id)
+                .ToListAsync();
+            _dataContext.ImportExecutionHistories.RemoveRange(historyRecords);
+
+            _dataContext.ImportConfigurations.Remove(config);
+            await _dataContext.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<int> DeleteBySourceIdAsync(string sourceId)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                return 0;
+            }
+
+            // Get all configurations for this source
+            var configs = await _dataContext.ImportConfigurations
+                .Where(c => c.TargetSourceId == sourceId)
+                .ToListAsync();
+
+            if (!configs.Any())
+            {
+                return 0;
+            }
+
+            // Get all config IDs for deletion
+            var configIds = configs.Select(c => c.Id).ToList();
+
+            // Delete associated execution history records first
+            var historyRecords = await _dataContext.ImportExecutionHistories
+                .Where(h => configIds.Contains(h.ImportConfigurationId))
+                .ToListAsync();
+            _dataContext.ImportExecutionHistories.RemoveRange(historyRecords);
+
+            // Delete the configurations
+            _dataContext.ImportConfigurations.RemoveRange(configs);
+            await _dataContext.SaveChangesAsync();
+
+            return configs.Count;
+        }
+
+        public async Task<bool> ExistsAsync(Guid id)
+        {
+            return await _dataContext.ImportConfigurations.AnyAsync(c => c.Id == id);
+        }
+    }
+}

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OptiGraphExtensions.Entities;
 
@@ -11,9 +12,11 @@ using OptiGraphExtensions.Entities;
 namespace OptiGraphExtensions.Migrations
 {
     [DbContext(typeof(OptiGraphExtensionsDataContext))]
-    partial class OptiGraphExtensionsDataContextModelSnapshot : ModelSnapshot
+    [Migration("20260115074652_AddJsonPathToImportConfigurations")]
+    partial class AddJsonPathToImportConfigurations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -43,9 +46,6 @@ namespace OptiGraphExtensions.Migrations
                     b.Property<string>("AuthValueOrPassword")
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
-
-                    b.Property<int>("ConsecutiveFailures")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -91,44 +91,10 @@ namespace OptiGraphExtensions.Migrations
                     b.Property<int?>("LastImportCount")
                         .HasColumnType("int");
 
-                    b.Property<string>("LastImportError")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool?>("LastImportSuccess")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("MaxRetries")
-                        .HasColumnType("int");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime?>("NextRetryAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("NextScheduledRunAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("NotificationEmail")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<int?>("ScheduleDayOfMonth")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ScheduleDayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ScheduleFrequency")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ScheduleIntervalValue")
-                        .HasColumnType("int");
-
-                    b.Property<TimeSpan?>("ScheduleTimeOfDay")
-                        .HasColumnType("time");
 
                     b.Property<string>("TargetContentType")
                         .IsRequired()
@@ -149,66 +115,7 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NextRetryAt");
-
-                    b.HasIndex("NextScheduledRunAt");
-
-                    b.HasIndex("TargetSourceId")
-                        .HasDatabaseName("IX_tbl_OptiGraphExtensions_ImportConfigurations_TargetSourceId");
-
                     b.ToTable("tbl_OptiGraphExtensions_ImportConfigurations");
-                });
-
-            modelBuilder.Entity("OptiGraphExtensions.Entities.ImportExecutionHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<long>("DurationTicks")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ExecutedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("ImportConfigurationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("ItemsFailed")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ItemsImported")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ItemsReceived")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ItemsSkipped")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RetryAttempt")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("Success")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Warnings")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("WasRetry")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("WasScheduled")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ImportConfigurationId");
-
-                    b.ToTable("tbl_OptiGraphExtensions_ImportExecutionHistory");
                 });
 
             modelBuilder.Entity("OptiGraphExtensions.Entities.PinnedResult", b =>
@@ -252,12 +159,6 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasIndex("CollectionId");
 
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_PinnedResults_IsActive");
-
-                    b.HasIndex("Language")
-                        .HasDatabaseName("IX_PinnedResults_Language");
-
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResults");
                 });
 
@@ -283,9 +184,6 @@ namespace OptiGraphExtensions.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_PinnedResultsCollections_IsActive");
 
                     b.ToTable("tbl_OptiGraphExtensions_PinnedResultsCollections");
                 });
@@ -357,13 +255,6 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_SavedQueries_IsActive");
-
-                    b.HasIndex("Name")
-                        .IsUnique()
-                        .HasDatabaseName("IX_SavedQueries_Name");
-
                     b.ToTable("tbl_OptiGraphExtensions_SavedQueries");
                 });
 
@@ -391,27 +282,7 @@ namespace OptiGraphExtensions.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Language")
-                        .HasDatabaseName("IX_Synonyms_Language");
-
-                    b.HasIndex("Slot")
-                        .HasDatabaseName("IX_Synonyms_Slot");
-
-                    b.HasIndex("Language", "Slot")
-                        .HasDatabaseName("IX_Synonyms_Language_Slot");
-
                     b.ToTable("tbl_OptiGraphExtensions_Synonyms");
-                });
-
-            modelBuilder.Entity("OptiGraphExtensions.Entities.ImportExecutionHistory", b =>
-                {
-                    b.HasOne("OptiGraphExtensions.Entities.ImportConfiguration", "ImportConfiguration")
-                        .WithMany("ExecutionHistory")
-                        .HasForeignKey("ImportConfigurationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ImportConfiguration");
                 });
 
             modelBuilder.Entity("OptiGraphExtensions.Entities.PinnedResult", b =>
@@ -423,11 +294,6 @@ namespace OptiGraphExtensions.Migrations
                         .IsRequired();
 
                     b.Navigation("Collection");
-                });
-
-            modelBuilder.Entity("OptiGraphExtensions.Entities.ImportConfiguration", b =>
-                {
-                    b.Navigation("ExecutionHistory");
                 });
 
             modelBuilder.Entity("OptiGraphExtensions.Entities.PinnedResultsCollection", b =>

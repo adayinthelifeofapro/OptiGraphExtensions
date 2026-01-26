@@ -1,6 +1,6 @@
 # OptiGraphExtensions
 
-An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, webhooks, saved queries, and request logs within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, webhook event management, GraphQL query building, and API monitoring.
+An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, webhooks, saved queries, request logs, and custom data sources within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, webhook event management, GraphQL query building, API monitoring, and external data integration.
 
 [![NuGet Version](https://img.shields.io/nuget/v/OptiGraphExtensions.svg)](https://www.nuget.org/packages/OptiGraphExtensions/)
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
@@ -81,6 +81,46 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, p
   - JSON export for programmatic processing
   - Exports respect current filter selections
 - **Detail View**: Click any log entry for complete information
+
+### 📦 Custom Data Management
+- Create and manage custom data sources in Optimizely Graph
+- **Schema Management**: Define custom content types and properties
+  - Visual schema builder with intuitive interface
+  - Support for multiple content types per source
+  - Property type definitions (String, Int, Float, Boolean, Date, DateTime, arrays)
+  - Searchable property configuration
+  - Raw JSON editor for advanced configurations
+- **Data Synchronization**: Sync external data to Optimizely Graph
+  - NdJSON format for efficient bulk data operations
+  - Language routing support for multilingual data
+  - Visual data entry with property validation
+  - Raw NdJSON editor for bulk operations
+- **Source Management**:
+  - Create sources with 1-4 character IDs
+  - Edit existing schemas (partial or full sync)
+  - Delete sources with confirmation
+  - View all custom data sources in your Graph instance
+- **External Data Import**: Import data from REST APIs
+  - Connect to any REST API endpoint
+  - Authentication support: None, API Key, Basic Auth, Bearer Token
+  - Field mapping from external JSON to custom data properties
+  - JSON path support for navigating nested response structures
+  - Schema inference from API responses
+  - Preview imports before execution
+  - Test connection functionality
+- **Scheduled Imports**: Automate recurring data imports
+  - Schedule frequencies: Hourly, Daily, Weekly, Monthly
+  - Configurable time of day and day of week/month
+  - Integrates with Optimizely CMS Scheduled Jobs
+  - Automatic retry with exponential backoff (1, 5, 15, 30 minutes)
+  - Email notifications on import failures
+  - Recovery notifications when failed imports succeed
+- **Execution History**: Track and audit import runs
+  - Success/failure status with detailed counts
+  - Items received, imported, skipped, and failed
+  - Duration and error message tracking
+  - Retry attempt tracking
+  - Scheduled vs manual execution tracking
 
 ### 🎨 Administration Interface
 - Clean, intuitive admin interface integrated with Optimizely CMS
@@ -219,9 +259,14 @@ src/
 │   │   │   ├── Services/           # Query execution, CSV export, schema discovery
 │   │   │   ├── Repositories/       # Saved query data access with caching
 │   │   │   └── Models/             # Query models and execution results
-│   │   └── RequestLogs/            # Request logs feature
-│   │       ├── Services/           # Log retrieval and export services
-│   │       └── Models/             # Log models and filter options
+│   │   ├── RequestLogs/            # Request logs feature
+│   │   │   ├── Services/           # Log retrieval and export services
+│   │   │   └── Models/             # Log models and filter options
+│   │   └── CustomData/             # Custom data management feature
+│   │       ├── Services/           # Schema, data sync, import, scheduling services
+│   │       ├── Repositories/       # Import configuration and history data access
+│   │       ├── ScheduledJobs/      # Optimizely CMS scheduled job for imports
+│   │       └── Models/             # Schema, data item, and import models
 │   ├── Menus/                      # CMS menu integration
 │   └── Views/                      # Razor views and layouts
 ├── OptiGraphExtensions.Tests/       # NUnit test project
@@ -326,6 +371,10 @@ The AddOn creates the following database tables:
   - Columns: Id, Title, IsActive, GraphCollectionId, CreatedAt, CreatedBy
 - `tbl_OptiGraphExtensions_PinnedResults`: Stores individual pinned results
   - Columns: Id, CollectionId, Phrases, TargetKey (GUID), TargetName (display name), Language, Priority, IsActive, GraphId, CreatedAt, CreatedBy
+- `tbl_OptiGraphExtensions_ImportConfigurations`: Stores external data import configurations
+  - Columns: Id, Name, Description, TargetSourceId, TargetContentType, ApiUrl, HttpMethod, AuthType, AuthKeyOrUsername, AuthValueOrPassword, FieldMappingsJson, IdFieldMapping, LanguageRouting, JsonPath, CustomHeadersJson, IsActive, LastImportAt, LastImportCount, ScheduleFrequency, ScheduleIntervalValue, ScheduleTimeOfDay, ScheduleDayOfWeek, ScheduleDayOfMonth, NextScheduledRunAt, MaxRetries, ConsecutiveFailures, NextRetryAt, LastImportSuccess, LastImportError, NotificationEmail, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
+- `tbl_OptiGraphExtensions_ImportExecutionHistory`: Stores import execution history
+  - Columns: Id, ImportConfigurationId, ExecutedAt, Success, ItemsReceived, ItemsImported, ItemsSkipped, ItemsFailed, DurationTicks, ErrorMessage, Warnings, WasRetry, RetryAttempt, WasScheduled
 
 ## Optimizely Graph Integration
 
@@ -407,6 +456,70 @@ The Request Logs feature provides visibility into API communications with Optimi
 | `path` | Filter by request path |
 | `success` | Filter by success status (true/false) |
 | `page` | Pagination page number |
+
+### Custom Data Management
+
+Custom Data allows you to define schemas and sync external data to Optimizely Graph for unified search experiences:
+
+| Feature | Description |
+|---------|-------------|
+| Schema Builder | Visual interface for defining content types and properties |
+| Data Sync | NdJSON-based synchronization with language routing |
+| Source Management | Create, edit, and delete custom data sources |
+| External Import | Import data from REST APIs with field mapping |
+| Scheduled Imports | Automate imports with configurable schedules |
+| Execution History | Track import runs with detailed metrics |
+
+**Schema API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/content/v3/sources` | List all data sources |
+| GET | `/api/content/v3/types?id={sourceId}` | Get schema for a source |
+| PUT | `/api/content/v3/types?id={sourceId}` | Create/replace schema (full sync) |
+| POST | `/api/content/v3/types?id={sourceId}` | Update schema (partial sync) |
+| DELETE | `/api/content/v3/sources?id={sourceId}` | Delete a source and its data |
+
+**Data Sync API:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/content/v2/data?id={sourceId}` | Sync data items using NdJSON format |
+
+**NdJSON Format:**
+```json
+{"index":{"_id":"unique-id","language_routing":"en"}}
+{"PropertyName":"value","AnotherProperty":"value","_type":"ContentTypeName"}
+```
+
+**Supported Property Types:**
+- `String`, `Int`, `Float`, `Boolean`
+- `Date`, `DateTime`
+- `StringArray`, `IntArray`, `FloatArray`
+
+**External Data Import:**
+
+Import configurations support the following authentication methods:
+
+| Auth Type | Configuration |
+|-----------|---------------|
+| None | No authentication required |
+| API Key | Header name + API key value |
+| Basic | Username + Password |
+| Bearer | Bearer token |
+
+**Scheduled Import Options:**
+
+| Frequency | Configuration |
+|-----------|---------------|
+| Hourly | Run every N hours (configurable interval) |
+| Daily | Run at specific time each day |
+| Weekly | Run on specific day of week at specific time |
+| Monthly | Run on specific day of month at specific time |
+
+**Retry Behavior:**
+- Automatic retry with exponential backoff
+- Retry delays: 1 minute, 5 minutes, 15 minutes, 30 minutes (max)
+- Configurable maximum retry attempts
+- Email notifications after max retries reached
 
 ## Authorization
 

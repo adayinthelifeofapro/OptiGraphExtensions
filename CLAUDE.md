@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is an Optimizely CMS 12 AddOn package called OptiGraphExtensions that provides management of synonyms, pinned results, and webhooks within Optimizely Graph. The project consists of the main library and a sample CMS implementation.
+This is an Optimizely CMS 12 AddOn package called OptiGraphExtensions that provides management of synonyms, pinned results, webhooks, query library, request logs, and custom data sources within Optimizely Graph. The project consists of the main library and a sample CMS implementation.
 
 ## Development Commands
 
@@ -62,6 +62,9 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 - `Entities/SynonymSlot.cs`: Enum defining synonym slots (ONE, TWO) for Optimizely Graph API
 - `Entities/PinnedResult.cs`: Pinned result entity model with collection relationships
 - `Entities/PinnedResultsCollection.cs`: Pinned results collection entity with Graph integration
+- `Entities/ImportConfiguration.cs`: External data import configuration with scheduling
+- `Entities/ImportExecutionHistory.cs`: Import execution history tracking
+- `Entities/ScheduleFrequency.cs`: Enum for schedule frequencies (None, Hourly, Daily, Weekly, Monthly)
 - Uses Entity Framework migrations for database management
 - SQL Server as the database provider
 
@@ -72,6 +75,9 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `/synonyms` - Synonym management
   - `/pinned-results` - Pinned results management
   - `/webhooks` - Webhook management
+  - `/query-library` - Query library management
+  - `/request-logs` - Request logs viewer
+  - `/custom-data` - Custom data source management
 - Protected by authorization policy requiring CmsAdmins, Administrator, or WebAdmins roles
 
 #### UI Components
@@ -80,6 +86,9 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - `Features/Synonyms/SynonymManagementComponentBase.cs`: Synonym management component
   - `Features/PinnedResults/PinnedResultsManagementComponentBase.cs`: Pinned results management component
   - `Features/Webhooks/WebhookManagementComponentBase.cs`: Webhook management component
+  - `Features/QueryLibrary/QueryLibraryManagementComponentBase.cs`: Query library component
+  - `Features/RequestLogs/RequestLogsManagementComponentBase.cs`: Request logs component
+  - `Features/CustomData/CustomDataManagementComponentBase.cs`: Custom data management component
 - Layout: `Views/Shared/Layouts/_LayoutBlazorAdminPage.cshtml`
 
 #### Module Integration
@@ -186,6 +195,108 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - Updates are implemented via delete-and-recreate pattern
   - Webhook IDs change after editing (new webhook created)
 
+##### Custom Data Feature (External Data Integration)
+- **Services**:
+  - `ICustomDataSchemaService` / `CustomDataSchemaService`: Schema CRUD operations against Optimizely Graph
+    - Create, read, update, delete custom data source schemas
+    - Full sync (PUT) replaces schema and data
+    - Partial sync (POST) preserves existing data
+  - `ICustomDataService` / `CustomDataService`: Data synchronization and retrieval
+    - NdJSON-based data sync to Graph
+    - GraphQL queries to retrieve synced data
+  - `ICustomDataValidationService` / `CustomDataValidationService`: Schema and data validation
+    - Source ID validation (1-4 lowercase alphanumeric characters)
+    - Content type and property validation
+    - Data item validation against schema
+  - `INdJsonBuilderService` / `NdJsonBuilderService`: NdJSON format handling
+    - Build NdJSON payloads for data sync
+    - Parse NdJSON for import operations
+  - `ISchemaParserService` / `SchemaParserService`: JSON schema conversion
+    - Convert between API format and internal models
+    - Display JSON generation for UI
+  - `IExternalDataImportService` / `ExternalDataImportService`: External API data import
+    - Test connection to external APIs
+    - Fetch and preview external data
+    - Map external JSON fields to custom data properties
+    - Execute full import with sync to Graph
+  - `IApiSchemaInferenceService` / `ApiSchemaInferenceService`: Schema inference from APIs
+    - Infer content type schemas from external API responses
+    - Support for JSON path navigation in nested responses
+    - Sample data extraction for preview
+  - `IScheduledImportService` / `ScheduledImportService`: Scheduled import management
+    - Calculate next scheduled run times
+    - Exponential backoff retry logic (1, 5, 15, 30 min)
+    - Record execution history
+    - Update configuration after execution
+  - `IImportNotificationService` / `ImportNotificationService`: Import notifications
+    - Email notifications on import failures
+    - Recovery notifications when previously failing imports succeed
+- **Repositories**:
+  - `IImportConfigurationRepository` / `ImportConfigurationRepository`: Import configuration data access
+  - `IImportExecutionHistoryRepository` / `ImportExecutionHistoryRepository`: Execution history data access
+- **Models**:
+  - `CustomDataSourceModel`: Source with content types, properties, languages
+  - `CustomDataItemModel`: Data item with properties and language routing
+  - `ContentTypeSchemaModel`: Content type definition with properties
+  - `PropertyTypeModel`: Property definition (name, type, searchable, index)
+  - `CreateSchemaRequest` / `UpdateSchemaRequest`: Schema operation DTOs
+  - `SyncDataRequest`: Data sync request with items and job ID
+  - `GraphSchemaResponse`: API response model for schema retrieval
+  - `ImportConfigurationModel`: Import configuration with API settings and field mappings
+  - `ImportResult`: Import execution result with counts and errors
+  - `FieldMapping`: Maps external field paths to custom data properties
+- **Entities**:
+  - `ImportConfiguration`: Saved import configuration entity
+    - API URL, HTTP method, authentication settings
+    - Field mappings and JSON path configuration
+    - Scheduling settings (frequency, time, day)
+    - Retry configuration and failure tracking
+    - Notification email settings
+  - `ImportExecutionHistory`: Execution history records
+    - Success/failure status
+    - Items received, imported, skipped, failed counts
+    - Duration, error messages, warnings
+    - Retry attempt tracking
+  - `ScheduleFrequency`: Enum (None, Hourly, Daily, Weekly, Monthly)
+- **Scheduled Job**:
+  - `ExternalDataImportScheduledJob`: Optimizely CMS scheduled job
+    - Processes all due import configurations
+    - Integrates with Optimizely CMS scheduled jobs system
+    - Supports stopping mid-execution
+    - Logs execution details for monitoring
+- **Components**:
+  - `CustomDataManagementComponentBase`: Main component with schema, data, and import management
+  - Dual-mode UI: Visual builder and Raw JSON/NdJSON editor
+  - Import configuration UI with field mapping
+- **Custom Data Features**:
+  - **Schema Management**: Create/edit content types with properties
+  - **Property Types**: String, Int, Float, Boolean, Date, DateTime, arrays
+  - **Language Support**: Multi-language data with language routing
+  - **Visual Builder**: Intuitive interface for schema and data entry
+  - **Raw Mode**: JSON/NdJSON editors for advanced users
+  - **External Data Import**: Import data from REST APIs
+    - Authentication: None, API Key, Basic Auth, Bearer Token
+    - Field mapping with JSON path support
+    - Schema inference from API responses
+    - Preview imports before execution
+  - **Scheduled Imports**: Automate data imports
+    - Schedule frequencies: Hourly, Daily, Weekly, Monthly
+    - Configurable time of day and day of week/month
+    - Automatic retry with exponential backoff
+    - Email notifications on failures
+  - **Execution History**: Track import runs
+    - Success/failure status with item counts
+    - Duration and error details
+    - Retry attempt tracking
+- **API Endpoints Used**:
+  - `GET /api/content/v3/sources`: List all data sources
+  - `GET /api/content/v3/types?id={sourceId}`: Get schema
+  - `PUT /api/content/v3/types?id={sourceId}`: Full schema sync
+  - `POST /api/content/v3/types?id={sourceId}`: Partial schema sync
+  - `DELETE /api/content/v3/sources?id={sourceId}`: Delete source
+  - `POST /api/content/v2/data?id={sourceId}`: Sync data (NdJSON)
+  - GraphQL endpoint for querying synced data
+
 ##### Architecture Improvements Applied
 - **SOLID Principles**: Services follow Single Responsibility, Interface Segregation, and Dependency Inversion
 - **DRY (Don't Repeat Yourself)**: Eliminated duplicate validation, error handling, and mapping code
@@ -223,6 +334,13 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - Basic authentication with Base64 encoded AppKey:Secret
   - Topic subscription for content events (doc.*, bulk.*, etc.)
   - Filter support for conditional webhook triggering
+- **Custom Data API Integration**:
+  - Schema management via `/api/content/v3/types` and `/api/content/v3/sources`
+  - Data sync via `/api/content/v2/data` using NdJSON format
+  - GraphQL queries for retrieving synced data
+  - Source-specific locale types (e.g., `test_Locales` for source ID "test")
+  - Basic authentication with Base64 encoded AppKey:Secret
+  - NdJSON format: action line + data line pairs
 
 ### Dependencies
 - .NET 8.0 target framework
@@ -290,6 +408,11 @@ All new services are automatically registered via `OptiGraphExtensionsServiceExt
 - Graph synchronization services with IHttpClientFactory
 - Content search service for autocomplete functionality
 - Webhook services for Optimizely Graph webhook management
+- Query library services for GraphQL query building and execution
+- Request log services for API monitoring
+- Custom data services for schema and data management
+- External data import services (import, scheduling, notifications)
+- Import configuration and execution history repositories
 - Component base classes
 - Cached repository decorators
 

@@ -15,7 +15,7 @@ public sealed class AdministrationController : Controller
         var model = new AdministrationViewModel
         {
             Title = "Opti Graph Extensions - About",
-            Subtitle = "OptiGraphExtensions is a comprehensive add-on for Optimizely CMS 12 that provides seamless management of synonyms and pinned results within Optimizely Graph. This add-on enables content editors and administrators to enhance search experiences through intelligent synonym mapping and strategic result pinning capabilities, all integrated directly into your Optimizely CMS administration interface."
+            Subtitle = "OptiGraphExtensions is a comprehensive add-on for Optimizely CMS 12 that provides seamless management of synonyms, pinned results, webhooks, queries, request logs, and custom data sources within Optimizely Graph. Features include intelligent synonym mapping, strategic result pinning, webhook subscriptions for content events, a visual GraphQL query builder, API request monitoring, and custom data management with scheduled imports from external APIs."
         };
 
         return View("~/Views/OptiGraphExtensions/Administration/About/Index.cshtml", model);
@@ -79,6 +79,18 @@ public sealed class AdministrationController : Controller
         };
 
         return View("~/Views/OptiGraphExtensions/Administration/RequestLogs/Index.cshtml", model);
+    }
+
+    [HttpGet]
+    [Route("~/optimizely-graphextensions/administration/custom-data")]
+    public IActionResult CustomData()
+    {
+        var model = new AdministrationViewModel
+        {
+            Title = "Opti Graph Extensions - Custom Data",
+        };
+
+        return View("~/Views/OptiGraphExtensions/Administration/CustomData/Index.cshtml", model);
     }
 
     [HttpGet]

@@ -29,6 +29,10 @@ using OptiGraphExtensions.Features.QueryLibrary.Services;
 using OptiGraphExtensions.Features.QueryLibrary.Services.Abstractions;
 using OptiGraphExtensions.Features.RequestLogs.Services;
 using OptiGraphExtensions.Features.RequestLogs.Services.Abstractions;
+using OptiGraphExtensions.Features.CustomData.Services;
+using OptiGraphExtensions.Features.CustomData.Services.Abstractions;
+using OptiGraphExtensions.Features.CustomData.Models;
+using OptiGraphExtensions.Features.CustomData.Repositories;
 
 namespace OptiGraphExtensions.Features.Configuration;
 
@@ -93,6 +97,14 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddHttpClient<IQueryExecutionService, QueryExecutionService>()
             .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
         services.AddHttpClient<IRequestLogService, RequestLogService>()
+            .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
+        services.AddHttpClient<ICustomDataSchemaService, CustomDataSchemaService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<ICustomDataService, CustomDataService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<IExternalDataImportService, ExternalDataImportService>()
+            .ConfigureHttpClient(client => client.Timeout = longRunningTimeout);
+        services.AddHttpClient<IApiSchemaInferenceService, ApiSchemaInferenceService>()
             .ConfigureHttpClient(client => client.Timeout = defaultTimeout);
 
         // Database
@@ -212,5 +224,22 @@ public static class OptiGraphExtensionsServiceExtensions
         services.AddScoped<IRawQueryService, RawQueryService>();
         services.AddScoped<ICsvExportService, CsvExportService>();
         services.AddScoped<ISavedQueryService, SavedQueryService>();
+
+        // Register Custom Data services
+        services.AddScoped<ICustomDataValidationService, CustomDataValidationService>();
+        services.AddScoped<INdJsonBuilderService, NdJsonBuilderService>();
+        services.AddScoped<ISchemaParserService, SchemaParserService>();
+        services.AddScoped<IValidationService<CreateSchemaRequest>, AttributeValidationService<CreateSchemaRequest>>();
+        services.AddScoped<IValidationService<SyncDataRequest>, AttributeValidationService<SyncDataRequest>>();
+
+        // Register Import Configuration repository
+        services.AddScoped<IImportConfigurationRepository, ImportConfigurationRepository>();
+
+        // Register Import Execution History repository
+        services.AddScoped<IImportExecutionHistoryRepository, ImportExecutionHistoryRepository>();
+
+        // Register Scheduled Import services
+        services.AddScoped<IScheduledImportService, ScheduledImportService>();
+        services.AddScoped<IImportNotificationService, ImportNotificationService>();
     }
 }

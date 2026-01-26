@@ -14,7 +14,14 @@
   
   <ItemGroup>
     <PackageReference Include="EPiServer.CMS" Version="12.31.0" />
+    <PackageReference Include="EPiServer.CMS.AspNetCore.Routing" Version="12.22.1" />
+    <PackageReference Include="EPiServer.Framework" Version="12.22.1" />
+    <PackageReference Include="EPiServer.CMS.UI.Core" Version="12.32.0" />
     <PackageReference Include="Geta.Optimizely.Sitemaps" Version="3.2.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Optimizely.ContentGraph.Cms" Version="4.2.0" />
     <PackageReference Include="Stott.Optimizely.RobotsHandler" Version="3.0.1" />
     <PackageReference Include="Stott.Security.Optimizely" Version="2.7.0" />
