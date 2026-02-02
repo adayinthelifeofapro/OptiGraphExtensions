@@ -569,3 +569,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## Support
 
 For issues, questions, or contributions, please visit the project repository or contact the development team.
+
+If you've found this learning centre helpful, consider buying me a coffee. It helps keep me caffeinated and creating more content!
+
+<a href="https://buymeacoffee.com/adayinthelife" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50"></a>
