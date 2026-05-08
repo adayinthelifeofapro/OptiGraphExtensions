@@ -11,7 +11,7 @@ namespace OptiGraphExtensions.Entities
 
         public Guid CollectionId { get; set; }
 
-        public string? Phrases { get; set; } // Comma-separated search phrases
+        public string? Phrases { get; set; } // Search phrase
 
         public string? TargetKey { get; set; } // Content GUID to pin
 
