@@ -1,10 +1,12 @@
 # OptiGraphExtensions
 
-An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, pinned results, webhooks, saved queries, request logs, and custom data sources within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, webhook event management, GraphQL query building, API monitoring, and external data integration.
+An Optimizely CMS 13 AddOn that provides comprehensive management of synonyms, pinned results, webhooks, saved queries, request logs, and custom data sources within Optimizely Graph. This package enables content editors and administrators to enhance search experiences through intelligent synonym mapping, result pinning capabilities, webhook event management, GraphQL query building, API monitoring, and external data integration.
 
 [![NuGet Version](https://img.shields.io/nuget/v/OptiGraphExtensions.svg)](https://www.nuget.org/packages/OptiGraphExtensions/)
-[![.NET 8.0](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
-[![Optimizely CMS 12](https://img.shields.io/badge/Optimizely%20CMS-12-blue.svg)](https://docs.developers.optimizely.com/content-management-system/v12.0.0-cms/)
+[![.NET 10.0](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![Optimizely CMS 13](https://img.shields.io/badge/Optimizely%20CMS-13-blue.svg)](https://docs.developers.optimizely.com/content-management-system/v13.0.0-CMS/)
+
+> **Note:** Version 7.x targets Optimizely CMS 13 / .NET 10. If you are still on CMS 12, use version 6.x of this package.
 
 ## Key Features
 
@@ -140,7 +142,7 @@ An Optimizely CMS 12 AddOn that provides comprehensive management of synonyms, p
 
 ### Installation
 
-Install the NuGet package in your Optimizely CMS 12 project:
+Install the NuGet package in your Optimizely CMS 13 project:
 
 ```bash
 dotnet add package OptiGraphExtensions
@@ -176,7 +178,7 @@ app.UseEndpoints(endpoints =>
 });
 ```
 
-Add your Graph instance configuration to appsettings.json, this information can be found within PaaSPortal for a PaaS instance of Optimizely CMS12 and within the dashboard of a SaaS instance of Optimizely CMS 12
+Add your Graph instance configuration to appsettings.json, this information can be found within PaaSPortal for a PaaS instance of Optimizely CMS 13 and within the dashboard of a SaaS instance of Optimizely CMS 13
 
 ```csharp
   "Optimizely": {
@@ -277,9 +279,9 @@ src/
 ## Development
 
 ### Prerequisites
-- .NET 8.0 SDK
+- .NET 10.0 SDK
 - SQL Server or SQL Server Express
-- Optimizely CMS 12 development environment
+- Optimizely CMS 13 development environment
 
 ### Building the Project
 
@@ -553,9 +555,9 @@ The project includes comprehensive NUnit tests covering:
 
 ## Dependencies
 
-- .NET 8.0
-- Optimizely CMS 12 (EPiServer.CMS.UI.Core 12.23.0)
-- Entity Framework Core 8.0.19 with SQL Server provider
+- .NET 10.0
+- Optimizely CMS 13 (EPiServer.Cms.UI.Core 13.0.2)
+- Entity Framework Core 10.0.7 with SQL Server provider
 - Microsoft.Extensions.Caching.Memory for caching
 - Microsoft.Extensions.Http for connection pooling
 - NUnit 3.14.0 for testing
