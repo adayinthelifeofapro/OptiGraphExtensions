@@ -1,5 +1,5 @@
 ﻿@using EPiServer.Framework.Web.Resources
-@using EPiServer.Shell.Navigation
+@addTagHelper *, EPiServer.Shell.UI
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +10,7 @@
 
     <!-- LightTheme -->
     @ClientResources.RenderResources("ShellCoreLightTheme")
-    
+
     <style>
         main {
             display: flex;
@@ -31,9 +31,9 @@
     <base href="~/" />
 </head>
 <body>
-    @Html.AntiForgeryToken() <!-- Thanks to: https://world.optimizely.com/blogs/matthew-slim/dates/2023/6/new-menu-system-released/ -->
-    @Html.CreatePlatformNavigationMenu()
-    <div @Html.ApplyPlatformNavigation() style="padding-left: 10px;background: white;padding: 1rem;">
+    @Html.AntiForgeryToken()
+    <platform-navigation />
+    <div style="padding: 56px 1rem 1rem 1rem; background: white;">
 
     @RenderBody()
 

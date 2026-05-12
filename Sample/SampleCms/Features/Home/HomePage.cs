@@ -45,5 +45,5 @@ public class HomePage : SitePageData
         GroupName = SystemTabNames.Settings,
         Order = 1000)]
     [AllowedTypes(typeof(SiteSettingsPage))]
-    public virtual PageReference? SiteSettings { get; set; }
+    public virtual ContentReference? SiteSettings { get; set; }
 }

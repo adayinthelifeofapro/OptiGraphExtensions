@@ -1,5 +1,4 @@
 using System.Text.Json;
-using EPiServer.PlugIn;
 using EPiServer.Scheduler;
 using EPiServer.ServiceLocation;
 using Microsoft.Extensions.Logging;
@@ -14,11 +13,10 @@ namespace OptiGraphExtensions.Features.CustomData.ScheduledJobs
     /// Scheduled job that executes due import configurations.
     /// Runs at configurable intervals and processes all imports that are scheduled to run.
     /// </summary>
-    [ScheduledPlugIn(
+    [ScheduledJob(
         DisplayName = "External Data Import",
         Description = "Executes scheduled external data imports for custom data sources. Configure individual import schedules in the Custom Data Management UI.",
-        GUID = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
-        SortIndex = 1000)]
+        GUID = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890")]
     public class ExternalDataImportScheduledJob : ScheduledJobBase
     {
         private bool _stopSignaled;

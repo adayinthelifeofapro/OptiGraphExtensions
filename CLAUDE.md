@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is an Optimizely CMS 12 AddOn package called OptiGraphExtensions that provides management of synonyms, pinned results, webhooks, query library, request logs, and custom data sources within Optimizely Graph. The project consists of the main library and a sample CMS implementation.
+This is an Optimizely CMS 13 AddOn package called OptiGraphExtensions that provides management of synonyms, pinned results, webhooks, query library, request logs, and custom data sources within Optimizely Graph. The project consists of the main library and a sample CMS implementation. Targets .NET 10.
 
 ## Development Commands
 
@@ -46,7 +46,7 @@ The project is configured to automatically generate NuGet packages on build (`Ge
 ### Project Structure
 - **src/OptiGraphExtensions/**: Main AddOn library
 - **src/OptiGraphExtensions.Tests/**: NUnit test project  
-- **Sample/SampleCms/**: Example Optimizely CMS 12 implementation demonstrating the AddOn
+- **Sample/SampleCms/**: Example Optimizely CMS 13 implementation demonstrating the AddOn
 
 ### Key Components
 
@@ -343,9 +343,9 @@ The project is configured to automatically generate NuGet packages on build (`Ge
   - NdJSON format: action line + data line pairs
 
 ### Dependencies
-- .NET 8.0 target framework
-- Optimizely CMS 12 (EPiServer.CMS.UI.Core 12.23.0)
-- Entity Framework Core 8.0.19 with SQL Server provider
+- .NET 10.0 target framework
+- Optimizely CMS 13 (EPiServer.Cms.UI.Core 13.0.2)
+- Entity Framework Core 10.0.7 with SQL Server provider
 - NUnit for testing with Moq framework for mocking
 - System.ComponentModel.Annotations for validation attributes
 
