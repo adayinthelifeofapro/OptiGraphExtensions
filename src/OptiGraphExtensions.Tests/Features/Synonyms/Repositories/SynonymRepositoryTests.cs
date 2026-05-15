@@ -237,4 +237,49 @@ public class SynonymRepositoryTests
         // Assert
         Assert.That(result, Is.False);
     }
+
+    [Test]
+    public async Task CreateManyAsync_WithValidSynonyms_AddsAllAndReturnsAll()
+    {
+        // Arrange
+        var newSynonyms = new List<Synonym>
+        {
+            new() { Id = Guid.NewGuid(), SynonymItem = "bulk1", Language = "en", Slot = OptiGraphExtensions.Entities.SynonymSlot.ONE, CreatedAt = DateTime.UtcNow, CreatedBy = "user1" },
+            new() { Id = Guid.NewGuid(), SynonymItem = "bulk2", Language = "en", Slot = OptiGraphExtensions.Entities.SynonymSlot.ONE, CreatedAt = DateTime.UtcNow, CreatedBy = "user1" },
+            new() { Id = Guid.NewGuid(), SynonymItem = "bulk3", Language = "fr", Slot = OptiGraphExtensions.Entities.SynonymSlot.TWO, CreatedAt = DateTime.UtcNow, CreatedBy = "user1" }
+        };
+
+        // Act
+        var result = await _repository.CreateManyAsync(newSynonyms);
+
+        // Assert
+        Assert.That(result.Count, Is.EqualTo(3));
+        var stored = await _dataContext.Synonyms.ToListAsync();
+        Assert.That(stored.Count, Is.EqualTo(3));
+        Assert.That(stored.Select(s => s.SynonymItem), Contains.Item("bulk1"));
+        Assert.That(stored.Select(s => s.SynonymItem), Contains.Item("bulk2"));
+        Assert.That(stored.Select(s => s.SynonymItem), Contains.Item("bulk3"));
+    }
+
+    [Test]
+    public async Task CreateManyAsync_WithEmptyCollection_DoesNotSaveAndReturnsEmpty()
+    {
+        // Arrange
+        var empty = new List<Synonym>();
+
+        // Act
+        var result = await _repository.CreateManyAsync(empty);
+
+        // Assert
+        Assert.That(result, Is.Empty);
+        var stored = await _dataContext.Synonyms.ToListAsync();
+        Assert.That(stored, Is.Empty);
+    }
+
+    [Test]
+    public void CreateManyAsync_WithNullCollection_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.ThrowsAsync<ArgumentNullException>(() => _repository.CreateManyAsync(null!));
+    }
 }

@@ -15,6 +15,13 @@ An Optimizely CMS 13 AddOn that provides comprehensive management of synonyms, p
 - **Language Routing**: Support for multiple synonym groups with different languages
 - **Synonym Slots**: Assign synonyms to Slot ONE or TWO for different synonym sets
 - **Slot Filter**: Filter synonyms by slot using dropdown selector
+- **Bulk Upload**: Import many synonyms at once from a CSV file or pasted CSV content
+  - Three-column format: `synonym, language, slot` (RFC 4180 quoting, optional header row)
+  - Validate-then-commit preview shows per-row status (valid / duplicate / invalid) with summary counters
+  - Skips rows that already exist in the database or appear twice in the upload
+  - Slot accepts `ONE`/`TWO` (case-insensitive) or `1`/`2`
+  - Auto-syncs the affected languages to Optimizely Graph after import
+  - Limits: 5 MB / 10,000 rows per upload
 - Real-time synchronization with Optimizely Graph (grouped by language and slot)
 - Intelligent caching with automatic invalidation
 - Clean admin interface with language filter and slot selection dropdowns
@@ -408,6 +415,38 @@ Synonyms are grouped by both language and slot when syncing, allowing for:
 - Language-specific synonym sets for multilingual sites
 - Multiple synonym configurations per language using different slots
 
+### Synonym Bulk Upload CSV Format
+
+The **Bulk Upload** button on the Synonyms admin page opens a modal that accepts a CSV file (`.csv` / `.txt`) or pasted CSV content. The parser follows RFC 4180, so synonym values containing commas must be quoted.
+
+**Columns** (header row is optional and auto-detected):
+
+| Column | Required | Constraints |
+|--------|----------|-------------|
+| `synonym` | Yes | Max 255 characters. Commas inside the value must be quoted: `"car, automobile, vehicle"` |
+| `language` | Yes | Max 10 characters. Must match a language enabled in the CMS |
+| `slot` | Yes | `ONE` or `TWO` (case-insensitive), `1` or `2` also accepted |
+
+**Example:**
+
+```csv
+synonym,language,slot
+"car, automobile, vehicle",en,ONE
+"bike, bicycle",en,ONE
+shoe => footwear,en,TWO
+```
+
+**Row outcomes shown in the preview:**
+
+| Status | Meaning |
+|--------|---------|
+| Valid | Will be imported |
+| Duplicate (in file) | Same synonym/language/slot appears earlier in this upload — skipped |
+| Duplicate (in DB) | Same synonym/language/slot already exists in the database — skipped |
+| Invalid | Parsing or validation error (message shown per row) |
+
+After clicking **Import**, only valid rows are inserted in a single batch, and the affected languages are automatically pushed to Optimizely Graph. Local data is preserved if the Graph sync fails — the result message will report the sync error.
+
 ### Webhook Management
 
 Webhooks allow you to receive notifications when content changes occur in Optimizely Graph. The AddOn provides full webhook management capabilities:
@@ -558,6 +597,7 @@ The project includes comprehensive NUnit tests covering:
 - .NET 10.0
 - Optimizely CMS 13 (EPiServer.Cms.UI.Core 13.0.2)
 - Entity Framework Core 10.0.7 with SQL Server provider
+- CsvHelper 33.0.1 for RFC 4180 CSV parsing in the synonym bulk upload
 - Microsoft.Extensions.Caching.Memory for caching
 - Microsoft.Extensions.Http for connection pooling
 - NUnit 3.14.0 for testing
