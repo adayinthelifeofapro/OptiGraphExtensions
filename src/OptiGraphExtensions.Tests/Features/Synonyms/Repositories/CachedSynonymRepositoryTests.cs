@@ -419,4 +419,66 @@ public class CachedSynonymRepositoryTests
     }
 
     #endregion
+
+    #region CreateManyAsync Tests
+
+    [Test]
+    public async Task CreateManyAsync_WithNonEmptyCollection_DelegatesAndInvalidatesCacheOnce()
+    {
+        // Arrange
+        var newSynonyms = new List<Synonym>
+        {
+            new() { Id = Guid.NewGuid(), SynonymItem = "bulk1" },
+            new() { Id = Guid.NewGuid(), SynonymItem = "bulk2" }
+        };
+        var expectedPattern = CacheKeyBuilder.BuildEntityPattern<Synonym>();
+        _mockRepository.Setup(x => x.CreateManyAsync(newSynonyms))
+                      .ReturnsAsync(newSynonyms);
+
+        // Act
+        var result = await _cachedRepository.CreateManyAsync(newSynonyms);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(newSynonyms));
+        _mockRepository.Verify(x => x.CreateManyAsync(newSynonyms), Times.Once);
+        _mockCacheService.Verify(x => x.RemoveByPatternAsync(expectedPattern), Times.Once);
+    }
+
+    [Test]
+    public async Task CreateManyAsync_WithEmptyResult_DoesNotInvalidateCache()
+    {
+        // Arrange
+        var empty = new List<Synonym>();
+        _mockRepository.Setup(x => x.CreateManyAsync(empty))
+                      .ReturnsAsync(empty);
+
+        // Act
+        var result = await _cachedRepository.CreateManyAsync(empty);
+
+        // Assert
+        Assert.That(result, Is.Empty);
+        _mockRepository.Verify(x => x.CreateManyAsync(empty), Times.Once);
+        _mockCacheService.Verify(x => x.RemoveByPatternAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public void CreateManyAsync_InnerRepositoryThrows_DoesNotInvalidateCache()
+    {
+        // Arrange
+        var newSynonyms = new List<Synonym>
+        {
+            new() { Id = Guid.NewGuid(), SynonymItem = "bulk1" }
+        };
+        _mockRepository.Setup(x => x.CreateManyAsync(newSynonyms))
+                      .ThrowsAsync(new InvalidOperationException("Database error"));
+
+        // Act & Assert
+        var exception = Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _cachedRepository.CreateManyAsync(newSynonyms));
+
+        Assert.That(exception!.Message, Is.EqualTo("Database error"));
+        _mockCacheService.Verify(x => x.RemoveByPatternAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    #endregion
 }

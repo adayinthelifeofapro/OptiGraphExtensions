@@ -1,0 +1,290 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using OptiGraphExtensions.Features.Synonyms.Models
+@inherits SynonymBulkUploadModalBase
+
+@if (IsOpen)
+{
+    <div class="epi-modal-overlay" @onclick="CloseAndReset">
+        <div class="epi-modal" @onclick:stopPropagation="true">
+            <div class="epi-modal-header">
+                <h2 class="epi-h2">Bulk Upload Synonyms</h2>
+                <button type="button" @onclick="CloseAndReset" class="epi-notificationbar-close" aria-label="Close">×</button>
+            </div>
+
+            <div class="epi-modal-body">
+                <div class="epi-help-text">
+                    <p>
+                        Expected CSV format: <code>synonym, language, slot</code>. A header row is optional.
+                        Slot values must be <code>ONE</code> or <code>TWO</code> (case-insensitive; <code>1</code> and <code>2</code> also accepted).
+                        Synonym text containing commas must be quoted, e.g. <code>"car, automobile, vehicle",en,ONE</code>.
+                    </p>
+                </div>
+
+                @if (!string.IsNullOrEmpty(GeneralError))
+                {
+                    <div class="epi-notificationbar epi-notificationbar--danger">
+                        <div class="epi-notificationbar-text">@GeneralError</div>
+                    </div>
+                }
+
+                @if (State != ModalState.Done)
+                {
+                    <div class="epi-form-row">
+                        <div class="epi-form-field" style="flex: 1;">
+                            <label class="epi-label">Upload CSV file</label>
+                            <InputFile OnChange="OnFileSelected" accept=".csv,.txt" class="epi-textbox" />
+                            @if (!string.IsNullOrEmpty(SelectedFileName))
+                            {
+                                <small>Selected: @SelectedFileName</small>
+                            }
+                            @if (!string.IsNullOrEmpty(FileLoadError))
+                            {
+                                <small style="color: #d9534f;">@FileLoadError</small>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="epi-form-row">
+                        <div class="epi-form-field" style="flex: 1;">
+                            <label class="epi-label">— or paste CSV content —</label>
+                            <textarea value="@PastedContent" @oninput="OnPastedContentChanged" class="epi-textbox"
+                                      rows="6" placeholder="@PastePlaceholder"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="epi-form-actions">
+                        <button @onclick="Validate" class="epi-button epi-button--primary"
+                                disabled="@(!CanValidate || State == ModalState.Validating)">
+                            @if (State == ModalState.Validating)
+                            {
+                                <span class="epi-loader-small"></span>
+                            }
+                            Validate
+                        </button>
+                    </div>
+                }
+
+                @if (Preview is not null && State != ModalState.Done)
+                {
+                    @if (Preview.GlobalErrors.Count > 0)
+                    {
+                        <div class="epi-notificationbar epi-notificationbar--danger">
+                            <div class="epi-notificationbar-text">
+                                @foreach (var err in Preview.GlobalErrors)
+                                {
+                                    <div>@err</div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (Preview.Rows.Count > 0)
+                    {
+                        <div class="epi-contentGroup" style="margin-top: 16px;">
+                            <div class="epi-groupHeader">
+                                <h2 class="epi-h2">Preview</h2>
+                                <div class="epi-header-actions">
+                                    <span class="epi-badge">@Preview.ValidCount valid</span>
+                                    <span class="epi-badge">@Preview.DuplicateInFileCount dup (in file)</span>
+                                    <span class="epi-badge">@Preview.DuplicateInDatabaseCount dup (in DB)</span>
+                                    <span class="epi-badge">@Preview.InvalidCount invalid</span>
+                                    <span class="epi-badge">@Preview.TotalCount total</span>
+                                </div>
+                            </div>
+                            <div class="epi-content" style="max-height: 320px; overflow: auto;">
+                                <table class="epi-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Line</th>
+                                            <th>Synonym</th>
+                                            <th>Language</th>
+                                            <th>Slot</th>
+                                            <th>Status</th>
+                                            <th>Message</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var row in Preview.Rows)
+                                        {
+                                            <tr>
+                                                <td>@row.LineNumber</td>
+                                                <td>@row.Synonym</td>
+                                                <td>@row.Language</td>
+                                                <td>@(row.Slot?.ToString() ?? row.RawSlot)</td>
+                                                <td><span class="@GetStatusBadgeClass(row.Status)">@GetStatusLabel(row.Status)</span></td>
+                                                <td><small>@row.Message</small></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+                }
+
+                @if (State == ModalState.Done && ImportResult is not null)
+                {
+                    @if (ImportResult.GraphSyncAttempted && !ImportResult.GraphSyncSucceeded)
+                    {
+                        <div class="epi-notificationbar epi-notificationbar--danger">
+                            <div class="epi-notificationbar-text">
+                                Imported @ImportResult.InsertedCount synonyms, but Graph sync failed: @ImportResult.GraphSyncErrorMessage
+                            </div>
+                        </div>
+                    }
+                    else if (ImportResult.InsertedCount > 0)
+                    {
+                        <div class="epi-notificationbar epi-notificationbar--success">
+                            <div class="epi-notificationbar-text">
+                                Imported @ImportResult.InsertedCount synonym@(ImportResult.InsertedCount == 1 ? "" : "s").
+                                @if (ImportResult.GraphSyncAttempted && ImportResult.GraphSyncSucceeded)
+                                {
+                                    <span>Synced to Graph for: @string.Join(", ", ImportResult.AffectedLanguages).</span>
+                                }
+                                @if (ImportResult.SkippedDuplicateCount > 0)
+                                {
+                                    <span> Skipped @ImportResult.SkippedDuplicateCount duplicate@(ImportResult.SkippedDuplicateCount == 1 ? "" : "s").</span>
+                                }
+                                @if (ImportResult.InvalidSkippedCount > 0)
+                                {
+                                    <span> Skipped @ImportResult.InvalidSkippedCount invalid row@(ImportResult.InvalidSkippedCount == 1 ? "" : "s").</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="epi-notificationbar epi-notificationbar--danger">
+                            <div class="epi-notificationbar-text">No rows were imported.</div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="epi-modal-footer">
+                @if (State == ModalState.Done)
+                {
+                    <button @onclick="CloseAndReset" class="epi-button epi-button--primary">Close</button>
+                }
+                else
+                {
+                    <button @onclick="CloseAndReset" class="epi-button epi-button--secondary" disabled="@(State == ModalState.Importing || State == ModalState.Validating)">Cancel</button>
+                    <button @onclick="Import" class="epi-button epi-button--primary" disabled="@(!CanImport || State == ModalState.Importing)">
+                        @if (State == ModalState.Importing)
+                        {
+                            <span class="epi-loader-small"></span>
+                        }
+                        @if (Preview is not null && Preview.ValidCount > 0)
+                        {
+                            <span>Import @Preview.ValidCount valid row@(Preview.ValidCount == 1 ? "" : "s")</span>
+                        }
+                        else
+                        {
+                            <span>Import</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .epi-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .epi-modal {
+            background: #fff;
+            border-radius: 4px;
+            width: 90%;
+            max-width: 960px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .epi-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .epi-modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+        }
+
+        .epi-modal-body input,
+        .epi-modal-body textarea,
+        .epi-modal-body select {
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+
+        .epi-modal-body .epi-form-row {
+            margin-bottom: 12px;
+        }
+
+        .epi-modal-body table {
+            max-width: 100%;
+        }
+
+        .epi-modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #f9f9f9;
+        }
+
+        .epi-help-text {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .epi-help-text code {
+            background: #fff;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 12px;
+        }
+
+        .epi-status-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .epi-status-badge--success {
+            background: #5cb85c;
+        }
+
+        .epi-status-badge--warning {
+            background: #f0ad4e;
+        }
+
+        .epi-status-badge--danger {
+            background: #d9534f;
+        }
+    </style>
+}

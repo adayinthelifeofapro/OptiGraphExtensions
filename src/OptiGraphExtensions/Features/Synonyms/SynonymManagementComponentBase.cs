@@ -40,6 +40,7 @@ namespace OptiGraphExtensions.Features.Synonyms
         protected SynonymModel EditingSynonym { get; set; } = new();
         protected bool IsEditing { get; set; }
         protected bool IsSyncing { get; set; }
+        protected bool IsBulkUploadOpen { get; set; }
 
         protected IEnumerable<LanguageInfo> AvailableLanguages { get; set; } = Enumerable.Empty<LanguageInfo>();
         protected string SelectedLanguageFilter { get; set; } = string.Empty;
@@ -211,6 +212,25 @@ namespace OptiGraphExtensions.Features.Synonyms
                 await GraphSyncService.SyncSynonymsToOptimizelyGraphAsync();
                 SetSuccessMessage("Successfully synced all synonyms to Optimizely Graph (grouped by language).");
             }, "syncing synonyms to Optimizely Graph");
+        }
+
+        protected void OpenBulkUpload()
+        {
+            ClearMessages();
+            IsBulkUploadOpen = true;
+        }
+
+        protected Task OnBulkUploadClosed()
+        {
+            IsBulkUploadOpen = false;
+            return Task.CompletedTask;
+        }
+
+        protected async Task OnBulkImported()
+        {
+            IsBulkUploadOpen = false;
+            SetSuccessMessage("Bulk import completed.");
+            await LoadSynonyms();
         }
 
         protected async Task SyncSynonymsForSelectedLanguage()

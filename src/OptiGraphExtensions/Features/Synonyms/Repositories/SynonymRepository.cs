@@ -39,6 +39,21 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
             return synonym;
         }
 
+        public async Task<IReadOnlyList<Synonym>> CreateManyAsync(IEnumerable<Synonym> synonyms)
+        {
+            ArgumentNullException.ThrowIfNull(synonyms);
+
+            var list = synonyms.ToList();
+            if (list.Count == 0)
+            {
+                return list;
+            }
+
+            await _dataContext.Synonyms.AddRangeAsync(list);
+            await _dataContext.SaveChangesAsync();
+            return list;
+        }
+
         public async Task<Synonym> UpdateAsync(Synonym synonym)
         {
             ArgumentNullException.ThrowIfNull(synonym);

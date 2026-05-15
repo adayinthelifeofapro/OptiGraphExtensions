@@ -111,6 +111,9 @@
                         }
                         Sync All to Graph
                     </button>
+                    <button @onclick="OpenBulkUpload" class="epi-button epi-button--secondary epi-button--small" disabled="@(IsLoading || IsSyncing)" title="Bulk upload synonyms from CSV file or paste">
+                        Bulk Upload
+                    </button>
                 </div>
             </div>
         </div>
@@ -267,6 +270,8 @@
         </div>
     </div>
 </div>
+
+<SynonymBulkUploadModal IsOpen="IsBulkUploadOpen" OnClose="OnBulkUploadClosed" OnImported="OnBulkImported" />
 
 <style>
     /* Basic Optimizely admin styles if not available */

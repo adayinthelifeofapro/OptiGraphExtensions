@@ -181,6 +181,8 @@ public static class OptiGraphExtensionsServiceExtensions
         });
         services.AddScoped<ISynonymService, SynonymService>();
         services.AddScoped<ISynonymGraphSyncService, SynonymGraphSyncService>();
+        services.AddScoped<ISynonymCsvParserService, SynonymCsvParserService>();
+        services.AddScoped<ISynonymBulkImportService, SynonymBulkImportService>();
         
         // Register pinned results repositories and services with caching decorators
         services.AddScoped<PinnedResultRepository>();

@@ -8,6 +8,7 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
         Task<IEnumerable<Synonym>> GetByLanguageAsync(string language);
         Task<Synonym?> GetByIdAsync(Guid id);
         Task<Synonym> CreateAsync(Synonym synonym);
+        Task<IReadOnlyList<Synonym>> CreateManyAsync(IEnumerable<Synonym> synonyms);
         Task<Synonym> UpdateAsync(Synonym synonym);
         Task<bool> DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);

@@ -77,6 +77,18 @@ namespace OptiGraphExtensions.Features.Synonyms.Repositories
             return result;
         }
 
+        public async Task<IReadOnlyList<Synonym>> CreateManyAsync(IEnumerable<Synonym> synonyms)
+        {
+            var result = await _repository.CreateManyAsync(synonyms);
+
+            if (result.Count > 0)
+            {
+                await InvalidateSynonymCacheAsync();
+            }
+
+            return result;
+        }
+
         public async Task<Synonym> UpdateAsync(Synonym synonym)
         {
             var result = await _repository.UpdateAsync(synonym);
